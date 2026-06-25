@@ -1,5 +1,6 @@
 package com.minitimer.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -18,10 +19,20 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,21 +68,64 @@ private val KEYS = listOf(
     listOf("00", "0", "del"),
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TimerApp(vm: TimerViewModel, requestOverlayPermission: () -> Unit) {
     val t = I18n.get(vm.settings.language)
     val accent = Color(vm.settings.accent)
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BG)
-            .padding(horizontal = 24.dp)
-    ) {
-        when {
-            vm.showSettings -> SettingsScreen(vm, requestOverlayPermission)
-            vm.phase == Phase.SETUP -> SetupScreen(vm, accent, t)
-            else -> CountdownScreen(vm, accent, t)
+    BackHandler(enabled = vm.showSettings) { vm.showSettings = false }
+
+    Scaffold(
+        containerColor = BG,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        if (vm.showSettings) t.settings else t.title,
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                },
+                navigationIcon = {
+                    if (vm.showSettings) {
+                        IconButton(onClick = { vm.showSettings = false }) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = Color.White,
+                            )
+                        }
+                    }
+                },
+                actions = {
+                    if (!vm.showSettings && vm.phase == Phase.SETUP) {
+                        IconButton(onClick = { vm.showSettings = true }) {
+                            Icon(
+                                Icons.Filled.Settings,
+                                contentDescription = "Settings",
+                                tint = TEXT_DIM,
+                            )
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = Color.Transparent,
+                ),
+            )
+        },
+    ) { inner ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(inner)
+                .padding(horizontal = 24.dp)
+        ) {
+            when {
+                vm.showSettings -> SettingsScreen(vm, requestOverlayPermission)
+                vm.phase == Phase.SETUP -> SetupScreen(vm, accent, t)
+                else -> CountdownScreen(vm, accent, t)
+            }
         }
     }
 }
@@ -79,12 +133,10 @@ fun TimerApp(vm: TimerViewModel, requestOverlayPermission: () -> Unit) {
 @Composable
 private fun SetupScreen(vm: TimerViewModel, accent: Color, t: com.minitimer.i18n.Strings) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(top = 56.dp),
+        modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        TopBar(title = t.title, onSettings = { vm.showSettings = true })
-
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(16.dp))
 
         Row(verticalAlignment = Alignment.Bottom) {
             TimePart(pad2(vm.setH), "h", vm.setH > 0, accent)
@@ -120,14 +172,19 @@ private fun SetupScreen(vm: TimerViewModel, accent: Color, t: com.minitimer.i18n
         Spacer(Modifier.height(12.dp))
 
         val canStart = vm.setH * 3600 + vm.setM * 60 + vm.setS > 0
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(32.dp))
-                .background(if (canStart) accent else TRACK)
-                .clickable(enabled = canStart) { vm.start() }
-                .padding(horizontal = 48.dp, vertical = 16.dp),
+        Button(
+            onClick = { vm.start() },
+            enabled = canStart,
+            shape = RoundedCornerShape(32.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = accent,
+                contentColor = ON_ACCENT,
+                disabledContainerColor = TRACK,
+                disabledContentColor = TEXT_DIM,
+            ),
+            contentPadding = PaddingValues(horizontal = 48.dp, vertical = 16.dp),
         ) {
-            Text(t.start, color = ON_ACCENT, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text(t.start, fontSize = 18.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -139,12 +196,10 @@ private fun CountdownScreen(vm: TimerViewModel, accent: Color, t: com.minitimer.
     val endEpoch = System.currentTimeMillis() + vm.remainingMs
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(top = 56.dp),
+        modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(t.title, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
-
-        Spacer(Modifier.height(36.dp))
+        Spacer(Modifier.height(24.dp))
 
         ProgressRing(progress = if (isDone) 0f else progress, accent = if (isDone) DONE_RED else accent) {
             if (isDone) {
@@ -220,24 +275,6 @@ private fun ProgressRing(progress: Float, accent: Color, content: @Composable ()
 }
 
 @Composable
-fun TopBar(title: String, onSettings: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Spacer(Modifier.size(40.dp))
-        Text(title, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
-        Box(
-            modifier = Modifier.size(40.dp).clip(CircleShape).clickable { onSettings() },
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = TEXT_DIM)
-        }
-    }
-}
-
-@Composable
 private fun TimePart(value: String, unit: String, active: Boolean, accent: Color) {
     Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(horizontal = 6.dp)) {
         Text(
@@ -304,19 +341,31 @@ fun ControlButton(
     muted: Boolean = false,
     onClick: () -> Unit,
 ) {
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(32.dp))
-            .background(if (muted) SURFACE else accent)
-            .clickable { onClick() }
-            .padding(vertical = 16.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            label,
-            color = if (muted) Color.White else ON_ACCENT,
-            fontSize = 17.sp,
-            fontWeight = FontWeight.SemiBold,
-        )
+    if (muted) {
+        FilledTonalButton(
+            onClick = onClick,
+            modifier = modifier,
+            shape = RoundedCornerShape(32.dp),
+            colors = ButtonDefaults.filledTonalButtonColors(
+                containerColor = SURFACE,
+                contentColor = Color.White,
+            ),
+            contentPadding = PaddingValues(vertical = 16.dp),
+        ) {
+            Text(label, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+        }
+    } else {
+        Button(
+            onClick = onClick,
+            modifier = modifier,
+            shape = RoundedCornerShape(32.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = accent,
+                contentColor = ON_ACCENT,
+            ),
+            contentPadding = PaddingValues(vertical = 16.dp),
+        ) {
+            Text(label, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+        }
     }
 }
