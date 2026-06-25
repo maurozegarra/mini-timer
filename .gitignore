@@ -13,6 +13,7 @@ android-native/captures/
 android-native/.idea/
 android-native/local.properties
 *.apk
+!releases/*.apk
 *.aab
 *.keystore
 *.jks
