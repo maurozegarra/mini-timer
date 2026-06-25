@@ -20,11 +20,20 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.InputChip
+import androidx.compose.material3.InputChipDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -48,7 +57,10 @@ import com.minitimer.ui.theme.ON_ACCENT
 import com.minitimer.ui.theme.SURFACE
 import com.minitimer.util.formatRemaining
 
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@OptIn(
+    androidx.compose.foundation.layout.ExperimentalLayoutApi::class,
+    ExperimentalMaterial3Api::class,
+)
 @Composable
 fun SettingsScreen(vm: TimerViewModel, requestOverlayPermission: () -> Unit) {
     val s = vm.settings
@@ -56,28 +68,12 @@ fun SettingsScreen(vm: TimerViewModel, requestOverlayPermission: () -> Unit) {
     val accent = Color(s.accent)
     var presetInput by remember { mutableStateOf("") }
 
-    Column(modifier = Modifier.fillMaxSize().padding(top = 56.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Box(
-                modifier = Modifier.size(40.dp).clip(CircleShape).clickable { vm.showSettings = false },
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
-            }
-            Text(t.settings, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.size(40.dp))
-        }
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(top = 8.dp, bottom = 48.dp),
-        ) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(top = 8.dp, bottom = 48.dp),
+    ) {
             // Idioma
             SectionLabel(t.language)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -87,12 +83,16 @@ fun SettingsScreen(vm: TimerViewModel, requestOverlayPermission: () -> Unit) {
 
             // Color
             SectionLabel(t.color)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 ACCENT_COLORS.forEach { c ->
                     val selected = s.accent == c
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(36.dp)
                             .clip(CircleShape)
                             .background(Color(c))
                             .then(
@@ -108,32 +108,33 @@ fun SettingsScreen(vm: TimerViewModel, requestOverlayPermission: () -> Unit) {
             SectionLabel(t.presets)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 s.presets.forEach { sec ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(SURFACE)
-                            .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
-                    ) {
-                        Text(
-                            formatRemaining(sec * 1000L),
-                            color = accent,
-                            fontFamily = JetBrainsMono,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 15.sp,
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Box(
-                            modifier = Modifier
-                                .size(22.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFF33363A))
-                                .clickable { vm.removePreset(sec) },
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text("\u00D7", color = Color.White, fontSize = 16.sp)
-                        }
-                    }
+                    InputChip(
+                        selected = false,
+                        onClick = { vm.removePreset(sec) },
+                        label = {
+                            Text(
+                                formatRemaining(sec * 1000L),
+                                color = accent,
+                                fontFamily = JetBrainsMono,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp,
+                            )
+                        },
+                        trailingIcon = {
+                            Icon(
+                                Icons.Filled.Close,
+                                contentDescription = "Remove",
+                                modifier = Modifier.size(16.dp),
+                            )
+                        },
+                        shape = RoundedCornerShape(20.dp),
+                        colors = InputChipDefaults.inputChipColors(
+                            containerColor = SURFACE,
+                            labelColor = accent,
+                            trailingIconColor = Color.White,
+                        ),
+                        border = null,
+                    )
                 }
             }
             Spacer(Modifier.height(12.dp))
@@ -154,16 +155,16 @@ fun SettingsScreen(vm: TimerViewModel, requestOverlayPermission: () -> Unit) {
                     ),
                 )
                 Spacer(Modifier.width(10.dp))
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(accent)
-                        .clickable {
-                            if (vm.addPreset(presetInput)) presetInput = ""
-                        }
-                        .padding(horizontal = 22.dp, vertical = 14.dp),
+                Button(
+                    onClick = { if (vm.addPreset(presetInput)) presetInput = "" },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = accent,
+                        contentColor = ON_ACCENT,
+                    ),
+                    contentPadding = PaddingValues(horizontal = 22.dp, vertical = 14.dp),
                 ) {
-                    Text(t.add, color = ON_ACCENT, fontWeight = FontWeight.Bold)
+                    Text(t.add, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -188,16 +189,14 @@ fun SettingsScreen(vm: TimerViewModel, requestOverlayPermission: () -> Unit) {
             }
 
             Spacer(Modifier.height(28.dp))
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(SURFACE)
-                    .clickable { vm.resetSettings() }
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
+            TextButton(
+                onClick = { vm.resetSettings() },
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFFF7A7A)),
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
             ) {
-                Text(t.reset, color = Color(0xFFFF7A7A), fontWeight = FontWeight.SemiBold)
+                Text(t.reset, fontWeight = FontWeight.SemiBold)
             }
-        }
     }
 }
 
@@ -208,20 +207,22 @@ private fun SectionLabel(text: String) {
     Spacer(Modifier.height(12.dp))
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun Chip(label: String, selected: Boolean, accent: Color, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(20.dp))
-            .background(if (selected) accent else SURFACE)
-            .clickable { onClick() }
-            .padding(horizontal = 18.dp, vertical = 10.dp),
-    ) {
-        Text(
-            label,
-            color = if (selected) ON_ACCENT else Color(0xFFCFD3D6),
-            fontSize = 15.sp,
-            fontWeight = FontWeight.SemiBold,
-        )
-    }
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = {
+            Text(label, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        },
+        shape = RoundedCornerShape(20.dp),
+        colors = FilterChipDefaults.filterChipColors(
+            containerColor = SURFACE,
+            labelColor = Color(0xFFCFD3D6),
+            selectedContainerColor = accent,
+            selectedLabelColor = ON_ACCENT,
+        ),
+        border = null,
+    )
 }
