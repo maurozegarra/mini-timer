@@ -1,0 +1,35 @@
+# Node / Expo
+node_modules/
+.expo/
+.expo-shared/
+npm-debug.*
+*.log
+
+# Android / Gradle
+android-native/.gradle/
+android-native/build/
+android-native/app/build/
+android-native/captures/
+android-native/.idea/
+android-native/local.properties
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# Java temp / build artifacts
+*.class
+/TlsCheck.java
+/Dl.java
+/Probe.java
+
+# Certs / secrets
+*.pem
+*.p12
+.npmrc
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
