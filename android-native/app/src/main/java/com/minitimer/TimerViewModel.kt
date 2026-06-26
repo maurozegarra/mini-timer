@@ -50,12 +50,16 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         TimerBus.accent.value = settings.accent
-        restoreTimerState()
+        if (!restoreTimerState()) {
+            // Sin timer activo: pre-rellenar con la última duración seleccionada.
+            val last = store.loadLastDuration()
+            if (last > 0) digits = secondsToDigits(last)
+        }
     }
 
     /** Restaura un timer activo tras la muerte del proceso (swipe en Recientes). */
-    private fun restoreTimerState() {
-        val st = store.loadTimerState() ?: return
+    private fun restoreTimerState(): Boolean {
+        val st = store.loadTimerState() ?: return false
         totalMs = st.totalMs
         when (st.phase) {
             Phase.RUNNING.name -> {
@@ -81,7 +85,16 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
                 remainingMs = 0
                 onFinished()
             }
+            else -> return false
         }
+        return true
+    }
+
+    private fun secondsToDigits(sec: Int): String {
+        val h = sec / 3600
+        val m = (sec % 3600) / 60
+        val s = sec % 60
+        return "%02d%02d%02d".format(h, m, s).trimStart('0')
     }
 
     private fun saveTimerState() {
@@ -126,6 +139,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
 
     fun startWithSeconds(sec: Int) {
         if (sec <= 0) return
+        store.saveLastDuration(sec)
         val ms = sec * 1000L
         endAt = System.currentTimeMillis() + ms
         totalMs = ms
