@@ -1,6 +1,10 @@
 package com.minitimer
 
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+
+/** Comandos que la notificación Live Update envía al ViewModel. */
+enum class TimerCommand { PAUSE, RESUME, CANCEL }
 
 /**
  * Estado global del timer compartido en el proceso, para que el
@@ -8,6 +12,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
  * restante en vivo sin acoplarse al ViewModel.
  */
 object TimerBus {
+
+    /**
+     * Comandos disparados desde los botones del Now Bar (Pausa/Reanudar/Cancelar).
+     * El ViewModel los colecciona y ejecuta la acción correspondiente.
+     */
+    val command = MutableSharedFlow<TimerCommand>(extraBufferCapacity = 8)
     /** Texto a mostrar (tiempo restante o "¡Tiempo!"). */
     val display = MutableStateFlow("")
 

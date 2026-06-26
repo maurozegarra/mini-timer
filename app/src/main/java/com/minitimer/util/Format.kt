@@ -18,6 +18,23 @@ fun formatRemaining(ms: Long): String {
     return if (h > 0) "$h:${pad2(m)}:${pad2(s)}" else "$m:${pad2(s)}"
 }
 
+/**
+ * Duración compacta para el Now Bar: "10 m", "1 h 30 m", "1 m 30 s", "45 s".
+ * Solo incluye las unidades distintas de cero.
+ */
+fun formatDurationShort(ms: Long): String {
+    val total = (ms.coerceAtLeast(0) / 1000)
+    val h = (total / 3600).toInt()
+    val m = ((total % 3600) / 60).toInt()
+    val s = (total % 60).toInt()
+    val parts = buildList {
+        if (h > 0) add("$h h")
+        if (m > 0) add("$m m")
+        if (s > 0) add("$s s")
+    }
+    return if (parts.isEmpty()) "0 s" else parts.joinToString(" ")
+}
+
 /** Hora de finalización con segundos, respetando el locale (12/24h). */
 fun formatClock(epochMillis: Long, locale: Locale): String {
     val time = Instant.ofEpochMilli(epochMillis)

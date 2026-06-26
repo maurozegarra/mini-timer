@@ -82,6 +82,16 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
             val last = store.loadLastDuration()
             if (last > 0) digits = secondsToDigits(last)
         }
+        // Comandos desde los botones del Now Bar (Pausa/Reanudar/Cancelar).
+        viewModelScope.launch {
+            TimerBus.command.collect { cmd ->
+                when (cmd) {
+                    TimerCommand.PAUSE -> if (phase == Phase.RUNNING) pause()
+                    TimerCommand.RESUME -> if (phase == Phase.PAUSED) resume()
+                    TimerCommand.CANCEL -> cancel()
+                }
+            }
+        }
     }
 
     /** En el primer arranque selecciona "Beep" como tono por defecto si existe. */

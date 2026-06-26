@@ -14,6 +14,11 @@ import android.os.PowerManager
 import com.minitimer.MainActivity
 import com.minitimer.R
 import com.minitimer.TimerBus
+import com.minitimer.TimerCommand
+import com.minitimer.data.SettingsStore
+import com.minitimer.i18n.I18n
+import com.minitimer.util.formatClock
+import com.minitimer.util.formatDurationShort
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -39,7 +44,14 @@ class LiveTimerService : Service() {
 
     // No reiniciar el servicio con estado vacío si el sistema lo mata (p. ej.
     // al hacer swipe en Recientes): el estado se restaura desde el ViewModel.
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_NOT_STICKY
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        when (intent?.action) {
+            ACTION_PAUSE -> TimerBus.command.tryEmit(TimerCommand.PAUSE)
+            ACTION_RESUME -> TimerBus.command.tryEmit(TimerCommand.RESUME)
+            ACTION_CANCEL -> TimerBus.command.tryEmit(TimerCommand.CANCEL)
+        }
+        return START_NOT_STICKY
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -102,6 +114,17 @@ class LiveTimerService : Service() {
         val display = TimerBus.display.value.ifEmpty { "0:00" }
         val running = !done && !paused
 
+        val t = I18n.get(SettingsStore(this).load().language)
+
+        // Línea secundaria: "<duración seleccionada> / <hora de término>".
+        val durationLabel = formatDurationShort(total)
+        val infoLine = when {
+            done -> t.timeUp
+            running && endAt > 0L -> "$durationLabel / ${formatClock(endAt, t.locale)}"
+            paused -> "$durationLabel · ${t.paused}"
+            else -> durationLabel
+        }
+
         val pi = PendingIntent.getActivity(
             this,
             0,
@@ -113,13 +136,27 @@ class LiveTimerService : Service() {
 
         val builder = Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_timer)
-            .setContentTitle("Mini Timer")
-            .setContentText(display)
+            // El countdown en vivo lo provee el cronómetro; el título secundario
+            // muestra la duración y la hora de término. No se repite "Mini Timer".
+            .setContentTitle(infoLine)
             .setColor(accent)
             .setCategory(Notification.CATEGORY_STOPWATCH)
             .setOngoing(!done)
             .setOnlyAlertOnce(true)
+            // Mostrar el contenido completo (countdown + botones) también en la
+            // pantalla de bloqueo / Now Bar, sin ocultarlo.
+            .setVisibility(Notification.VISIBILITY_PUBLIC)
             .setContentIntent(pi)
+
+        // Botones del Now Bar: Pausa/Reanudar + Cancelar (no en estado terminado).
+        if (!done) {
+            if (running) {
+                builder.addAction(action(R.drawable.ic_notif_pause, t.pause, ACTION_PAUSE))
+            } else {
+                builder.addAction(action(R.drawable.ic_notif_play, t.resume, ACTION_RESUME))
+            }
+            builder.addAction(action(R.drawable.ic_notif_close, t.cancel, ACTION_CANCEL))
+        }
 
         // Mostrar la notificación de inmediato (sin el diferimiento de 10s que
         // Android aplica por defecto a los foreground services desde API 31).
@@ -165,6 +202,22 @@ class LiveTimerService : Service() {
         return builder.build()
     }
 
+    /** Crea una acción de notificación que envía un comando al servicio. */
+    private fun action(icon: Int, title: String, actionName: String): Notification.Action {
+        val intent = Intent(this, LiveTimerService::class.java).setAction(actionName)
+        val pi = PendingIntent.getService(
+            this,
+            actionName.hashCode(),
+            intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        return Notification.Action.Builder(
+            android.graphics.drawable.Icon.createWithResource(this, icon),
+            title,
+            pi,
+        ).build()
+    }
+
     private fun ensureChannel() {
         val nm = getSystemService(NotificationManager::class.java)
         val channel = NotificationChannel(
@@ -202,6 +255,9 @@ class LiveTimerService : Service() {
     companion object {
         private const val CHANNEL_ID = "mini_timer_live_v2"
         private const val NOTIF_ID = 42
+        private const val ACTION_PAUSE = "com.minitimer.action.PAUSE"
+        private const val ACTION_RESUME = "com.minitimer.action.RESUME"
+        private const val ACTION_CANCEL = "com.minitimer.action.CANCEL"
 
         fun start(context: Context) {
             val intent = Intent(context, LiveTimerService::class.java)
