@@ -1,17 +1,16 @@
-# Node / Expo
-node_modules/
-.expo/
-.expo-shared/
-npm-debug.*
+# Logs / crash dumps
 *.log
+hs_err_pid*
+replay_pid*
 
 # Android / Gradle
-android-native/.gradle/
-android-native/build/
-android-native/app/build/
-android-native/captures/
-android-native/.idea/
-android-native/local.properties
+.gradle/
+.kotlin/
+build/
+app/build/
+captures/
+.idea/
+local.properties
 *.apk
 !releases/*.apk
 *.aab
