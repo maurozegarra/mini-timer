@@ -32,6 +32,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.InputChipDefaults
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
@@ -176,6 +178,39 @@ fun SettingsScreen(vm: TimerViewModel) {
                         vm.setAutoDismiss(v)
                     }
                 }
+            }
+
+            // Ignorar modo silencio
+            Spacer(Modifier.height(24.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        t.ignoreSilent,
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        t.ignoreSilentDesc,
+                        color = Color(0xFF9AA0A4),
+                        fontSize = 13.sp,
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                Switch(
+                    checked = s.ignoreSilent,
+                    onCheckedChange = { vm.setIgnoreSilent(it) },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = ON_ACCENT,
+                        checkedTrackColor = accent,
+                        uncheckedThumbColor = Color(0xFFCFD3D6),
+                        uncheckedTrackColor = SURFACE,
+                    ),
+                )
             }
 
             Spacer(Modifier.height(28.dp))

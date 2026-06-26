@@ -23,6 +23,8 @@ data class Strings(
     val reset: String,
     val presetPlaceholder: String,
     val autoDismiss: String,
+    val ignoreSilent: String,
+    val ignoreSilentDesc: String,
     val on: String,
     val off: String,
 )
@@ -50,6 +52,8 @@ object I18n {
         reset = "Restablecer valores",
         presetPlaceholder = "mm:ss o hh:mm:ss",
         autoDismiss = "Auto descartar",
+        ignoreSilent = "Ignorar modo silencio",
+        ignoreSilentDesc = "Reproducir el sonido del temporizador en modo silencio o vibración",
         on = "Activado",
         off = "Desactivado",
     )
@@ -74,6 +78,8 @@ object I18n {
         reset = "Reset to defaults",
         presetPlaceholder = "mm:ss or hh:mm:ss",
         autoDismiss = "Auto dismiss",
+        ignoreSilent = "Ignore silence mode",
+        ignoreSilentDesc = "Play timer sound in the silence or vibration mode",
         on = "On",
         off = "Off",
     )
