@@ -289,10 +289,14 @@ class LiveTimerService : Service() {
 
     private fun ensureChannel() {
         val nm = getSystemService(NotificationManager::class.java)
+        // IMPORTANCE_MIN: la notificación del foreground service NO muestra ícono
+        // en la barra de estado (queda al fondo de la sombra). La cápsula/Now Bar
+        // del lock screen sigue apareciendo vía promoción (setRequestPromotedOngoing)
+        // cuando corresponde. Así, desbloqueado+background solo se ve el overlay.
         val channel = NotificationChannel(
             CHANNEL_ID,
             "Timer",
-            NotificationManager.IMPORTANCE_DEFAULT,
+            NotificationManager.IMPORTANCE_MIN,
         ).apply {
             setShowBadge(false)
             setSound(null, null)
@@ -326,7 +330,7 @@ class LiveTimerService : Service() {
     }
 
     companion object {
-        private const val CHANNEL_ID = "mini_timer_live_v2"
+        private const val CHANNEL_ID = "mini_timer_live_v3"
         private const val NOTIF_ID = 42
         private const val ACTION_PAUSE = "com.minitimer.action.PAUSE"
         private const val ACTION_RESUME = "com.minitimer.action.RESUME"
