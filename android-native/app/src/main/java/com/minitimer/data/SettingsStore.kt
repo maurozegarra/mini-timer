@@ -72,6 +72,13 @@ class SettingsStore(context: Context) {
             .apply()
     }
 
+    /** Última duración (en segundos) que el usuario inició, para pre-rellenarla. */
+    fun saveLastDuration(seconds: Int) {
+        prefs.edit().putInt(KEY_LAST_DURATION, seconds).apply()
+    }
+
+    fun loadLastDuration(): Int = prefs.getInt(KEY_LAST_DURATION, 0)
+
     private companion object {
         const val KEY_ACCENT = "accent"
         const val KEY_LANGUAGE = "language"
@@ -81,5 +88,6 @@ class SettingsStore(context: Context) {
         const val KEY_T_END_AT = "timer_end_at"
         const val KEY_T_REMAINING = "timer_remaining"
         const val KEY_T_TOTAL = "timer_total"
+        const val KEY_LAST_DURATION = "last_duration"
     }
 }
