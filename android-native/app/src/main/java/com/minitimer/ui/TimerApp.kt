@@ -70,7 +70,7 @@ private val KEYS = listOf(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TimerApp(vm: TimerViewModel, requestOverlayPermission: () -> Unit) {
+fun TimerApp(vm: TimerViewModel) {
     val t = I18n.get(vm.settings.language)
     val accent = Color(vm.settings.accent)
 
@@ -122,7 +122,7 @@ fun TimerApp(vm: TimerViewModel, requestOverlayPermission: () -> Unit) {
                 .padding(horizontal = 24.dp)
         ) {
             when {
-                vm.showSettings -> SettingsScreen(vm, requestOverlayPermission)
+                vm.showSettings -> SettingsScreen(vm)
                 vm.phase == Phase.SETUP -> SetupScreen(vm, accent, t)
                 else -> CountdownScreen(vm, accent, t)
             }
