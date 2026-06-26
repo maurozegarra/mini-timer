@@ -30,14 +30,20 @@ import kotlinx.coroutines.launch
 
 enum class Phase { SETUP, RUNNING, PAUSED, DONE }
 
-/** Tipos de dispositivo de salida considerados "audífonos". */
-private val HEADSET_TYPES = setOf(
-    AudioDeviceInfo.TYPE_WIRED_HEADSET,
-    AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
-    AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
-    AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
-    AudioDeviceInfo.TYPE_USB_HEADSET,
+/**
+ * Salidas integradas del teléfono. Cualquier otra salida (Bluetooth A2DP/SCO,
+ * LE Audio, cableados, USB, HDMI...) se considera "audífono". Esto es más robusto
+ * que una lista blanca, ya que los audífonos BT modernos pueden usar tipos LE Audio.
+ */
+private val BUILTIN_OUTPUT_TYPES = setOf(
+    AudioDeviceInfo.TYPE_BUILTIN_SPEAKER,
+    AudioDeviceInfo.TYPE_BUILTIN_SPEAKER_SAFE,
+    AudioDeviceInfo.TYPE_BUILTIN_EARPIECE,
+    AudioDeviceInfo.TYPE_TELEPHONY,
 )
+
+private fun AudioDeviceInfo.isHeadsetOutput(): Boolean =
+    type !in BUILTIN_OUTPUT_TYPES
 
 class TimerViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -294,7 +300,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
 
         // Enrutamiento cuando hay audífonos conectados.
         val outputs = audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
-        val headset = outputs.firstOrNull { it.type in HEADSET_TYPES }
+        val headset = outputs.firstOrNull { it.isHeadsetOutput() }
         val speaker = outputs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
         if (headset != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             playOn(ctx, uri, headset)
@@ -313,7 +319,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
             // USAGE_ALARM no se enruta a Bluetooth A2DP (Android manda las alarmas
             // al altavoz). Para reproducir en audífonos usamos USAGE_MEDIA, que sí
             // se enruta a A2DP / cableados / USB.
-            val isHeadset = device != null && device.type in HEADSET_TYPES
+            val isHeadset = device != null && device.isHeadsetOutput()
             val usage = if (isHeadset) {
                 AudioAttributes.USAGE_MEDIA
             } else {
