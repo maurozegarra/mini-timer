@@ -10,6 +10,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.widget.Toast
 import com.minitimer.MainActivity
 import com.minitimer.R
 import com.minitimer.TimerBus
@@ -37,8 +38,23 @@ class LiveTimerService : Service() {
     override fun onCreate() {
         super.onCreate()
         ensureChannel()
-        startForegroundCompat(buildNotification())
+        val notification = buildNotification()
+        startForegroundCompat(notification)
         observe()
+        diagnose(notification)
+    }
+
+    private fun diagnose(notification: Notification) {
+        if (Build.VERSION.SDK_INT >= 36) {
+            val nm = getSystemService(NotificationManager::class.java)
+            val canPost = nm.canPostPromotedNotifications()
+            val promotable = notification.hasPromotableCharacteristics()
+            Toast.makeText(
+                this,
+                "LiveUpdate canPost=$canPost promotable=$promotable",
+                Toast.LENGTH_LONG,
+            ).show()
+        }
     }
 
     private fun observe() {
@@ -83,6 +99,12 @@ class LiveTimerService : Service() {
             .setOngoing(!done)
             .setOnlyAlertOnce(true)
             .setContentIntent(pi)
+
+        // Mostrar la notificación de inmediato (sin el diferimiento de 10s que
+        // Android aplica por defecto a los foreground services desde API 31).
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            builder.setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
+        }
 
         // El countdown del chip (Live Update) se alimenta del cronómetro sobre `when`.
         if (running && endAt > 0L) {
