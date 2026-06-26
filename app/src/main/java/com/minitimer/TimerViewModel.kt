@@ -34,19 +34,21 @@ import kotlinx.coroutines.launch
 enum class Phase { SETUP, RUNNING, PAUSED, DONE }
 
 /**
- * Salidas integradas del teléfono. Cualquier otra salida (Bluetooth A2DP/SCO,
- * LE Audio, cableados, USB, HDMI...) se considera "audífono". Esto es más robusto
- * que una lista blanca, ya que los audífonos BT modernos pueden usar tipos LE Audio.
+ * Salidas de audífonos capaces de reproducir MEDIA, por orden de preferencia.
+ * IMPORTANTE: se excluye BLUETOOTH_SCO (canal de llamadas, mono) porque NO
+ * reproduce media a menos que se active SCO explícitamente; elegirlo deja la
+ * alarma en silencio. A2DP / LE Audio sí reproducen media.
  */
-private val BUILTIN_OUTPUT_TYPES = setOf(
-    AudioDeviceInfo.TYPE_BUILTIN_SPEAKER,
-    AudioDeviceInfo.TYPE_BUILTIN_SPEAKER_SAFE,
-    AudioDeviceInfo.TYPE_BUILTIN_EARPIECE,
-    AudioDeviceInfo.TYPE_TELEPHONY,
+private val MEDIA_HEADSET_TYPES = listOf(
+    AudioDeviceInfo.TYPE_BLE_HEADSET,
+    AudioDeviceInfo.TYPE_BLE_SPEAKER,
+    AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+    AudioDeviceInfo.TYPE_USB_HEADSET,
+    AudioDeviceInfo.TYPE_USB_DEVICE,
+    AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+    AudioDeviceInfo.TYPE_WIRED_HEADSET,
+    AudioDeviceInfo.TYPE_HEARING_AID,
 )
-
-private fun AudioDeviceInfo.isHeadsetOutput(): Boolean =
-    type !in BUILTIN_OUTPUT_TYPES
 
 class TimerViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -306,24 +308,36 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
 
         // Enrutamiento cuando hay audífonos conectados.
         val outputs = audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
-        val headset = outputs.firstOrNull { it.isHeadsetOutput() }
+        val headset = findMediaHeadset(outputs)
         val speaker = outputs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
 
         val route: String
-        if (headset != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            playOn(ctx, uri, headset)
+        if (headset != null) {
+            // Reproducir como MEDIA: el sistema lo enruta a la salida de media
+            // activa (los audífonos), incluido A2DP / LE Audio. No forzamos el
+            // dispositivo para evitar elegir un modo BT inactivo.
+            play(ctx, uri, mediaUsage = true, device = null)
             route = if (settings.headsetMode == SPEAKER_AND_HEADSET && speaker != null) {
-                playOn(ctx, uri, speaker)
+                // Altavoz en paralelo, como alarma (sí se enruta al altavoz).
+                play(ctx, uri, mediaUsage = false, device = speaker)
                 "Headset + Speaker"
             } else {
                 "Headset only"
             }
         } else {
-            // Sin audífonos (o API < 28): salida por defecto.
-            playOn(ctx, uri, null)
-            route = if (headset != null) "Default (API<28)" else "Speaker (no headset)"
+            // Sin audífonos: alarma por el altavoz.
+            play(ctx, uri, mediaUsage = false, device = null)
+            route = "Speaker (no headset)"
         }
         showAudioDiagnostic(ctx, outputs, headset, route)
+    }
+
+    /** Primer audífono capaz de reproducir media (excluye Bluetooth SCO). */
+    private fun findMediaHeadset(outputs: Array<AudioDeviceInfo>): AudioDeviceInfo? {
+        for (type in MEDIA_HEADSET_TYPES) {
+            outputs.firstOrNull { it.type == type }?.let { return it }
+        }
+        return null
     }
 
     /** Diagnóstico temporal: muestra las salidas detectadas y la ruta elegida. */
@@ -371,19 +385,19 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         else -> "TYPE_$type"
     }
 
-    /** Reproduce el tono en bucle, opcionalmente forzando un dispositivo de salida. */
-    private fun playOn(ctx: Context, uri: Uri, device: AudioDeviceInfo?) {
+    /**
+     * Reproduce el tono en bucle. [mediaUsage]=true usa USAGE_MEDIA (necesario
+     * para que se enrute a Bluetooth A2DP / LE Audio); false usa USAGE_ALARM
+     * (para el altavoz). [device] fuerza opcionalmente la salida.
+     */
+    private fun play(ctx: Context, uri: Uri, mediaUsage: Boolean, device: AudioDeviceInfo?) {
         try {
-            // USAGE_ALARM no se enruta a Bluetooth A2DP (Android manda las alarmas
-            // al altavoz). Para reproducir en audífonos usamos USAGE_MEDIA, que sí
-            // se enruta a A2DP / cableados / USB.
-            val isHeadset = device != null && device.isHeadsetOutput()
-            val usage = if (isHeadset) {
+            val usage = if (mediaUsage) {
                 AudioAttributes.USAGE_MEDIA
             } else {
                 AudioAttributes.USAGE_ALARM
             }
-            val contentType = if (isHeadset) {
+            val contentType = if (mediaUsage) {
                 AudioAttributes.CONTENT_TYPE_MUSIC
             } else {
                 AudioAttributes.CONTENT_TYPE_SONIFICATION
