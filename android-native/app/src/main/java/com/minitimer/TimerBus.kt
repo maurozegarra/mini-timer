@@ -28,4 +28,7 @@ object TimerBus {
 
     /** Duración total del timer en milisegundos. */
     val totalMs = MutableStateFlow(0L)
+
+    /** Instante (epoch millis) en que el timer llega a cero. Estable mientras corre. */
+    val endAt = MutableStateFlow(0L)
 }
