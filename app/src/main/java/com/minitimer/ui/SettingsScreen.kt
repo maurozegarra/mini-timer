@@ -66,6 +66,7 @@ import com.minitimer.model.ACCENT_COLORS
 import com.minitimer.model.AUTO_DISMISS_OPTIONS
 import com.minitimer.model.HEADSET_ONLY
 import com.minitimer.model.SPEAKER_AND_HEADSET
+import com.minitimer.model.VIBRATION_PATTERNS
 import com.minitimer.ui.theme.JetBrainsMono
 import com.minitimer.ui.theme.ON_ACCENT
 import com.minitimer.ui.theme.SURFACE
@@ -302,6 +303,46 @@ fun SettingsScreen(vm: TimerViewModel) {
                 selected = s.headsetMode == HEADSET_ONLY,
                 accent = accent,
             ) { vm.setHeadsetMode(HEADSET_ONLY) }
+
+            // Vibración
+            SectionLabel(t.vibration)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    if (s.vibrationEnabled) t.on else t.off,
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.weight(1f),
+                )
+                Switch(
+                    checked = s.vibrationEnabled,
+                    onCheckedChange = { vm.setVibrationEnabled(it) },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = ON_ACCENT,
+                        checkedTrackColor = accent,
+                        uncheckedThumbColor = Color(0xFFCFD3D6),
+                        uncheckedTrackColor = SURFACE,
+                    ),
+                )
+            }
+            if (s.vibrationEnabled) {
+                Spacer(Modifier.height(12.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    VIBRATION_PATTERNS.forEachIndexed { index, pattern ->
+                        Chip(
+                            pattern.name,
+                            s.vibrationPattern == index,
+                            accent,
+                        ) {
+                            vm.setVibrationPattern(index)
+                            vm.previewVibration(index)
+                        }
+                    }
+                }
+            }
 
             Spacer(Modifier.height(28.dp))
             TextButton(

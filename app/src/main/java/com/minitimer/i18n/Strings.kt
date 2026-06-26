@@ -30,6 +30,7 @@ data class Strings(
     val headsetTitle: String,
     val headsetBoth: String,
     val headsetOnly: String,
+    val vibration: String,
     val on: String,
     val off: String,
 )
@@ -64,6 +65,7 @@ object I18n {
         headsetTitle = "Al usar audífonos, reproducir el sonido en:",
         headsetBoth = "Altavoz(es) principal(es) + Audífonos (auriculares o Bluetooth)",
         headsetOnly = "Solo audífonos",
+        vibration = "Vibración",
         on = "Activado",
         off = "Desactivado",
     )
@@ -95,6 +97,7 @@ object I18n {
         headsetTitle = "When using headset, play sound on:",
         headsetBoth = "Main speaker(s) + Headset (Earphones or Bluetooth)",
         headsetOnly = "Headset only",
+        vibration = "Vibration",
         on = "On",
         off = "Off",
     )

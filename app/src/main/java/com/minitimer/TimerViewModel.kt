@@ -12,9 +12,6 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
-import android.os.Handler
-import android.os.Looper
-import android.widget.Toast
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -23,6 +20,7 @@ import androidx.lifecycle.viewModelScope
 import com.minitimer.data.SettingsStore
 import com.minitimer.model.SPEAKER_AND_HEADSET
 import com.minitimer.model.Settings
+import com.minitimer.model.VIBRATION_PATTERNS
 import com.minitimer.notify.LiveTimerService
 import com.minitimer.util.dedupeSorted
 import com.minitimer.util.formatRemaining
@@ -66,9 +64,6 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     var remainingMs by mutableStateOf(0L)
         private set
     var showSettings by mutableStateOf(false)
-    /** Diagnóstico temporal de audio mostrado en pantalla. */
-    var debugInfo by mutableStateOf("")
-        private set
 
     private var endAt = 0L
     private var tickJob: Job? = null
@@ -281,19 +276,17 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     private fun startAlarm() {
         stopAlarm()
         val ctx = getApplication<Application>()
-        val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            (ctx.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager)
-                .defaultVibrator
-        } else {
-            @Suppress("DEPRECATION")
-            ctx.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-        }
-        val pattern = longArrayOf(0, 600, 400, 600, 400, 600, 400)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            vibrator.vibrate(VibrationEffect.createWaveform(pattern, 0))
-        } else {
-            @Suppress("DEPRECATION")
-            vibrator.vibrate(pattern, 0)
+        if (settings.vibrationEnabled) {
+            val timings = VIBRATION_PATTERNS
+                .getOrElse(settings.vibrationPattern) { VIBRATION_PATTERNS[0] }
+                .timings
+            val vibrator = getVibrator(ctx)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator.vibrate(VibrationEffect.createWaveform(timings, 0))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(timings, 0)
+            }
         }
         // Si "Ignorar modo silencio" está desactivado, respetar el modo del
         // teléfono: en silencio o vibración no se reproduce el sonido.
@@ -311,25 +304,19 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         val headset = findMediaHeadset(outputs)
         val speaker = outputs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
 
-        val route: String
         if (headset != null) {
             // Reproducir como MEDIA: el sistema lo enruta a la salida de media
             // activa (los audífonos), incluido A2DP / LE Audio. No forzamos el
             // dispositivo para evitar elegir un modo BT inactivo.
             play(ctx, uri, mediaUsage = true, device = null)
-            route = if (settings.headsetMode == SPEAKER_AND_HEADSET && speaker != null) {
+            if (settings.headsetMode == SPEAKER_AND_HEADSET && speaker != null) {
                 // Altavoz en paralelo, como alarma (sí se enruta al altavoz).
                 play(ctx, uri, mediaUsage = false, device = speaker)
-                "Headset + Speaker"
-            } else {
-                "Headset only"
             }
         } else {
             // Sin audífonos: alarma por el altavoz.
             play(ctx, uri, mediaUsage = false, device = null)
-            route = "Speaker (no headset)"
         }
-        showAudioDiagnostic(ctx, outputs, headset, route)
     }
 
     /** Primer audífono capaz de reproducir media (excluye Bluetooth SCO). */
@@ -338,51 +325,6 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
             outputs.firstOrNull { it.type == type }?.let { return it }
         }
         return null
-    }
-
-    /** Diagnóstico temporal: muestra las salidas detectadas y la ruta elegida. */
-    private fun showAudioDiagnostic(
-        ctx: Context,
-        outputs: Array<AudioDeviceInfo>,
-        headset: AudioDeviceInfo?,
-        route: String,
-    ) {
-        val list = outputs.joinToString("\n") { d ->
-            val mark = if (d === headset) " <= HEADSET" else ""
-            "- ${audioTypeName(d.type)} (${d.type}) ${d.productName}$mark"
-        }
-        val mediaVol = (ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager).let {
-            "media ${it.getStreamVolume(AudioManager.STREAM_MUSIC)}/" +
-                "${it.getStreamMaxVolume(AudioManager.STREAM_MUSIC)}, " +
-                "alarm ${it.getStreamVolume(AudioManager.STREAM_ALARM)}/" +
-                "${it.getStreamMaxVolume(AudioManager.STREAM_ALARM)}"
-        }
-        val msg = "Route: $route\nVol: $mediaVol\nOutputs:\n$list"
-        debugInfo = msg
-        Handler(Looper.getMainLooper()).post {
-            Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show()
-        }
-    }
-
-    fun clearDebugInfo() { debugInfo = "" }
-
-    private fun audioTypeName(type: Int): String = when (type) {
-        AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "BUILTIN_SPEAKER"
-        AudioDeviceInfo.TYPE_BUILTIN_SPEAKER_SAFE -> "BUILTIN_SPEAKER_SAFE"
-        AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> "BUILTIN_EARPIECE"
-        AudioDeviceInfo.TYPE_TELEPHONY -> "TELEPHONY"
-        AudioDeviceInfo.TYPE_WIRED_HEADSET -> "WIRED_HEADSET"
-        AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> "WIRED_HEADPHONES"
-        AudioDeviceInfo.TYPE_USB_HEADSET -> "USB_HEADSET"
-        AudioDeviceInfo.TYPE_USB_DEVICE -> "USB_DEVICE"
-        AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> "BLUETOOTH_A2DP"
-        AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> "BLUETOOTH_SCO"
-        AudioDeviceInfo.TYPE_BLE_HEADSET -> "BLE_HEADSET"
-        AudioDeviceInfo.TYPE_BLE_SPEAKER -> "BLE_SPEAKER"
-        AudioDeviceInfo.TYPE_BLE_BROADCAST -> "BLE_BROADCAST"
-        AudioDeviceInfo.TYPE_HEARING_AID -> "HEARING_AID"
-        AudioDeviceInfo.TYPE_HDMI -> "HDMI"
-        else -> "TYPE_$type"
     }
 
     /**
@@ -422,15 +364,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun stopAlarm() {
-        val ctx = getApplication<Application>()
-        val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            (ctx.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager)
-                .defaultVibrator
-        } else {
-            @Suppress("DEPRECATION")
-            ctx.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-        }
-        vibrator.cancel()
+        getVibrator(getApplication()).cancel()
         players.forEach { mp ->
             try {
                 if (mp.isPlaying) mp.stop()
@@ -439,6 +373,28 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
             mp.release()
         }
         players.clear()
+    }
+
+    private fun getVibrator(ctx: Context): Vibrator =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            (ctx.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager)
+                .defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            ctx.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        }
+
+    /** Vibra una vez con el patrón indicado, para previsualizarlo en ajustes. */
+    fun previewVibration(index: Int) {
+        val timings = VIBRATION_PATTERNS.getOrNull(index)?.timings ?: return
+        val vibrator = getVibrator(getApplication())
+        vibrator.cancel()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            vibrator.vibrate(VibrationEffect.createWaveform(timings, -1))
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator.vibrate(timings, -1)
+        }
     }
 
     // ---------- Bus ----------
@@ -475,6 +431,8 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     fun setAlarmSound(uri: String?, name: String?) =
         update(settings.copy(alarmSoundUri = uri, alarmSoundName = name))
     fun setHeadsetMode(mode: Int) = update(settings.copy(headsetMode = mode))
+    fun setVibrationEnabled(value: Boolean) = update(settings.copy(vibrationEnabled = value))
+    fun setVibrationPattern(index: Int) = update(settings.copy(vibrationPattern = index))
     fun resetSettings() = update(Settings())
 
     fun addPreset(input: String): Boolean {

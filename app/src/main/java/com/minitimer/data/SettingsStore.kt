@@ -26,6 +26,8 @@ class SettingsStore(context: Context) {
             alarmSoundUri = prefs.getString(KEY_ALARM_URI, defaults.alarmSoundUri),
             alarmSoundName = prefs.getString(KEY_ALARM_NAME, defaults.alarmSoundName),
             headsetMode = prefs.getInt(KEY_HEADSET_MODE, defaults.headsetMode),
+            vibrationEnabled = prefs.getBoolean(KEY_VIBRATION_ENABLED, defaults.vibrationEnabled),
+            vibrationPattern = prefs.getInt(KEY_VIBRATION_PATTERN, defaults.vibrationPattern),
         )
     }
 
@@ -39,6 +41,8 @@ class SettingsStore(context: Context) {
             .putString(KEY_ALARM_URI, s.alarmSoundUri)
             .putString(KEY_ALARM_NAME, s.alarmSoundName)
             .putInt(KEY_HEADSET_MODE, s.headsetMode)
+            .putBoolean(KEY_VIBRATION_ENABLED, s.vibrationEnabled)
+            .putInt(KEY_VIBRATION_PATTERN, s.vibrationPattern)
             .apply()
     }
 
@@ -96,6 +100,8 @@ class SettingsStore(context: Context) {
         const val KEY_ALARM_URI = "alarmSoundUri"
         const val KEY_ALARM_NAME = "alarmSoundName"
         const val KEY_HEADSET_MODE = "headsetMode"
+        const val KEY_VIBRATION_ENABLED = "vibrationEnabled"
+        const val KEY_VIBRATION_PATTERN = "vibrationPattern"
         const val KEY_T_PHASE = "timer_phase"
         const val KEY_T_END_AT = "timer_end_at"
         const val KEY_T_REMAINING = "timer_remaining"
