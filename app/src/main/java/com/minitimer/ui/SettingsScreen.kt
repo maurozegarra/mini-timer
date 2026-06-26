@@ -1,5 +1,11 @@
 package com.minitimer.ui
 
+import android.app.Activity
+import android.content.Intent
+import android.media.RingtoneManager
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,6 +28,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -46,6 +53,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -69,6 +77,28 @@ fun SettingsScreen(vm: TimerViewModel) {
     val t = I18n.get(s.language)
     val accent = Color(s.accent)
     var presetInput by remember { mutableStateOf("") }
+
+    val context = LocalContext.current
+    val soundPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val uri: Uri? = if (android.os.Build.VERSION.SDK_INT >= 33) {
+                result.data?.getParcelableExtra(
+                    RingtoneManager.EXTRA_RINGTONE_PICKED_URI,
+                    Uri::class.java,
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                result.data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+            }
+            val name = uri?.let {
+                runCatching { RingtoneManager.getRingtone(context, it)?.getTitle(context) }
+                    .getOrNull()
+            }
+            vm.setAlarmSound(uri?.toString(), name)
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -210,6 +240,49 @@ fun SettingsScreen(vm: TimerViewModel) {
                         uncheckedThumbColor = Color(0xFFCFD3D6),
                         uncheckedTrackColor = SURFACE,
                     ),
+                )
+            }
+
+            // Tono de alarma
+            SectionLabel(t.alarmSound)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(SURFACE)
+                    .clickable {
+                        val existing = s.alarmSoundUri?.let { Uri.parse(it) }
+                            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                        val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                            putExtra(
+                                RingtoneManager.EXTRA_RINGTONE_TYPE,
+                                RingtoneManager.TYPE_ALARM,
+                            )
+                            putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, t.alarmSound)
+                            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+                            putExtra(
+                                RingtoneManager.EXTRA_RINGTONE_DEFAULT_URI,
+                                RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM),
+                            )
+                            putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, existing)
+                        }
+                        soundPicker.launch(intent)
+                    }
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    s.alarmSoundName ?: t.defaultSound,
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.weight(1f),
+                )
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = Color(0xFF9AA0A4),
                 )
             }
 

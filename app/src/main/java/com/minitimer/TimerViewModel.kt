@@ -6,6 +6,7 @@ import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.Ringtone
 import android.media.RingtoneManager
+import android.net.Uri
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -256,7 +257,8 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
             settings.ignoreSilent || audio.ringerMode == AudioManager.RINGER_MODE_NORMAL
         if (!shouldPlaySound) return
         try {
-            val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+            val uri = settings.alarmSoundUri?.let { Uri.parse(it) }
+                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
                 ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
             ringtone = RingtoneManager.getRingtone(ctx, uri)?.apply {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -318,6 +320,8 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     fun setAccent(color: Long) = update(settings.copy(accent = color))
     fun setAutoDismiss(sec: Int) = update(settings.copy(autoDismiss = sec))
     fun setIgnoreSilent(value: Boolean) = update(settings.copy(ignoreSilent = value))
+    fun setAlarmSound(uri: String?, name: String?) =
+        update(settings.copy(alarmSoundUri = uri, alarmSoundName = name))
     fun resetSettings() = update(Settings())
 
     fun addPreset(input: String): Boolean {

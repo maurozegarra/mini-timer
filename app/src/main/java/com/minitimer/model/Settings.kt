@@ -7,6 +7,10 @@ data class Settings(
     val presets: List<Int> = listOf(60, 180, 300, 600, 900, 1800),
     val autoDismiss: Int = 3,
     val ignoreSilent: Boolean = true,
+    /** URI del tono de alarma elegido; null = sonido de alarma por defecto del sistema. */
+    val alarmSoundUri: String? = null,
+    /** Nombre legible del tono elegido, para mostrarlo en ajustes. */
+    val alarmSoundName: String? = null,
 )
 
 /** Paleta de colores de acento disponibles. */
