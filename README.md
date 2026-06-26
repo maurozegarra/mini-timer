@@ -6,13 +6,20 @@ Temporizador 100% nativo para Android con **Live Update** (notificación promovi
 
 - **Pantalla de configuración**: teclado numérico (los dígitos entran por la derecha: HHMMSS) y **presets** rápidos.
 - **Cuenta atrás** con **anillo de progreso** (Compose Canvas), **hora de finalización** con segundos y controles **Cancelar / Pausa / Reanudar**.
-- **Alarma** al terminar: vibración + tono de alarma del sistema, con **Descartar / Reiniciar**.
+- **Alarma** al terminar: tono en bucle + vibración opcional, con **Descartar / Reiniciar**.
 - **Configuración** (icono ⚙):
   - **Idioma**: Español / English (default **English**).
   - **Color de acento**: paleta (default **#FF5252**).
   - **Presets editables**: agrega (`mm:ss` o `hh:mm:ss`; un solo número = minutos) y elimina.
   - **Auto descartar**: `Off, 3s, 5s, 10s, 30s, 60s` (default **3s**).
-  - **Restablecer valores**.
+  - **Ignorar modo silencio**: reproduce el sonido aunque el teléfono esté en silencio/vibración.
+  - **Tono de alarma**: selector **in-app** con lista de tonos del dispositivo y **previsualización** de cada uno (botón ▶). Default **"Beep"**.
+  - **Volumen de la alarma**: control **+/-** (pasos de 5%) estilo Material 3.
+  - **Salida con audífonos**: `Altavoz + Audífonos` o `Solo audífonos` (default **Solo audífonos**).
+  - **Vibración**: activable (default **off**) con patrones seleccionables: *Simple, Zig-Zig, Zig-zig-zig, Tap, Knock, Heartbeat, Bounce, Dubstep, Gallop* (preview al tocar).
+  - **Restablecer valores** (vuelve a default y reaplica **"Beep"**).
+- **Enrutamiento de audio**: reproduce con `MediaPlayer` usando `USAGE_MEDIA` para que el sonido (y la previsualización) llegue a **Bluetooth A2DP / LE Audio** y cableados; usa `USAGE_ALARM` para el altavoz. Elige la salida de media adecuada y **excluye Bluetooth SCO** (canal de llamadas).
+- **Aparece primera en el cajón de apps**: la etiqueta del launcher es **`!Timer`** para ordenar al inicio.
 - **Live Update (Android 16)**: notificación promovida (`Notification.ProgressStyle` + cronómetro)
   con barra de progreso y cuenta regresiva. Aparece como chip en la barra de estado, en la sombra de
   notificaciones y en la **Now Bar** de One UI (en One UI 8, para apps de terceros, requiere activar
@@ -53,7 +60,7 @@ app/src/main/
     MainActivity.kt              # Activity y permiso de notificaciones
     TimerViewModel.kt            # Lógica: countdown, alarma, auto-dismiss, ajustes, persistencia/restauración
     TimerBus.kt                  # Estado global compartido con el Live Update
-    model/Settings.kt           # Modelo de ajustes + paletas
+    model/Settings.kt           # Modelo de ajustes + paletas + patrones de vibración
     data/SettingsStore.kt       # Persistencia (SharedPreferences)
     i18n/Strings.kt             # Traducciones es/en
     util/Format.kt              # Formato de tiempo/hora y parseo de presets
@@ -127,3 +134,4 @@ Instalado en `%LOCALAPPDATA%\Android\Sdk` (cmdline-tools + `platform-tools`, `pl
 - Permisos usados: `POST_NOTIFICATIONS`, `POST_PROMOTED_NOTIFICATIONS`, `FOREGROUND_SERVICE`,
   `FOREGROUND_SERVICE_SPECIAL_USE`, `VIBRATE`, `WAKE_LOCK`.
 - No se incluye icono de launcher personalizado (usa el del sistema); puedes añadir uno en `res/mipmap`.
+- La etiqueta visible del launcher es **`!Timer`** (en `MainActivity`), elegida para que la app quede primera en la lista; el nombre de la aplicación sigue siendo **Mini Timer**.
