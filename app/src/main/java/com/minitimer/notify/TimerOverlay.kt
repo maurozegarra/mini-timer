@@ -11,6 +11,7 @@ import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.widget.Chronometer
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.minitimer.R
@@ -38,6 +39,7 @@ class TimerOverlay(private val context: Context) {
     private var root: View? = null
     private var collapsed: LinearLayout? = null
     private var expanded: LinearLayout? = null
+    private var collapsedIcon: ImageView? = null
     private var collapsedChrono: Chronometer? = null
     private var expandedChrono: Chronometer? = null
     private var infoView: TextView? = null
@@ -60,6 +62,7 @@ class TimerOverlay(private val context: Context) {
         root = v
         collapsed = v.findViewById(R.id.overlay_collapsed)
         expanded = v.findViewById(R.id.overlay_expanded)
+        collapsedIcon = v.findViewById(R.id.overlay_collapsed_icon)
         collapsedChrono = v.findViewById(R.id.overlay_collapsed_chrono)
         expandedChrono = v.findViewById(R.id.overlay_expanded_chrono)
         infoView = v.findViewById(R.id.overlay_info)
@@ -135,6 +138,7 @@ class TimerOverlay(private val context: Context) {
             if (running) chrono.start() else chrono.stop()
         }
         collapsedChrono?.setTextColor(0xFFFFFFFF.toInt())
+        collapsedIcon?.setColorFilter(accent)
         expandedChrono?.setTextColor(accent)
         infoView?.text = buildInfo()
         btnPause?.setImageResource(
@@ -246,7 +250,8 @@ class TimerOverlay(private val context: Context) {
 
     private companion object {
         // Distancia (dp) desde el borde izquierdo de la píldora hasta el centro
-        // del hueco de la cámara = paddingStart (10) + mitad del gap (34/2).
-        const val CAMERA_GAP_CENTER_DP = 27
+        // del hueco de la cámara = paddingStart (10) + ícono (16) + margen (6) +
+        // mitad del gap (34/2 = 17).
+        const val CAMERA_GAP_CENTER_DP = 49
     }
 }

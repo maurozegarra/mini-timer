@@ -3,10 +3,11 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content">
 
-    <!-- Estado colapsado: píldora que ABARCA el notch de la cámara.
-         A la izquierda un hueco (la cámara hace de "ícono") y a la derecha el
-         countdown. El fondo de la píldora cubre todo el ancho, rodeando el
-         punch-hole. La altura se ajusta en código a la barra de estado. -->
+    <!-- Estado colapsado: píldora que ABARCA el notch de la cámara con tres
+         zonas en fila: [ícono] [hueco-cámara] [countdown]. El hueco central cae
+         justo sobre el punch-hole, de modo que la cámara queda enmarcada entre
+         el ícono (izquierda) y el countdown (derecha). El fondo de la píldora
+         cubre todo el ancho. La altura se ajusta en código a la barra de estado. -->
     <LinearLayout
         android:id="@+id/overlay_collapsed"
         android:layout_width="wrap_content"
@@ -16,6 +17,15 @@
         android:background="@drawable/overlay_pill_bg"
         android:paddingStart="10dp"
         android:paddingEnd="14dp">
+
+        <ImageView
+            android:id="@+id/overlay_collapsed_icon"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_marginEnd="6dp"
+            android:src="@drawable/ic_stat_timer"
+            android:scaleType="fitCenter"
+            android:contentDescription="@null" />
 
         <Space
             android:id="@+id/overlay_camera_gap"
