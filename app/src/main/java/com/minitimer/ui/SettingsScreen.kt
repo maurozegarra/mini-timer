@@ -1,11 +1,5 @@
 package com.minitimer.ui
 
-import android.app.Activity
-import android.content.Intent
-import android.media.RingtoneManager
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,8 +13,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,13 +28,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.InputChipDefaults
 import androidx.compose.material3.FilledTonalIconButton
@@ -59,7 +59,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -88,28 +87,7 @@ fun SettingsScreen(vm: TimerViewModel) {
     val t = I18n.get(s.language)
     val accent = Color(s.accent)
     var presetInput by remember { mutableStateOf("") }
-
-    val context = LocalContext.current
-    val soundPicker = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult(),
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val uri: Uri? = if (android.os.Build.VERSION.SDK_INT >= 33) {
-                result.data?.getParcelableExtra(
-                    RingtoneManager.EXTRA_RINGTONE_PICKED_URI,
-                    Uri::class.java,
-                )
-            } else {
-                @Suppress("DEPRECATION")
-                result.data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
-            }
-            val name = uri?.let {
-                runCatching { RingtoneManager.getRingtone(context, it)?.getTitle(context) }
-                    .getOrNull()
-            }
-            vm.setAlarmSound(uri?.toString(), name)
-        }
-    }
+    var showSoundDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -261,25 +239,7 @@ fun SettingsScreen(vm: TimerViewModel) {
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
                     .background(SURFACE)
-                    .clickable {
-                        val existing = s.alarmSoundUri?.let { Uri.parse(it) }
-                            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-                        val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
-                            putExtra(
-                                RingtoneManager.EXTRA_RINGTONE_TYPE,
-                                RingtoneManager.TYPE_ALARM,
-                            )
-                            putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, t.alarmSound)
-                            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
-                            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
-                            putExtra(
-                                RingtoneManager.EXTRA_RINGTONE_DEFAULT_URI,
-                                RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM),
-                            )
-                            putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, existing)
-                        }
-                        soundPicker.launch(intent)
-                    }
+                    .clickable { showSoundDialog = true }
                     .padding(horizontal = 16.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -403,6 +363,106 @@ fun SettingsScreen(vm: TimerViewModel) {
                 Text(t.reset, fontWeight = FontWeight.SemiBold)
             }
     }
+
+    if (showSoundDialog) {
+        AlarmSoundPickerDialog(
+            vm = vm,
+            accent = accent,
+            currentUri = s.alarmSoundUri,
+            title = t.alarmSound,
+            selectLabel = t.select,
+            cancelLabel = t.cancel,
+            defaultLabel = t.defaultSound,
+            onDismiss = { showSoundDialog = false },
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AlarmSoundPickerDialog(
+    vm: TimerViewModel,
+    accent: Color,
+    currentUri: String?,
+    title: String,
+    selectLabel: String,
+    cancelLabel: String,
+    defaultLabel: String,
+    onDismiss: () -> Unit,
+) {
+    val sounds = remember { vm.loadAlarmSounds() }
+    var selectedUri by remember { mutableStateOf(currentUri) }
+
+    fun stopAndDismiss() {
+        vm.stopPreview()
+        onDismiss()
+    }
+
+    AlertDialog(
+        onDismissRequest = { stopAndDismiss() },
+        containerColor = SURFACE,
+        title = { Text(title, color = Color.White, fontWeight = FontWeight.SemiBold) },
+        text = {
+            LazyColumn(modifier = Modifier.heightIn(max = 360.dp)) {
+                items(sounds) { sound ->
+                    val selected = sound.uri == selectedUri
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable {
+                                selectedUri = sound.uri
+                                vm.previewSound(sound.uri)
+                            }
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(
+                            selected = selected,
+                            onClick = {
+                                selectedUri = sound.uri
+                                vm.previewSound(sound.uri)
+                            },
+                            colors = RadioButtonDefaults.colors(
+                                selectedColor = accent,
+                                unselectedColor = Color(0xFF9AA0A4),
+                            ),
+                        )
+                        Text(
+                            sound.name,
+                            color = Color.White,
+                            fontSize = 15.sp,
+                            modifier = Modifier.weight(1f),
+                        )
+                        IconButton(onClick = { vm.previewSound(sound.uri) }) {
+                            Icon(
+                                Icons.Filled.PlayArrow,
+                                contentDescription = "Play",
+                                tint = accent,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val name = sounds.firstOrNull { it.uri == selectedUri }?.name
+                        ?: defaultLabel
+                    vm.setAlarmSound(selectedUri, name)
+                    stopAndDismiss()
+                },
+            ) {
+                Text(selectLabel, color = accent, fontWeight = FontWeight.SemiBold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { stopAndDismiss() }) {
+                Text(cancelLabel, color = Color(0xFF9AA0A4))
+            }
+        },
+    )
 }
 
 @Composable

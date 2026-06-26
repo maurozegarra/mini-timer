@@ -6,6 +6,7 @@ import android.media.AudioAttributes
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.media.MediaPlayer
+import android.media.Ringtone
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
@@ -30,6 +31,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 enum class Phase { SETUP, RUNNING, PAUSED, DONE }
+
+/** Un tono de alarma disponible para seleccionar. */
+data class AlarmSound(val name: String, val uri: String)
 
 /**
  * Salidas de audífonos capaces de reproducir MEDIA, por orden de preferencia.
@@ -453,8 +457,58 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         update(settings.copy(presets = settings.presets.filter { it != sec }))
     }
 
+    // ---------- Selector de sonido con previsualización ----------
+    private var previewRingtone: Ringtone? = null
+
+    /** Lista de tonos de alarma disponibles en el dispositivo. */
+    fun loadAlarmSounds(): List<AlarmSound> {
+        val ctx = getApplication<Application>()
+        val result = mutableListOf<AlarmSound>()
+        try {
+            val rm = RingtoneManager(ctx).apply { setType(RingtoneManager.TYPE_ALARM) }
+            val cursor = rm.cursor
+            while (cursor.moveToNext()) {
+                val title = cursor.getString(RingtoneManager.TITLE_COLUMN_INDEX)
+                val uri = rm.getRingtoneUri(cursor.position)
+                if (title != null && uri != null) {
+                    result.add(AlarmSound(title, uri.toString()))
+                }
+            }
+        } catch (_: Exception) {
+        }
+        return result
+    }
+
+    /** Reproduce un tono como vista previa (al volumen de alarma configurado). */
+    fun previewSound(uriStr: String) {
+        stopPreview()
+        val ctx = getApplication<Application>()
+        try {
+            val rt = RingtoneManager.getRingtone(ctx, Uri.parse(uriStr)) ?: return
+            rt.audioAttributes = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ALARM)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                rt.volume = settings.alarmVolume.coerceIn(0f, 1f)
+            }
+            previewRingtone = rt
+            rt.play()
+        } catch (_: Exception) {
+        }
+    }
+
+    fun stopPreview() {
+        try {
+            previewRingtone?.stop()
+        } catch (_: Exception) {
+        }
+        previewRingtone = null
+    }
+
     override fun onCleared() {
         super.onCleared()
         stopAlarm()
+        stopPreview()
     }
 }
