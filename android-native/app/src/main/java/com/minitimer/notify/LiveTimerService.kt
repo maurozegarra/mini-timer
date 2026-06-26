@@ -95,7 +95,6 @@ class LiveTimerService : Service() {
             .setContentTitle("Mini Timer")
             .setContentText(display)
             .setColor(accent)
-            .setColorized(true)
             .setOngoing(!done)
             .setOnlyAlertOnce(true)
             .setContentIntent(pi)
