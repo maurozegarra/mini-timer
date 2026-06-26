@@ -115,6 +115,7 @@ class LiveTimerService : Service() {
             .setContentTitle("Mini Timer")
             .setContentText(display)
             .setColor(accent)
+            .setCategory(Notification.CATEGORY_STOPWATCH)
             .setOngoing(!done)
             .setOnlyAlertOnce(true)
             .setContentIntent(pi)
