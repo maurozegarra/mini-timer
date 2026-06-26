@@ -65,17 +65,30 @@ class LiveTimerService : Service() {
     }
 
     private fun observe() {
+        // Re-publicar SOLO cuando cambia el estado (corriendo/pausa/fin/color), no
+        // cada segundo: el cronómetro del chip se actualiza solo. Re-publicar muy
+        // seguido hace que el sistema colapse la cápsula a solo-ícono.
         job = scope.launch {
-            combine(
-                TimerBus.display,
-                TimerBus.done,
-                TimerBus.paused,
-                TimerBus.accent,
-            ) { _, _, _, _ -> Unit }.collect {
-                val nm = getSystemService(NotificationManager::class.java)
-                nm.notify(NOTIF_ID, buildNotification())
+            launch {
+                combine(
+                    TimerBus.done,
+                    TimerBus.paused,
+                    TimerBus.accent,
+                ) { _, _, _ -> Unit }.collect { repost() }
+            }
+            // Refresco lento de la barra de progreso mientras corre.
+            launch {
+                while (true) {
+                    delay(15_000)
+                    repost()
+                }
             }
         }
+    }
+
+    private fun repost() {
+        val nm = getSystemService(NotificationManager::class.java)
+        nm.notify(NOTIF_ID, buildNotification())
     }
 
     private fun buildNotification(): Notification {
@@ -131,8 +144,12 @@ class LiveTimerService : Service() {
         }
 
         if (Build.VERSION.SDK_INT >= 36) {
-            builder.setShortCriticalText(display)
             builder.setRequestPromotedOngoing(true)
+            // El chip usa el cronómetro mientras corre; el texto corto solo cuando
+            // no hay cronómetro (pausa), para no competir con la cuenta regresiva.
+            if (!running) {
+                builder.setShortCriticalText(display)
+            }
             val segment = Notification.ProgressStyle.Segment(max).setColor(accent)
             val style = Notification.ProgressStyle()
                 .addProgressSegment(segment)
