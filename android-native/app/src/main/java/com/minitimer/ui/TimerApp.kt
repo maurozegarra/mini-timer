@@ -34,8 +34,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -73,6 +75,14 @@ private val KEYS = listOf(
 fun TimerApp(vm: TimerViewModel) {
     val t = I18n.get(vm.settings.language)
     val accent = Color(vm.settings.accent)
+
+    // Mantener la pantalla encendida en primer plano mientras hay un timer activo.
+    val keepAwake = vm.phase != Phase.SETUP
+    val view = LocalView.current
+    DisposableEffect(keepAwake) {
+        view.keepScreenOn = keepAwake
+        onDispose { view.keepScreenOn = false }
+    }
 
     BackHandler(enabled = vm.showSettings) { vm.showSettings = false }
 
