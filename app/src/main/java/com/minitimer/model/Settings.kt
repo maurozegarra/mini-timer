@@ -18,7 +18,7 @@ data class Settings(
     /** Salida de audio con audífonos: [HEADSET_ONLY] o [SPEAKER_AND_HEADSET]. */
     val headsetMode: Int = HEADSET_ONLY,
     /** Vibrar al terminar el temporizador. */
-    val vibrationEnabled: Boolean = true,
+    val vibrationEnabled: Boolean = false,
     /** Índice del patrón de vibración en [VIBRATION_PATTERNS]. */
     val vibrationPattern: Int = 0,
     /** Volumen de la alarma, 0f..1f (relativo al volumen del stream). */

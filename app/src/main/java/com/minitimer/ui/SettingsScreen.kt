@@ -29,7 +29,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,11 +40,11 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.InputChipDefaults
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -60,6 +62,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.minitimer.TimerViewModel
@@ -73,6 +76,7 @@ import com.minitimer.ui.theme.JetBrainsMono
 import com.minitimer.ui.theme.ON_ACCENT
 import com.minitimer.ui.theme.SURFACE
 import com.minitimer.util.formatRemaining
+import kotlin.math.roundToInt
 
 @OptIn(
     androidx.compose.foundation.layout.ExperimentalLayoutApi::class,
@@ -293,7 +297,8 @@ fun SettingsScreen(vm: TimerViewModel) {
                 )
             }
 
-            // Volumen de la alarma
+            // Volumen de la alarma (stepper +/- en pasos de 5%)
+            val volPct = (s.alarmVolume * 100).roundToInt()
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -305,23 +310,35 @@ fun SettingsScreen(vm: TimerViewModel) {
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.weight(1f),
                 )
+                FilledTonalIconButton(
+                    onClick = { vm.setAlarmVolume(((volPct - 5).coerceAtLeast(0)) / 100f) },
+                    enabled = volPct > 0,
+                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = SURFACE,
+                        contentColor = Color.White,
+                    ),
+                ) {
+                    Icon(Icons.Filled.Remove, contentDescription = "Decrease volume")
+                }
                 Text(
-                    "${(s.alarmVolume * 100).toInt()}%",
+                    "$volPct%",
                     color = accent,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.width(64.dp),
                 )
+                FilledTonalIconButton(
+                    onClick = { vm.setAlarmVolume(((volPct + 5).coerceAtMost(100)) / 100f) },
+                    enabled = volPct < 100,
+                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = accent,
+                        contentColor = ON_ACCENT,
+                    ),
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = "Increase volume")
+                }
             }
-            Slider(
-                value = s.alarmVolume,
-                onValueChange = { vm.setAlarmVolume(it) },
-                valueRange = 0f..1f,
-                colors = SliderDefaults.colors(
-                    thumbColor = accent,
-                    activeTrackColor = accent,
-                    inactiveTrackColor = SURFACE,
-                ),
-            )
 
             // Salida con audífonos
             SectionLabel(t.headsetTitle)
