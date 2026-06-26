@@ -38,4 +38,11 @@ object TimerBus {
 
     /** Instante (epoch millis) en que el timer llega a cero. Estable mientras corre. */
     val endAt = MutableStateFlow(0L)
+
+    /**
+     * true si la app está en primer plano (Activity visible). Lo actualiza
+     * MainActivity en onStart/onStop. El servicio lo usa para decidir cuándo
+     * mostrar el overlay flotante (solo en background).
+     */
+    val appForeground = MutableStateFlow(false)
 }

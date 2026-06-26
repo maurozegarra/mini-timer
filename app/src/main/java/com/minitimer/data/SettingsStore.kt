@@ -93,6 +93,13 @@ class SettingsStore(context: Context) {
 
     fun loadLastDuration(): Int = prefs.getInt(KEY_LAST_DURATION, 0)
 
+    /** Si ya se pidió (una vez) el permiso de overlay "Mostrar sobre otras apps". */
+    fun overlayAsked(): Boolean = prefs.getBoolean(KEY_OVERLAY_ASKED, false)
+
+    fun setOverlayAsked() {
+        prefs.edit().putBoolean(KEY_OVERLAY_ASKED, true).apply()
+    }
+
     private companion object {
         const val KEY_ACCENT = "accent"
         const val KEY_LANGUAGE = "language"
@@ -110,5 +117,6 @@ class SettingsStore(context: Context) {
         const val KEY_T_REMAINING = "timer_remaining"
         const val KEY_T_TOTAL = "timer_total"
         const val KEY_LAST_DURATION = "last_duration"
+        const val KEY_OVERLAY_ASKED = "overlay_asked"
     }
 }
