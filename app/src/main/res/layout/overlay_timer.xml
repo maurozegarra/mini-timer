@@ -3,25 +3,29 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content">
 
-    <!-- Estado colapsado: píldora slim a la derecha de la cámara (status bar).
-         El contenedor es transparente; solo el texto lleva fondo de píldora para
-         no tapar el punch-hole de la cámara. -->
+    <!-- Estado colapsado: píldora que ABARCA el notch de la cámara.
+         A la izquierda un hueco (la cámara hace de "ícono") y a la derecha el
+         countdown. El fondo de la píldora cubre todo el ancho, rodeando el
+         punch-hole. La altura se ajusta en código a la barra de estado. -->
     <LinearLayout
         android:id="@+id/overlay_collapsed"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="center_vertical">
+        android:gravity="center_vertical"
+        android:background="@drawable/overlay_pill_bg"
+        android:paddingStart="10dp"
+        android:paddingEnd="14dp">
+
+        <Space
+            android:id="@+id/overlay_camera_gap"
+            android:layout_width="34dp"
+            android:layout_height="1dp" />
 
         <Chronometer
             android:id="@+id/overlay_collapsed_chrono"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:background="@drawable/overlay_pill_bg"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:paddingTop="2dp"
-            android:paddingBottom="2dp"
             android:textColor="#FFFFFFFF"
             android:textSize="14sp"
             android:textStyle="bold"
