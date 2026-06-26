@@ -25,6 +25,8 @@ data class Strings(
     val autoDismiss: String,
     val ignoreSilent: String,
     val ignoreSilentDesc: String,
+    val alarmSound: String,
+    val defaultSound: String,
     val on: String,
     val off: String,
 )
@@ -54,6 +56,8 @@ object I18n {
         autoDismiss = "Auto descartar",
         ignoreSilent = "Ignorar modo silencio",
         ignoreSilentDesc = "Reproducir el sonido del temporizador en modo silencio o vibración",
+        alarmSound = "Tono de alarma",
+        defaultSound = "Predeterminado",
         on = "Activado",
         off = "Desactivado",
     )
@@ -80,6 +84,8 @@ object I18n {
         autoDismiss = "Auto dismiss",
         ignoreSilent = "Ignore silence mode",
         ignoreSilentDesc = "Play timer sound in the silence or vibration mode",
+        alarmSound = "Timer alarm sound",
+        defaultSound = "Default",
         on = "On",
         off = "Off",
     )
