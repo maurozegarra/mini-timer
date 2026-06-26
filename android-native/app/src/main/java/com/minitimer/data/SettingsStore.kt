@@ -34,10 +34,52 @@ class SettingsStore(context: Context) {
             .apply()
     }
 
+    // ---------- Estado del timer activo (sobrevive a la muerte del proceso) ----------
+
+    /** Estado persistido de un timer en curso/pausado/terminado. */
+    data class TimerState(
+        val phase: String,
+        val endAt: Long,
+        val remainingMs: Long,
+        val totalMs: Long,
+    )
+
+    fun saveTimerState(state: TimerState) {
+        prefs.edit()
+            .putString(KEY_T_PHASE, state.phase)
+            .putLong(KEY_T_END_AT, state.endAt)
+            .putLong(KEY_T_REMAINING, state.remainingMs)
+            .putLong(KEY_T_TOTAL, state.totalMs)
+            .apply()
+    }
+
+    fun loadTimerState(): TimerState? {
+        val phase = prefs.getString(KEY_T_PHASE, null) ?: return null
+        return TimerState(
+            phase = phase,
+            endAt = prefs.getLong(KEY_T_END_AT, 0L),
+            remainingMs = prefs.getLong(KEY_T_REMAINING, 0L),
+            totalMs = prefs.getLong(KEY_T_TOTAL, 0L),
+        )
+    }
+
+    fun clearTimerState() {
+        prefs.edit()
+            .remove(KEY_T_PHASE)
+            .remove(KEY_T_END_AT)
+            .remove(KEY_T_REMAINING)
+            .remove(KEY_T_TOTAL)
+            .apply()
+    }
+
     private companion object {
         const val KEY_ACCENT = "accent"
         const val KEY_LANGUAGE = "language"
         const val KEY_PRESETS = "presets"
         const val KEY_AUTO_DISMISS = "autoDismiss"
+        const val KEY_T_PHASE = "timer_phase"
+        const val KEY_T_END_AT = "timer_end_at"
+        const val KEY_T_REMAINING = "timer_remaining"
+        const val KEY_T_TOTAL = "timer_total"
     }
 }

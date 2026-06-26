@@ -50,6 +50,49 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         TimerBus.accent.value = settings.accent
+        restoreTimerState()
+    }
+
+    /** Restaura un timer activo tras la muerte del proceso (swipe en Recientes). */
+    private fun restoreTimerState() {
+        val st = store.loadTimerState() ?: return
+        totalMs = st.totalMs
+        when (st.phase) {
+            Phase.RUNNING.name -> {
+                val left = st.endAt - System.currentTimeMillis()
+                if (left > 0L) {
+                    endAt = st.endAt
+                    remainingMs = left
+                    TimerBus.endAt.value = endAt
+                    setPhaseAndBus(Phase.RUNNING)
+                    startTicking()
+                    LiveTimerService.start(getApplication())
+                } else {
+                    remainingMs = 0
+                    onFinished()
+                }
+            }
+            Phase.PAUSED.name -> {
+                remainingMs = st.remainingMs
+                setPhaseAndBus(Phase.PAUSED)
+                LiveTimerService.start(getApplication())
+            }
+            Phase.DONE.name -> {
+                remainingMs = 0
+                onFinished()
+            }
+        }
+    }
+
+    private fun saveTimerState() {
+        store.saveTimerState(
+            SettingsStore.TimerState(
+                phase = phase.name,
+                endAt = endAt,
+                remainingMs = remainingMs,
+                totalMs = totalMs,
+            ),
+        )
     }
 
     // ---------- Tiempo configurado desde los dígitos ----------
@@ -89,6 +132,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         remainingMs = ms
         TimerBus.endAt.value = endAt
         setPhaseAndBus(Phase.RUNNING)
+        saveTimerState()
         startTicking()
         LiveTimerService.start(getApplication())
     }
@@ -97,12 +141,14 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         remainingMs = (endAt - System.currentTimeMillis()).coerceAtLeast(0)
         tickJob?.cancel()
         setPhaseAndBus(Phase.PAUSED)
+        saveTimerState()
     }
 
     fun resume() {
         endAt = System.currentTimeMillis() + remainingMs
         TimerBus.endAt.value = endAt
         setPhaseAndBus(Phase.RUNNING)
+        saveTimerState()
         startTicking()
     }
 
@@ -110,6 +156,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         stopAlarm()
         tickJob?.cancel()
         autoDismissJob?.cancel()
+        store.clearTimerState()
         setPhaseAndBus(Phase.SETUP)
         LiveTimerService.stop(getApplication())
     }
@@ -124,6 +171,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         stopAlarm()
         tickJob?.cancel()
         autoDismissJob?.cancel()
+        store.clearTimerState()
         digits = ""
         setPhaseAndBus(Phase.SETUP)
         LiveTimerService.stop(getApplication())
@@ -149,6 +197,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun onFinished() {
         setPhaseAndBus(Phase.DONE)
+        saveTimerState()
         startAlarm()
         val secs = settings.autoDismiss
         if (secs > 0) {
