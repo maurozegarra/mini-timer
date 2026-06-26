@@ -22,6 +22,7 @@ class SettingsStore(context: Context) {
             language = prefs.getString(KEY_LANGUAGE, defaults.language) ?: defaults.language,
             presets = presets,
             autoDismiss = prefs.getInt(KEY_AUTO_DISMISS, defaults.autoDismiss),
+            ignoreSilent = prefs.getBoolean(KEY_IGNORE_SILENT, defaults.ignoreSilent),
         )
     }
 
@@ -31,6 +32,7 @@ class SettingsStore(context: Context) {
             .putString(KEY_LANGUAGE, s.language)
             .putString(KEY_PRESETS, s.presets.joinToString(","))
             .putInt(KEY_AUTO_DISMISS, s.autoDismiss)
+            .putBoolean(KEY_IGNORE_SILENT, s.ignoreSilent)
             .apply()
     }
 
@@ -84,6 +86,7 @@ class SettingsStore(context: Context) {
         const val KEY_LANGUAGE = "language"
         const val KEY_PRESETS = "presets"
         const val KEY_AUTO_DISMISS = "autoDismiss"
+        const val KEY_IGNORE_SILENT = "ignoreSilent"
         const val KEY_T_PHASE = "timer_phase"
         const val KEY_T_END_AT = "timer_end_at"
         const val KEY_T_REMAINING = "timer_remaining"

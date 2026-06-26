@@ -3,6 +3,7 @@ package com.minitimer
 import android.app.Application
 import android.content.Context
 import android.media.AudioAttributes
+import android.media.AudioManager
 import android.media.Ringtone
 import android.media.RingtoneManager
 import android.os.Build
@@ -248,6 +249,12 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
             @Suppress("DEPRECATION")
             vibrator.vibrate(pattern, 0)
         }
+        // Si "Ignorar modo silencio" está desactivado, respetar el modo del
+        // teléfono: en silencio o vibración no se reproduce el sonido.
+        val audio = ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val shouldPlaySound =
+            settings.ignoreSilent || audio.ringerMode == AudioManager.RINGER_MODE_NORMAL
+        if (!shouldPlaySound) return
         try {
             val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
                 ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
@@ -310,6 +317,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     fun setLanguage(lang: String) = update(settings.copy(language = lang))
     fun setAccent(color: Long) = update(settings.copy(accent = color))
     fun setAutoDismiss(sec: Int) = update(settings.copy(autoDismiss = sec))
+    fun setIgnoreSilent(value: Boolean) = update(settings.copy(ignoreSilent = value))
     fun resetSettings() = update(Settings())
 
     fun addPreset(input: String): Boolean {

@@ -6,6 +6,7 @@ data class Settings(
     val language: String = "en",
     val presets: List<Int> = listOf(60, 180, 300, 600, 900, 1800),
     val autoDismiss: Int = 3,
+    val ignoreSilent: Boolean = true,
 )
 
 /** Paleta de colores de acento disponibles. */
