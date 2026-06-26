@@ -22,7 +22,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:configChanges="orientation|screenSize|keyboardHidden"
-            android:label=" Timer"
+            android:label="!Timer"
             android:theme="@style/Theme.MiniTimer">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
