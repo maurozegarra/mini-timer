@@ -19,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
@@ -49,11 +50,17 @@ class LiveTimerService : Service() {
             val nm = getSystemService(NotificationManager::class.java)
             val canPost = nm.canPostPromotedNotifications()
             val promotable = notification.hasPromotableCharacteristics()
-            Toast.makeText(
-                this,
-                "LiveUpdate canPost=$canPost promotable=$promotable",
-                Toast.LENGTH_LONG,
-            ).show()
+            scope.launch {
+                delay(800)
+                val active = nm.activeNotifications.firstOrNull { it.id == NOTIF_ID }
+                val promoted = active != null &&
+                    (active.notification.flags and Notification.FLAG_PROMOTED_ONGOING) != 0
+                Toast.makeText(
+                    this@LiveTimerService,
+                    "canPost=$canPost promotable=$promotable promoted=$promoted",
+                    Toast.LENGTH_LONG,
+                ).show()
+            }
         }
     }
 
