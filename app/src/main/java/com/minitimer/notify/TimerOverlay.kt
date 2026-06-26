@@ -11,7 +11,6 @@ import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.widget.Chronometer
 import android.widget.ImageButton
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.minitimer.R
@@ -39,7 +38,6 @@ class TimerOverlay(private val context: Context) {
     private var root: View? = null
     private var collapsed: LinearLayout? = null
     private var expanded: LinearLayout? = null
-    private var collapsedIcon: ImageView? = null
     private var collapsedChrono: Chronometer? = null
     private var expandedChrono: Chronometer? = null
     private var infoView: TextView? = null
@@ -49,6 +47,11 @@ class TimerOverlay(private val context: Context) {
     private var params: WindowManager.LayoutParams? = null
     private var isExpanded = false
 
+    // Posición del estado colapsado (se actualiza al arrastrar). Por defecto:
+    // pegado arriba (status bar) y a la derecha de la cámara central.
+    private var collapsedX = 0
+    private var collapsedY = 0
+
     val isShowing get() = root != null
 
     fun show() {
@@ -57,7 +60,6 @@ class TimerOverlay(private val context: Context) {
         root = v
         collapsed = v.findViewById(R.id.overlay_collapsed)
         expanded = v.findViewById(R.id.overlay_expanded)
-        collapsedIcon = v.findViewById(R.id.overlay_collapsed_icon)
         collapsedChrono = v.findViewById(R.id.overlay_collapsed_chrono)
         expandedChrono = v.findViewById(R.id.overlay_expanded_chrono)
         infoView = v.findViewById(R.id.overlay_info)
@@ -78,13 +80,16 @@ class TimerOverlay(private val context: Context) {
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
+                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT,
-        ).apply {
-            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            y = dp(36)
-        }
+        )
         params = lp
+        // Posición colapsada por defecto: arriba (status bar), pegado a la
+        // derecha de la cámara central.
+        collapsedX = screenWidth() / 2 + dp(20)
+        collapsedY = 0
         attachDrag(v, lp)
         applyExpanded()
         try {
@@ -125,9 +130,9 @@ class TimerOverlay(private val context: Context) {
             chrono.isCountDown = true
             chrono.base = base
             if (running) chrono.start() else chrono.stop()
-            chrono.setTextColor(accent)
         }
-        collapsedIcon?.setColorFilter(accent)
+        collapsedChrono?.setTextColor(0xFFFFFFFF.toInt())
+        expandedChrono?.setTextColor(accent)
         infoView?.text = buildInfo()
         btnPause?.setImageResource(
             if (paused) R.drawable.ic_notif_play else R.drawable.ic_notif_pause,
@@ -157,6 +162,25 @@ class TimerOverlay(private val context: Context) {
     private fun applyExpanded() {
         collapsed?.visibility = if (isExpanded) View.GONE else View.VISIBLE
         expanded?.visibility = if (isExpanded) View.VISIBLE else View.GONE
+        val lp = params ?: return
+        if (isExpanded) {
+            // Tarjeta centrada, justo debajo de la barra de estado.
+            lp.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            lp.x = 0
+            lp.y = statusBarHeight() + dp(8)
+        } else {
+            // Píldora arriba (status bar), anclada desde la izquierda a la
+            // derecha de la cámara.
+            lp.gravity = Gravity.TOP or Gravity.START
+            lp.x = collapsedX
+            lp.y = collapsedY
+        }
+        if (root != null) {
+            try {
+                wm?.updateViewLayout(root, lp)
+            } catch (_: Exception) {
+            }
+        }
     }
 
     /** Permite arrastrar la ventana; un toque sin desplazamiento alterna colapsar/expandir. */
@@ -193,7 +217,13 @@ class TimerOverlay(private val context: Context) {
                     true
                 }
                 MotionEvent.ACTION_UP -> {
-                    if (!moved) toggleExpanded()
+                    if (!moved) {
+                        toggleExpanded()
+                    } else if (!isExpanded) {
+                        // Recordar la posición colapsada tras arrastrar.
+                        collapsedX = lp.x
+                        collapsedY = lp.y
+                    }
                     true
                 }
                 else -> false
@@ -203,4 +233,11 @@ class TimerOverlay(private val context: Context) {
 
     private fun dp(value: Int): Int =
         (value * context.resources.displayMetrics.density).toInt()
+
+    private fun screenWidth(): Int = context.resources.displayMetrics.widthPixels
+
+    private fun statusBarHeight(): Int {
+        val id = context.resources.getIdentifier("status_bar_height", "dimen", "android")
+        return if (id > 0) context.resources.getDimensionPixelSize(id) else dp(28)
+    }
 }

@@ -3,33 +3,27 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content">
 
-    <!-- Estado colapsado: píldora con countdown (clon de la cápsula) -->
+    <!-- Estado colapsado: píldora slim a la derecha de la cámara (status bar).
+         El contenedor es transparente; solo el texto lleva fondo de píldora para
+         no tapar el punch-hole de la cámara. -->
     <LinearLayout
         android:id="@+id/overlay_collapsed"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:background="@drawable/overlay_pill_bg"
-        android:paddingStart="16dp"
-        android:paddingEnd="20dp"
-        android:paddingTop="8dp"
-        android:paddingBottom="8dp">
-
-        <ImageView
-            android:id="@+id/overlay_collapsed_icon"
-            android:layout_width="20dp"
-            android:layout_height="20dp"
-            android:layout_marginEnd="8dp"
-            android:src="@drawable/ic_stat_timer"
-            android:contentDescription="@null" />
+        android:gravity="center_vertical">
 
         <Chronometer
             android:id="@+id/overlay_collapsed_chrono"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:background="@drawable/overlay_pill_bg"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="2dp"
+            android:paddingBottom="2dp"
             android:textColor="#FFFFFFFF"
-            android:textSize="18sp"
+            android:textSize="14sp"
             android:textStyle="bold"
             android:fontFamily="@font/jetbrains_mono_semibold" />
     </LinearLayout>
