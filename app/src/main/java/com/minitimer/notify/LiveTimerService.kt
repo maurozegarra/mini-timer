@@ -178,13 +178,9 @@ class LiveTimerService : Service() {
             builder.setShowWhen(false)
         }
 
-        val max = 1000
-        val elapsed = if (total > 0) {
-            (((total - remaining).toDouble() / total) * max).toInt().coerceIn(0, max)
-        } else {
-            max
-        }
-
+        // Sin barra de progreso: usamos "Standard Style" (sin Notification.Style),
+        // que también califica como Live Update y clona el look del Timer de
+        // Samsung (cápsula + expandida sin progress bar).
         if (Build.VERSION.SDK_INT >= 36) {
             builder.setRequestPromotedOngoing(true)
             // El chip usa el cronómetro mientras corre; el texto corto solo cuando
@@ -192,14 +188,6 @@ class LiveTimerService : Service() {
             if (!running) {
                 builder.setShortCriticalText(display)
             }
-            val segment = Notification.ProgressStyle.Segment(max).setColor(accent)
-            val style = Notification.ProgressStyle()
-                .addProgressSegment(segment)
-                .setProgress(elapsed)
-            builder.style = style
-        } else {
-            @Suppress("DEPRECATION")
-            builder.setProgress(max, elapsed, false)
         }
 
         // Extras propietarios de One UI (Live Notifications / Now Bar): replican el
