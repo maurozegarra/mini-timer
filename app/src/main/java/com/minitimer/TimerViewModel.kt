@@ -436,7 +436,11 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     fun setVibrationEnabled(value: Boolean) = update(settings.copy(vibrationEnabled = value))
     fun setVibrationPattern(index: Int) = update(settings.copy(vibrationPattern = index))
     fun setAlarmVolume(value: Float) = update(settings.copy(alarmVolume = value.coerceIn(0f, 1f)))
-    fun resetSettings() = update(Settings())
+    fun resetSettings() {
+        update(Settings())
+        // Re-aplicar "Beep" como tono por defecto (Settings() deja el tono en null).
+        ensureDefaultAlarmSound()
+    }
 
     fun addPreset(input: String): Boolean {
         val sec = parsePresetInput(input)
