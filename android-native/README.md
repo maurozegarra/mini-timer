@@ -18,20 +18,28 @@ con las mismas funcionalidades y, además, **Live Update** (notificación promov
   con barra de progreso y cuenta regresiva. Aparece como chip en la barra de estado, en la sombra de
   notificaciones y en la **Now Bar** de One UI (en One UI 8, para apps de terceros, requiere activar
   *Opciones de desarrollador → "Live notifications for all apps"*).
+- **El timer sobrevive a la muerte del proceso**: si cierras la app desde Recientes (swipe), al
+  reabrirla el temporizador se restaura recalculando el tiempo restante con el reloj real
+  (corriendo / pausado / terminado).
+- **Recuerda la última duración usada** (de presets o tecleada) y la pre-rellena al abrir la app o
+  tras terminar/cancelar, lista para reutilizarse.
+- **Pantalla siempre encendida**: mientras la app está en primer plano no se apaga la pantalla
+  (`keepScreenOn`); además, mientras el timer corre en background, un *screen wake lock* en el
+  servicio intenta mantenerla encendida (deprecado, puede estar limitado en algunos OEM).
 - **Tipografía**: dígitos en **JetBrains Mono** (incluida en `res/font`), con `0` ranurado.
-- **Persistencia**: `SharedPreferences`.
+- **Persistencia**: `SharedPreferences` (ajustes, estado del timer activo y última duración).
 
 ## Requisitos
 
-- Android Studio (Koala o superior) con JDK 17.
-- `minSdk 26`, `targetSdk 36`, `compileSdk 36`.
+- Android Studio (con JBR/JDK 21) — el Live Update de Android 16 requiere el toolchain moderno.
+- `minSdk 26`, `targetSdk 36`, `compileSdk 36.1`.
 
 ## Cómo compilar / ejecutar
 
 1. Abre la carpeta `android-native/` en **Android Studio** (`File > Open`).
-2. Android Studio descargará Gradle 8.7 y generará el `gradle-wrapper.jar` automáticamente.
+2. Android Studio descargará Gradle 9.4.1 y generará el `gradle-wrapper.jar` automáticamente.
    - Si compilas por línea de comandos y no existe el wrapper, genéralo con un Gradle local:
-     `gradle wrapper --gradle-version 8.7`
+     `gradle wrapper --gradle-version 9.4.1`
 3. Conecta un dispositivo/emulador (API 26+) y pulsa **Run**, o:
    ```bash
    ./gradlew installDebug
@@ -44,7 +52,7 @@ app/src/main/
   AndroidManifest.xml
   java/com/minitimer/
     MainActivity.kt              # Activity y permiso de notificaciones
-    TimerViewModel.kt            # Lógica: countdown, alarma, auto-dismiss, ajustes
+    TimerViewModel.kt            # Lógica: countdown, alarma, auto-dismiss, ajustes, persistencia/restauración
     TimerBus.kt                  # Estado global compartido con el Live Update
     model/Settings.kt           # Modelo de ajustes + paletas
     data/SettingsStore.kt       # Persistencia (SharedPreferences)
@@ -95,23 +103,29 @@ Maven Central + Google Maven + Gradle Plugin Portal). El token se reutiliza desd
 `gradle.properties` incluye `org.gradle.java.home=C:/Users/mzegarra_ide/Downloads/android-studio/jbr`.
 
 ### 4. Android SDK
-Instalado en `%LOCALAPPDATA%\Android\Sdk` (cmdline-tools + `platform-tools`, `platforms;android-34`,
-`build-tools;34.0.0`, licencias aceptadas). La ruta queda en `local.properties` (`sdk.dir`).
+Instalado en `%LOCALAPPDATA%\Android\Sdk` (cmdline-tools + `platform-tools`, `platforms;android-36`,
+`build-tools`, licencias aceptadas). La ruta queda en `local.properties` (`sdk.dir`).
 
 ### 5. Construir (verificado ✅)
 - **Recomendado**: abre el proyecto en Android Studio y sincroniza.
-- **CLI** (con el Gradle 8.11.1 ya cacheado y `JAVA_HOME` = JBR):
+- **CLI** (con el Gradle 9.4.1 ya cacheado y `JAVA_HOME` = JBR):
   ```powershell
   $env:JAVA_HOME = 'C:\Users\mzegarra_ide\Downloads\android-studio\jbr'
-  & "$env:USERPROFILE\.gradle\wrapper\dists\gradle-8.11.1-bin\*\gradle-8.11.1\bin\gradle.bat" assembleDebug --no-daemon
+  & "$env:USERPROFILE\.gradle\wrapper\dists\gradle-9.4.1-bin\*\gradle-9.4.1\bin\gradle.bat" assembleDebug --no-daemon
   ```
   APK resultante: `app/build/outputs/apk/debug/app-debug.apk`.
 
-> Stack verificado: **AGP 8.7.3**, **Gradle 8.11.1**, **Kotlin 1.9.24**, `compileSdk 34`.
+> Stack verificado: **AGP 9.2.1**, **Gradle 9.4.1**, **Kotlin 2.2.10**, `compileSdk 36.1`.
 > Build exitoso end-to-end resolviendo todo desde JFrog.
+>
+> **Memoria (importante):** AGP 9 con G1 reserva mucho espacio virtual y en este equipo daba
+> *"el archivo de paginación es demasiado pequeño"* (Windows). Por eso `gradle.properties` usa
+> `-XX:+UseSerialGC` con heaps reducidos (`org.gradle.jvmargs` y `kotlin.daemon.jvmargs`).
 
 ## Notas
 
 - El proyecto **no incluye `gradle-wrapper.jar`** (binario). Android Studio lo genera al abrir; o usa
-  `gradle wrapper --gradle-version 8.7` si tienes Gradle instalado.
+  `gradle wrapper --gradle-version 9.4.1` si tienes Gradle instalado.
+- Permisos usados: `POST_NOTIFICATIONS`, `POST_PROMOTED_NOTIFICATIONS`, `FOREGROUND_SERVICE`,
+  `FOREGROUND_SERVICE_SPECIAL_USE`, `VIBRATE`, `WAKE_LOCK`.
 - No se incluye icono de launcher personalizado (usa el del sistema); puedes añadir uno en `res/mipmap`.
