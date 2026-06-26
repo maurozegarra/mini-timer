@@ -310,11 +310,25 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     /** Reproduce el tono en bucle, opcionalmente forzando un dispositivo de salida. */
     private fun playOn(ctx: Context, uri: Uri, device: AudioDeviceInfo?) {
         try {
+            // USAGE_ALARM no se enruta a Bluetooth A2DP (Android manda las alarmas
+            // al altavoz). Para reproducir en audífonos usamos USAGE_MEDIA, que sí
+            // se enruta a A2DP / cableados / USB.
+            val isHeadset = device != null && device.type in HEADSET_TYPES
+            val usage = if (isHeadset) {
+                AudioAttributes.USAGE_MEDIA
+            } else {
+                AudioAttributes.USAGE_ALARM
+            }
+            val contentType = if (isHeadset) {
+                AudioAttributes.CONTENT_TYPE_MUSIC
+            } else {
+                AudioAttributes.CONTENT_TYPE_SONIFICATION
+            }
             val mp = MediaPlayer()
             mp.setAudioAttributes(
                 AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .setUsage(usage)
+                    .setContentType(contentType)
                     .build(),
             )
             mp.setDataSource(ctx, uri)
