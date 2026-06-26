@@ -178,8 +178,18 @@ class LiveTimerService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
 
+        // Cuando NO se promueve (desbloqueado/background), el ícono de la barra de
+        // estado del foreground service se hace transparente para que quede
+        // invisible (el FGS siempre ocupa un slot, pero así no se ve). Al promover
+        // (bloqueado) se usa el ícono real para la cápsula / Now Bar.
+        val smallIcon = if (shouldPromote()) {
+            R.drawable.ic_stat_timer
+        } else {
+            R.drawable.ic_stat_transparent
+        }
+
         val builder = Notification.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_stat_timer)
+            .setSmallIcon(smallIcon)
             // El countdown en vivo lo provee el cronómetro; el título secundario
             // muestra la duración y la hora de término. No se repite "Mini Timer".
             .setContentTitle(infoLine)
