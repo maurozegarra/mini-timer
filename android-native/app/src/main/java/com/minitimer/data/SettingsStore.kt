@@ -22,7 +22,6 @@ class SettingsStore(context: Context) {
             language = prefs.getString(KEY_LANGUAGE, defaults.language) ?: defaults.language,
             presets = presets,
             autoDismiss = prefs.getInt(KEY_AUTO_DISMISS, defaults.autoDismiss),
-            floatingWindow = prefs.getBoolean(KEY_FLOATING, defaults.floatingWindow),
         )
     }
 
@@ -32,7 +31,6 @@ class SettingsStore(context: Context) {
             .putString(KEY_LANGUAGE, s.language)
             .putString(KEY_PRESETS, s.presets.joinToString(","))
             .putInt(KEY_AUTO_DISMISS, s.autoDismiss)
-            .putBoolean(KEY_FLOATING, s.floatingWindow)
             .apply()
     }
 
@@ -41,6 +39,5 @@ class SettingsStore(context: Context) {
         const val KEY_LANGUAGE = "language"
         const val KEY_PRESETS = "presets"
         const val KEY_AUTO_DISMISS = "autoDismiss"
-        const val KEY_FLOATING = "floatingWindow"
     }
 }

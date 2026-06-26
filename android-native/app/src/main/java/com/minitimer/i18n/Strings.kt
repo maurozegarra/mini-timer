@@ -22,11 +22,9 @@ data class Strings(
     val add: String,
     val reset: String,
     val presetPlaceholder: String,
-    val floatingWindow: String,
     val autoDismiss: String,
     val on: String,
     val off: String,
-    val overlayPermission: String,
 )
 
 object I18n {
@@ -51,11 +49,9 @@ object I18n {
         add = "Agregar",
         reset = "Restablecer valores",
         presetPlaceholder = "mm:ss o hh:mm:ss",
-        floatingWindow = "Ventana flotante",
         autoDismiss = "Auto descartar",
         on = "Activado",
         off = "Desactivado",
-        overlayPermission = "Concede el permiso para mostrar la ventana flotante sobre otras apps.",
     )
 
     val EN = Strings(
@@ -77,10 +73,8 @@ object I18n {
         add = "Add",
         reset = "Reset to defaults",
         presetPlaceholder = "mm:ss or hh:mm:ss",
-        floatingWindow = "Floating window",
         autoDismiss = "Auto dismiss",
         on = "On",
         off = "Off",
-        overlayPermission = "Grant permission to show the floating window over other apps.",
     )
 }

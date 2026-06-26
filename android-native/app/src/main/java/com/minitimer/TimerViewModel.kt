@@ -210,10 +210,9 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         ringtone = null
     }
 
-    // ---------- Bus / overlay ----------
+    // ---------- Bus ----------
     private fun setPhaseAndBus(p: Phase) {
         phase = p
-        TimerBus.active.value = p != Phase.SETUP
         TimerBus.done.value = p == Phase.DONE
         updateBus()
     }
@@ -241,7 +240,6 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     fun setLanguage(lang: String) = update(settings.copy(language = lang))
     fun setAccent(color: Long) = update(settings.copy(accent = color))
     fun setAutoDismiss(sec: Int) = update(settings.copy(autoDismiss = sec))
-    fun setFloatingWindow(enabled: Boolean) = update(settings.copy(floatingWindow = enabled))
     fun resetSettings() = update(Settings())
 
     fun addPreset(input: String): Boolean {

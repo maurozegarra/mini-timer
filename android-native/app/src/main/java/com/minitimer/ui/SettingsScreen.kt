@@ -62,7 +62,7 @@ import com.minitimer.util.formatRemaining
     ExperimentalMaterial3Api::class,
 )
 @Composable
-fun SettingsScreen(vm: TimerViewModel, requestOverlayPermission: () -> Unit) {
+fun SettingsScreen(vm: TimerViewModel) {
     val s = vm.settings
     val t = I18n.get(s.language)
     val accent = Color(s.accent)
@@ -166,16 +166,6 @@ fun SettingsScreen(vm: TimerViewModel, requestOverlayPermission: () -> Unit) {
                 ) {
                     Text(t.add, fontWeight = FontWeight.Bold)
                 }
-            }
-
-            // Ventana flotante
-            SectionLabel(t.floatingWindow)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Chip(t.on, s.floatingWindow, accent) {
-                    vm.setFloatingWindow(true)
-                    requestOverlayPermission()
-                }
-                Chip(t.off, !s.floatingWindow, accent) { vm.setFloatingWindow(false) }
             }
 
             // Auto descartar

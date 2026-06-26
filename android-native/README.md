@@ -1,7 +1,7 @@
 # Mini Timer — Android nativo (Kotlin + Jetpack Compose)
 
 Reimplementación 100% nativa del temporizador (independiente de la versión Expo/React Native),
-con las mismas funcionalidades y, además, **ventana flotante real** sobre otras apps.
+con las mismas funcionalidades y, además, **Live Update** (notificación promovida de Android 16, visible en la Now Bar de One UI).
 
 ## Funcionalidades
 
@@ -14,18 +14,17 @@ con las mismas funcionalidades y, además, **ventana flotante real** sobre otras
   - **Presets editables**: agrega (`mm:ss` o `hh:mm:ss`; un solo número = minutos) y elimina.
   - **Auto descartar**: `Off, 3s, 5s, 10s, 30s, 60s` (default **3s**).
   - **Restablecer valores**.
-- **Ventana flotante (system overlay)**: opción configurable (default **apagada**). Cuando está activa
-  y sales de la app (Home/Recientes) con un timer en curso, aparece una pequeña ventana sobre otras
-  apps mostrando solo el tiempo restante. Se oculta al volver a la app.
+- **Live Update (Android 16)**: notificación promovida (`Notification.ProgressStyle` + cronómetro)
+  con barra de progreso y cuenta regresiva. Aparece como chip en la barra de estado, en la sombra de
+  notificaciones y en la **Now Bar** de One UI (en One UI 8, para apps de terceros, requiere activar
+  *Opciones de desarrollador → "Live notifications for all apps"*).
 - **Tipografía**: dígitos en **JetBrains Mono** (incluida en `res/font`), con `0` ranurado.
 - **Persistencia**: `SharedPreferences`.
 
 ## Requisitos
 
 - Android Studio (Koala o superior) con JDK 17.
-- `minSdk 26`, `targetSdk 34`, `compileSdk 34`.
-- Permiso **"Mostrar sobre otras apps"** (`SYSTEM_ALERT_WINDOW`) para la ventana flotante:
-  al activar la opción, la app abre la pantalla de ajustes del sistema para concederlo.
+- `minSdk 26`, `targetSdk 36`, `compileSdk 36`.
 
 ## Cómo compilar / ejecutar
 
@@ -44,9 +43,9 @@ con las mismas funcionalidades y, además, **ventana flotante real** sobre otras
 app/src/main/
   AndroidManifest.xml
   java/com/minitimer/
-    MainActivity.kt              # Activity, permiso overlay, disparo del overlay en onUserLeaveHint
+    MainActivity.kt              # Activity y permiso de notificaciones
     TimerViewModel.kt            # Lógica: countdown, alarma, auto-dismiss, ajustes
-    TimerBus.kt                  # Estado global compartido con el overlay
+    TimerBus.kt                  # Estado global compartido con el Live Update
     model/Settings.kt           # Modelo de ajustes + paletas
     data/SettingsStore.kt       # Persistencia (SharedPreferences)
     i18n/Strings.kt             # Traducciones es/en
@@ -54,7 +53,7 @@ app/src/main/
     ui/TimerApp.kt              # Setup, Countdown, anillo, componentes
     ui/SettingsScreen.kt        # Pantalla de configuración
     ui/theme/Theme.kt, Type.kt  # Tema oscuro y fuente JetBrains Mono
-    overlay/OverlayService.kt   # Ventana flotante (foreground service + WindowManager)
+    notify/LiveTimerService.kt  # Foreground service que publica la notificación Live Update
   res/font/                     # JetBrains Mono (light/regular/semibold)
   res/values/themes.xml         # Tema de la Activity
 ```
@@ -115,6 +114,4 @@ Instalado en `%LOCALAPPDATA%\Android\Sdk` (cmdline-tools + `platform-tools`, `pl
 
 - El proyecto **no incluye `gradle-wrapper.jar`** (binario). Android Studio lo genera al abrir; o usa
   `gradle wrapper --gradle-version 8.7` si tienes Gradle instalado.
-- La ventana flotante se inicia desde `onUserLeaveHint()` (estado foreground) para cumplir con las
-  restricciones de inicio de *foreground services* en segundo plano de Android 12+.
 - No se incluye icono de launcher personalizado (usa el del sistema); puedes añadir uno en `res/mipmap`.
