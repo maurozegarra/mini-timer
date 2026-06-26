@@ -19,4 +19,13 @@ object TimerBus {
 
     /** true si el timer ya terminó (para colorear en rojo). */
     val done = MutableStateFlow(false)
+
+    /** true si el timer está pausado. */
+    val paused = MutableStateFlow(false)
+
+    /** Milisegundos restantes del timer. */
+    val remainingMs = MutableStateFlow(0L)
+
+    /** Duración total del timer en milisegundos. */
+    val totalMs = MutableStateFlow(0L)
 }

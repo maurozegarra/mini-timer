@@ -16,6 +16,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.minitimer.data.SettingsStore
 import com.minitimer.model.Settings
+import com.minitimer.notify.LiveTimerService
 import com.minitimer.util.dedupeSorted
 import com.minitimer.util.formatRemaining
 import com.minitimer.util.parsePresetInput
@@ -88,6 +89,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         remainingMs = ms
         setPhaseAndBus(Phase.RUNNING)
         startTicking()
+        LiveTimerService.start(getApplication())
     }
 
     fun pause() {
@@ -107,6 +109,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         tickJob?.cancel()
         autoDismissJob?.cancel()
         setPhaseAndBus(Phase.SETUP)
+        LiveTimerService.stop(getApplication())
     }
 
     fun restart() {
@@ -121,6 +124,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         autoDismissJob?.cancel()
         digits = ""
         setPhaseAndBus(Phase.SETUP)
+        LiveTimerService.stop(getApplication())
     }
 
     private fun startTicking() {
@@ -214,6 +218,9 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun updateBus() {
         TimerBus.done.value = phase == Phase.DONE
+        TimerBus.paused.value = phase == Phase.PAUSED
+        TimerBus.remainingMs.value = remainingMs
+        TimerBus.totalMs.value = totalMs
         TimerBus.display.value =
             if (phase == Phase.DONE) I18nLabelTimeUp()
             else formatRemaining(remainingMs)
