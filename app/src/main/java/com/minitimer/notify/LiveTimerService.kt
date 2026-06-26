@@ -148,14 +148,14 @@ class LiveTimerService : Service() {
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .setContentIntent(pi)
 
-        // Botones del Now Bar: Pausa/Reanudar + Cancelar (no en estado terminado).
+        // Botones del Now Bar: Cancelar (izquierda) + Pausa/Reanudar (derecha).
         if (!done) {
+            builder.addAction(action(R.drawable.ic_notif_close, t.cancel, ACTION_CANCEL))
             if (running) {
                 builder.addAction(action(R.drawable.ic_notif_pause, t.pause, ACTION_PAUSE))
             } else {
                 builder.addAction(action(R.drawable.ic_notif_play, t.resume, ACTION_RESUME))
             }
-            builder.addAction(action(R.drawable.ic_notif_close, t.cancel, ACTION_CANCEL))
         }
 
         // Mostrar la notificación de inmediato (sin el diferimiento de 10s que
