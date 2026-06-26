@@ -1,18 +1,21 @@
 package com.minitimer.notify
 
+import android.app.KeyguardManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
-import android.os.PowerManager
 import android.os.SystemClock
+import android.provider.Settings
 import android.widget.RemoteViews
 import com.minitimer.MainActivity
 import com.minitimer.R
@@ -41,7 +44,13 @@ class LiveTimerService : Service() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var job: Job? = null
-    private var screenLock: PowerManager.WakeLock? = null
+    private var overlay: TimerOverlay? = null
+    private val keyguard by lazy { getSystemService(KeyguardManager::class.java) }
+
+    // Re-evalúa overlay y promoción cuando cambia el estado de bloqueo/pantalla.
+    private val screenReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) = refresh()
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -58,25 +67,54 @@ class LiveTimerService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        acquireScreenLock()
+        overlay = TimerOverlay(this)
         ensureChannel()
         startForegroundCompat(buildNotification())
+        registerScreenReceiver()
         observe()
+        refresh()
     }
 
-    // Mantiene la pantalla encendida mientras el timer corre, tanto en primer
-    // plano como en background (el FLAG_KEEP_SCREEN_ON solo cubre la Activity
-    // visible). Usa el screen wake lock (deprecado pero aún funcional) porque es
-    // la única API capaz de evitar el apagado de pantalla desde un servicio.
-    private fun acquireScreenLock() {
-        val pm = getSystemService(PowerManager::class.java) ?: return
-        @Suppress("DEPRECATION")
-        screenLock = pm.newWakeLock(
-            PowerManager.SCREEN_BRIGHT_WAKE_LOCK,
-            "MiniTimer:screen",
-        ).apply {
-            setReferenceCounted(false)
-            acquire()
+    private fun registerScreenReceiver() {
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_USER_PRESENT)
+        }
+        registerReceiver(screenReceiver, filter)
+    }
+
+    /** El permiso "Mostrar sobre otras apps" está concedido. */
+    private fun canOverlay(): Boolean = Settings.canDrawOverlays(this)
+
+    private fun isLocked(): Boolean = keyguard?.isKeyguardLocked == true
+
+    /**
+     * El overlay flotante se muestra solo cuando: hay permiso, el timer no
+     * terminó, la app está en background y el dispositivo está desbloqueado
+     * (no puede dibujarse sobre el lock screen).
+     */
+    private fun shouldShowOverlay(): Boolean =
+        canOverlay() &&
+            !TimerBus.done.value &&
+            !TimerBus.appForeground.value &&
+            !isLocked()
+
+    /**
+     * La promoción (chip / Now Bar del sistema) se activa solo al estar
+     * bloqueado, para no duplicar con el overlay cuando está desbloqueado. Si no
+     * hay permiso de overlay, se promueve siempre (degradación elegante).
+     */
+    private fun shouldPromote(): Boolean = if (canOverlay()) isLocked() else true
+
+    /** Re-publica la notificación y muestra/oculta el overlay según el estado. */
+    private fun refresh() {
+        repost()
+        if (shouldShowOverlay()) {
+            overlay?.show()
+            overlay?.update()
+        } else {
+            overlay?.hide()
         }
     }
 
@@ -90,13 +128,16 @@ class LiveTimerService : Service() {
                     TimerBus.done,
                     TimerBus.paused,
                     TimerBus.accent,
-                ) { _, _, _ -> Unit }.collect { repost() }
+                ) { _, _, _ -> Unit }.collect { refresh() }
             }
-            // Refresco lento de la barra de progreso mientras corre.
+            // Mostrar/ocultar el overlay y conmutar la promoción al entrar/salir
+            // de la app (foreground/background).
+            launch { TimerBus.appForeground.collect { refresh() } }
+            // Salvaguarda periódica: re-evaluar overlay/promoción.
             launch {
                 while (true) {
-                    delay(15_000)
-                    repost()
+                    delay(30_000)
+                    refresh()
                 }
             }
         }
@@ -182,7 +223,9 @@ class LiveTimerService : Service() {
         // que también califica como Live Update y clona el look del Timer de
         // Samsung (cápsula + expandida sin progress bar).
         if (Build.VERSION.SDK_INT >= 36) {
-            builder.setRequestPromotedOngoing(true)
+            // Promover (chip / Now Bar) solo cuando corresponde (ver shouldPromote):
+            // al estar bloqueado, o siempre si no hay permiso de overlay.
+            builder.setRequestPromotedOngoing(shouldPromote())
             // El chip usa el cronómetro mientras corre; el texto corto solo cuando
             // no hay cronómetro (pausa), para no competir con la cuenta regresiva.
             if (!running) {
@@ -274,8 +317,12 @@ class LiveTimerService : Service() {
         super.onDestroy()
         job?.cancel()
         scope.cancel()
-        screenLock?.let { if (it.isHeld) it.release() }
-        screenLock = null
+        try {
+            unregisterReceiver(screenReceiver)
+        } catch (_: Exception) {
+        }
+        overlay?.hide()
+        overlay = null
     }
 
     companion object {
