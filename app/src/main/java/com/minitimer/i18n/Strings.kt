@@ -32,6 +32,7 @@ data class Strings(
     val headsetOnly: String,
     val vibration: String,
     val alarmVolume: String,
+    val select: String,
     val on: String,
     val off: String,
 )
@@ -68,6 +69,7 @@ object I18n {
         headsetOnly = "Solo audífonos",
         vibration = "Vibración",
         alarmVolume = "Volumen de la alarma",
+        select = "Seleccionar",
         on = "Activado",
         off = "Desactivado",
     )
@@ -101,6 +103,7 @@ object I18n {
         headsetOnly = "Headset only",
         vibration = "Vibration",
         alarmVolume = "Timer alarm volume",
+        select = "Select",
         on = "On",
         off = "Off",
     )
