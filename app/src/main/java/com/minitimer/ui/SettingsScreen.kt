@@ -41,6 +41,8 @@ import androidx.compose.material3.InputChipDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -290,6 +292,36 @@ fun SettingsScreen(vm: TimerViewModel) {
                     tint = Color(0xFF9AA0A4),
                 )
             }
+
+            // Volumen de la alarma
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    t.alarmVolume,
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    "${(s.alarmVolume * 100).toInt()}%",
+                    color = accent,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+            Slider(
+                value = s.alarmVolume,
+                onValueChange = { vm.setAlarmVolume(it) },
+                valueRange = 0f..1f,
+                colors = SliderDefaults.colors(
+                    thumbColor = accent,
+                    activeTrackColor = accent,
+                    inactiveTrackColor = SURFACE,
+                ),
+            )
 
             // Salida con audífonos
             SectionLabel(t.headsetTitle)

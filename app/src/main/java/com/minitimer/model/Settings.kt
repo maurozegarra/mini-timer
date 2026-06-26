@@ -21,6 +21,8 @@ data class Settings(
     val vibrationEnabled: Boolean = true,
     /** Índice del patrón de vibración en [VIBRATION_PATTERNS]. */
     val vibrationPattern: Int = 0,
+    /** Volumen de la alarma, 0f..1f (relativo al volumen del stream). */
+    val alarmVolume: Float = 1f,
 )
 
 /** Patrón de vibración con nombre y tiempos (ms) para waveform en bucle. */
