@@ -76,11 +76,10 @@ fun TimerApp(vm: TimerViewModel) {
     val t = I18n.get(vm.settings.language)
     val accent = Color(vm.settings.accent)
 
-    // Mantener la pantalla encendida en primer plano mientras hay un timer activo.
-    val keepAwake = vm.phase != Phase.SETUP
+    // Mantener la pantalla encendida siempre que la app esté abierta (en primer plano).
     val view = LocalView.current
-    DisposableEffect(keepAwake) {
-        view.keepScreenOn = keepAwake
+    DisposableEffect(Unit) {
+        view.keepScreenOn = true
         onDispose { view.keepScreenOn = false }
     }
 
