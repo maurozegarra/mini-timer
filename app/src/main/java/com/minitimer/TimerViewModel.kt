@@ -485,9 +485,11 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         val ctx = getApplication<Application>()
         try {
             val rt = RingtoneManager.getRingtone(ctx, Uri.parse(uriStr)) ?: return
+            // USAGE_MEDIA (no USAGE_ALARM) para que el preview se enrute a
+            // Bluetooth A2DP / LE Audio igual que la reproducción de la alarma.
             rt.audioAttributes = AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_ALARM)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .setUsage(AudioAttributes.USAGE_MEDIA)
+                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                 .build()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 rt.volume = settings.alarmVolume.coerceIn(0f, 1f)
