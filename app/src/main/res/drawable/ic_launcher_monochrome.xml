@@ -4,29 +4,22 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Botón superior del cronómetro -->
+    <!-- Botón superior -->
     <path
-        android:fillColor="#FFFF5252"
+        android:fillColor="#FFFFFFFF"
         android:pathData="M49.5,30 L49.5,22 Q49.5,18.5 54,18.5 Q58.5,18.5 58.5,22 L58.5,30 Z" />
     <!-- Asa lateral -->
     <path
-        android:strokeColor="#FFFF5252"
+        android:strokeColor="#FFFFFFFF"
         android:strokeWidth="5"
         android:strokeLineCap="round"
         android:pathData="M71,33 L76,28" />
-    <!-- Anillo base (track) -->
+    <!-- Anillo -->
     <path
         android:fillColor="#00000000"
-        android:strokeColor="#33FFFFFF"
+        android:strokeColor="#FFFFFFFF"
         android:strokeWidth="7"
         android:pathData="M54,58 m-26,0 a26,26 0 1,1 52,0 a26,26 0 1,1 -52,0" />
-    <!-- Arco de progreso (acento) -->
-    <path
-        android:fillColor="#00000000"
-        android:strokeColor="#FFFF5252"
-        android:strokeWidth="7"
-        android:strokeLineCap="round"
-        android:pathData="M54,32 A26,26 0 0 1 80,58" />
     <!-- Manecilla -->
     <path
         android:strokeColor="#FFFFFFFF"
