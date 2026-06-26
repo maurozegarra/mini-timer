@@ -27,6 +27,9 @@ data class Strings(
     val ignoreSilentDesc: String,
     val alarmSound: String,
     val defaultSound: String,
+    val headsetTitle: String,
+    val headsetBoth: String,
+    val headsetOnly: String,
     val on: String,
     val off: String,
 )
@@ -58,6 +61,9 @@ object I18n {
         ignoreSilentDesc = "Reproducir el sonido del temporizador en modo silencio o vibración",
         alarmSound = "Tono de alarma",
         defaultSound = "Predeterminado",
+        headsetTitle = "Al usar audífonos, reproducir el sonido en:",
+        headsetBoth = "Altavoz(es) principal(es) + Audífonos (auriculares o Bluetooth)",
+        headsetOnly = "Solo audífonos",
         on = "Activado",
         off = "Desactivado",
     )
@@ -86,6 +92,9 @@ object I18n {
         ignoreSilentDesc = "Play timer sound in the silence or vibration mode",
         alarmSound = "Timer alarm sound",
         defaultSound = "Default",
+        headsetTitle = "When using headset, play sound on:",
+        headsetBoth = "Main speaker(s) + Headset (Earphones or Bluetooth)",
+        headsetOnly = "Headset only",
         on = "On",
         off = "Off",
     )
