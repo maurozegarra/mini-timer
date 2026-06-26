@@ -35,6 +35,10 @@ class LiveTimerService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    // No reiniciar el servicio con estado vacío si el sistema lo mata (p. ej.
+    // al hacer swipe en Recientes): el estado se restaura desde el ViewModel.
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_NOT_STICKY
+
     override fun onCreate() {
         super.onCreate()
         ensureChannel()
