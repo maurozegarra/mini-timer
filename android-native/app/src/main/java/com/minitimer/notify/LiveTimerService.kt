@@ -10,6 +10,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import com.minitimer.MainActivity
 import com.minitimer.R
 import com.minitimer.TimerBus
@@ -32,6 +33,7 @@ class LiveTimerService : Service() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var job: Job? = null
+    private var screenLock: PowerManager.WakeLock? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -41,9 +43,26 @@ class LiveTimerService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        acquireScreenLock()
         ensureChannel()
         startForegroundCompat(buildNotification())
         observe()
+    }
+
+    // Mantiene la pantalla encendida mientras el timer corre, tanto en primer
+    // plano como en background (el FLAG_KEEP_SCREEN_ON solo cubre la Activity
+    // visible). Usa el screen wake lock (deprecado pero aún funcional) porque es
+    // la única API capaz de evitar el apagado de pantalla desde un servicio.
+    private fun acquireScreenLock() {
+        val pm = getSystemService(PowerManager::class.java) ?: return
+        @Suppress("DEPRECATION")
+        screenLock = pm.newWakeLock(
+            PowerManager.SCREEN_BRIGHT_WAKE_LOCK,
+            "MiniTimer:screen",
+        ).apply {
+            setReferenceCounted(false)
+            acquire()
+        }
     }
 
     private fun observe() {
@@ -176,6 +195,8 @@ class LiveTimerService : Service() {
         super.onDestroy()
         job?.cancel()
         scope.cancel()
+        screenLock?.let { if (it.isHeld) it.release() }
+        screenLock = null
     }
 
     companion object {

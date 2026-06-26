@@ -171,6 +171,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         tickJob?.cancel()
         autoDismissJob?.cancel()
         store.clearTimerState()
+        prefillLastDuration()
         setPhaseAndBus(Phase.SETUP)
         LiveTimerService.stop(getApplication())
     }
@@ -186,9 +187,15 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         tickJob?.cancel()
         autoDismissJob?.cancel()
         store.clearTimerState()
-        digits = ""
+        prefillLastDuration()
         setPhaseAndBus(Phase.SETUP)
         LiveTimerService.stop(getApplication())
+    }
+
+    /** Deja el teclado con la última duración usada lista para reutilizarse. */
+    private fun prefillLastDuration() {
+        val last = store.loadLastDuration()
+        digits = if (last > 0) secondsToDigits(last) else ""
     }
 
     private fun startTicking() {
