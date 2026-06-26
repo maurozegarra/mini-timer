@@ -60,7 +60,10 @@ class LiveTimerService : Service() {
         val remaining = TimerBus.remainingMs.value
         val total = TimerBus.totalMs.value
         val done = TimerBus.done.value
+        val paused = TimerBus.paused.value
+        val endAt = TimerBus.endAt.value
         val display = TimerBus.display.value.ifEmpty { "0:00" }
+        val running = !done && !paused
 
         val pi = PendingIntent.getActivity(
             this,
@@ -80,6 +83,17 @@ class LiveTimerService : Service() {
             .setOngoing(!done)
             .setOnlyAlertOnce(true)
             .setContentIntent(pi)
+
+        // El countdown del chip (Live Update) se alimenta del cronómetro sobre `when`.
+        if (running && endAt > 0L) {
+            builder.setShowWhen(true)
+            builder.setWhen(endAt)
+            builder.setUsesChronometer(true)
+            builder.setChronometerCountDown(true)
+        } else {
+            builder.setUsesChronometer(false)
+            builder.setShowWhen(false)
+        }
 
         val max = 1000
         val elapsed = if (total > 0) {
@@ -109,8 +123,12 @@ class LiveTimerService : Service() {
         val channel = NotificationChannel(
             CHANNEL_ID,
             "Timer",
-            NotificationManager.IMPORTANCE_LOW,
-        ).apply { setShowBadge(false) }
+            NotificationManager.IMPORTANCE_DEFAULT,
+        ).apply {
+            setShowBadge(false)
+            setSound(null, null)
+            enableVibration(false)
+        }
         nm.createNotificationChannel(channel)
     }
 
@@ -133,7 +151,7 @@ class LiveTimerService : Service() {
     }
 
     companion object {
-        private const val CHANNEL_ID = "mini_timer_live"
+        private const val CHANNEL_ID = "mini_timer_live_v2"
         private const val NOTIF_ID = 42
 
         fun start(context: Context) {

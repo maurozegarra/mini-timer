@@ -87,6 +87,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         endAt = System.currentTimeMillis() + ms
         totalMs = ms
         remainingMs = ms
+        TimerBus.endAt.value = endAt
         setPhaseAndBus(Phase.RUNNING)
         startTicking()
         LiveTimerService.start(getApplication())
@@ -100,6 +101,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
 
     fun resume() {
         endAt = System.currentTimeMillis() + remainingMs
+        TimerBus.endAt.value = endAt
         setPhaseAndBus(Phase.RUNNING)
         startTicking()
     }
