@@ -64,6 +64,9 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     var remainingMs by mutableStateOf(0L)
         private set
     var showSettings by mutableStateOf(false)
+    /** Diagnóstico temporal de audio mostrado en pantalla. */
+    var debugInfo by mutableStateOf("")
+        private set
 
     private var endAt = 0L
     private var tickJob: Job? = null
@@ -341,10 +344,13 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
                 "${it.getStreamMaxVolume(AudioManager.STREAM_ALARM)}"
         }
         val msg = "Route: $route\nVol: $mediaVol\nOutputs:\n$list"
+        debugInfo = msg
         Handler(Looper.getMainLooper()).post {
             Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show()
         }
     }
+
+    fun clearDebugInfo() { debugInfo = "" }
 
     private fun audioTypeName(type: Int): String = when (type) {
         AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "BUILTIN_SPEAKER"

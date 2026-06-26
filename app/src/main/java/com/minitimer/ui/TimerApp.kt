@@ -135,6 +135,21 @@ fun TimerApp(vm: TimerViewModel) {
                 vm.phase == Phase.SETUP -> SetupScreen(vm, accent, t)
                 else -> CountdownScreen(vm, accent, t)
             }
+
+            if (vm.debugInfo.isNotEmpty()) {
+                Text(
+                    vm.debugInfo,
+                    color = Color.Yellow,
+                    fontSize = 11.sp,
+                    fontFamily = JetBrainsMono,
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth()
+                        .background(Color(0xCC000000))
+                        .clickable { vm.clearDebugInfo() }
+                        .padding(8.dp),
+                )
+            }
         }
     }
 }
