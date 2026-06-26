@@ -39,6 +39,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.InputChipDefaults
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -62,6 +64,8 @@ import com.minitimer.TimerViewModel
 import com.minitimer.i18n.I18n
 import com.minitimer.model.ACCENT_COLORS
 import com.minitimer.model.AUTO_DISMISS_OPTIONS
+import com.minitimer.model.HEADSET_ONLY
+import com.minitimer.model.SPEAKER_AND_HEADSET
 import com.minitimer.ui.theme.JetBrainsMono
 import com.minitimer.ui.theme.ON_ACCENT
 import com.minitimer.ui.theme.SURFACE
@@ -286,6 +290,19 @@ fun SettingsScreen(vm: TimerViewModel) {
                 )
             }
 
+            // Salida con audífonos
+            SectionLabel(t.headsetTitle)
+            RadioRow(
+                label = t.headsetBoth,
+                selected = s.headsetMode == SPEAKER_AND_HEADSET,
+                accent = accent,
+            ) { vm.setHeadsetMode(SPEAKER_AND_HEADSET) }
+            RadioRow(
+                label = t.headsetOnly,
+                selected = s.headsetMode == HEADSET_ONLY,
+                accent = accent,
+            ) { vm.setHeadsetMode(HEADSET_ONLY) }
+
             Spacer(Modifier.height(28.dp))
             TextButton(
                 onClick = { vm.resetSettings() },
@@ -295,6 +312,39 @@ fun SettingsScreen(vm: TimerViewModel) {
             ) {
                 Text(t.reset, fontWeight = FontWeight.SemiBold)
             }
+    }
+}
+
+@Composable
+private fun RadioRow(
+    label: String,
+    selected: Boolean,
+    accent: Color,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(
+            selected = selected,
+            onClick = onClick,
+            colors = RadioButtonDefaults.colors(
+                selectedColor = accent,
+                unselectedColor = Color(0xFF9AA0A4),
+            ),
+        )
+        Spacer(Modifier.width(4.dp))
+        Text(
+            label,
+            color = Color.White,
+            fontSize = 15.sp,
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 

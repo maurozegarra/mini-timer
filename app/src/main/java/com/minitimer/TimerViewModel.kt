@@ -3,8 +3,9 @@ package com.minitimer
 import android.app.Application
 import android.content.Context
 import android.media.AudioAttributes
+import android.media.AudioDeviceInfo
 import android.media.AudioManager
-import android.media.Ringtone
+import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
@@ -17,6 +18,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.minitimer.data.SettingsStore
+import com.minitimer.model.SPEAKER_AND_HEADSET
 import com.minitimer.model.Settings
 import com.minitimer.notify.LiveTimerService
 import com.minitimer.util.dedupeSorted
@@ -27,6 +29,15 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 enum class Phase { SETUP, RUNNING, PAUSED, DONE }
+
+/** Tipos de dispositivo de salida considerados "audífonos". */
+private val HEADSET_TYPES = setOf(
+    AudioDeviceInfo.TYPE_WIRED_HEADSET,
+    AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+    AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+    AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+    AudioDeviceInfo.TYPE_USB_HEADSET,
+)
 
 class TimerViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -48,14 +59,34 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     private var endAt = 0L
     private var tickJob: Job? = null
     private var autoDismissJob: Job? = null
-    private var ringtone: Ringtone? = null
+    private val players = mutableListOf<MediaPlayer>()
 
     init {
         TimerBus.accent.value = settings.accent
+        ensureDefaultAlarmSound()
         if (!restoreTimerState()) {
             // Sin timer activo: pre-rellenar con la última duración seleccionada.
             val last = store.loadLastDuration()
             if (last > 0) digits = secondsToDigits(last)
+        }
+    }
+
+    /** En el primer arranque selecciona "Beep" como tono por defecto si existe. */
+    private fun ensureDefaultAlarmSound() {
+        if (settings.alarmSoundUri != null) return
+        val ctx = getApplication<Application>()
+        try {
+            val rm = RingtoneManager(ctx).apply { setType(RingtoneManager.TYPE_ALARM) }
+            val cursor = rm.cursor
+            while (cursor.moveToNext()) {
+                val title = cursor.getString(RingtoneManager.TITLE_COLUMN_INDEX)
+                if (title != null && title.contains("beep", ignoreCase = true)) {
+                    val uri = rm.getRingtoneUri(cursor.position)
+                    update(settings.copy(alarmSoundUri = uri.toString(), alarmSoundName = title))
+                    return
+                }
+            }
+        } catch (_: Exception) {
         }
     }
 
@@ -256,21 +287,44 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         val shouldPlaySound =
             settings.ignoreSilent || audio.ringerMode == AudioManager.RINGER_MODE_NORMAL
         if (!shouldPlaySound) return
-        try {
-            val uri = settings.alarmSoundUri?.let { Uri.parse(it) }
-                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-            ringtone = RingtoneManager.getRingtone(ctx, uri)?.apply {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    audioAttributes = AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ALARM)
-                        .build()
-                }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    isLooping = true
-                }
-                play()
+        val uri = settings.alarmSoundUri?.let { Uri.parse(it) }
+            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            ?: return
+
+        // Enrutamiento cuando hay audífonos conectados.
+        val outputs = audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+        val headset = outputs.firstOrNull { it.type in HEADSET_TYPES }
+        val speaker = outputs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
+        if (headset != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            playOn(ctx, uri, headset)
+            if (settings.headsetMode == SPEAKER_AND_HEADSET && speaker != null) {
+                playOn(ctx, uri, speaker)
             }
+        } else {
+            // Sin audífonos (o API < 28): salida por defecto.
+            playOn(ctx, uri, null)
+        }
+    }
+
+    /** Reproduce el tono en bucle, opcionalmente forzando un dispositivo de salida. */
+    private fun playOn(ctx: Context, uri: Uri, device: AudioDeviceInfo?) {
+        try {
+            val mp = MediaPlayer()
+            mp.setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build(),
+            )
+            mp.setDataSource(ctx, uri)
+            mp.isLooping = true
+            if (device != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                mp.setPreferredDevice(device)
+            }
+            mp.setOnPreparedListener { it.start() }
+            mp.prepareAsync()
+            players.add(mp)
         } catch (_: Exception) {
         }
     }
@@ -285,8 +339,14 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
             ctx.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
         }
         vibrator.cancel()
-        ringtone?.let { if (it.isPlaying) it.stop() }
-        ringtone = null
+        players.forEach { mp ->
+            try {
+                if (mp.isPlaying) mp.stop()
+            } catch (_: Exception) {
+            }
+            mp.release()
+        }
+        players.clear()
     }
 
     // ---------- Bus ----------
@@ -322,6 +382,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     fun setIgnoreSilent(value: Boolean) = update(settings.copy(ignoreSilent = value))
     fun setAlarmSound(uri: String?, name: String?) =
         update(settings.copy(alarmSoundUri = uri, alarmSoundName = name))
+    fun setHeadsetMode(mode: Int) = update(settings.copy(headsetMode = mode))
     fun resetSettings() = update(Settings())
 
     fun addPreset(input: String): Boolean {

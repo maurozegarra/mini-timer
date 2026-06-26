@@ -25,6 +25,7 @@ class SettingsStore(context: Context) {
             ignoreSilent = prefs.getBoolean(KEY_IGNORE_SILENT, defaults.ignoreSilent),
             alarmSoundUri = prefs.getString(KEY_ALARM_URI, defaults.alarmSoundUri),
             alarmSoundName = prefs.getString(KEY_ALARM_NAME, defaults.alarmSoundName),
+            headsetMode = prefs.getInt(KEY_HEADSET_MODE, defaults.headsetMode),
         )
     }
 
@@ -37,6 +38,7 @@ class SettingsStore(context: Context) {
             .putBoolean(KEY_IGNORE_SILENT, s.ignoreSilent)
             .putString(KEY_ALARM_URI, s.alarmSoundUri)
             .putString(KEY_ALARM_NAME, s.alarmSoundName)
+            .putInt(KEY_HEADSET_MODE, s.headsetMode)
             .apply()
     }
 
@@ -93,6 +95,7 @@ class SettingsStore(context: Context) {
         const val KEY_IGNORE_SILENT = "ignoreSilent"
         const val KEY_ALARM_URI = "alarmSoundUri"
         const val KEY_ALARM_NAME = "alarmSoundName"
+        const val KEY_HEADSET_MODE = "headsetMode"
         const val KEY_T_PHASE = "timer_phase"
         const val KEY_T_END_AT = "timer_end_at"
         const val KEY_T_REMAINING = "timer_remaining"

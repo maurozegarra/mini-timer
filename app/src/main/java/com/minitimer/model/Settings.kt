@@ -1,5 +1,9 @@
 package com.minitimer.model
 
+/** Modo de salida de audio cuando hay audífonos conectados. */
+const val HEADSET_ONLY = 0
+const val SPEAKER_AND_HEADSET = 1
+
 /** Ajustes configurables, equivalentes a los de la versión web. */
 data class Settings(
     val accent: Long = 0xFFFF5252,
@@ -11,6 +15,8 @@ data class Settings(
     val alarmSoundUri: String? = null,
     /** Nombre legible del tono elegido, para mostrarlo en ajustes. */
     val alarmSoundName: String? = null,
+    /** Salida de audio con audífonos: [HEADSET_ONLY] o [SPEAKER_AND_HEADSET]. */
+    val headsetMode: Int = HEADSET_ONLY,
 )
 
 /** Paleta de colores de acento disponibles. */
