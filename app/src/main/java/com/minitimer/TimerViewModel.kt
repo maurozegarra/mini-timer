@@ -12,6 +12,9 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.os.Handler
+import android.os.Looper
+import android.widget.Toast
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -302,15 +305,64 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         val outputs = audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
         val headset = outputs.firstOrNull { it.isHeadsetOutput() }
         val speaker = outputs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
+
+        val route: String
         if (headset != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             playOn(ctx, uri, headset)
-            if (settings.headsetMode == SPEAKER_AND_HEADSET && speaker != null) {
+            route = if (settings.headsetMode == SPEAKER_AND_HEADSET && speaker != null) {
                 playOn(ctx, uri, speaker)
+                "Headset + Speaker"
+            } else {
+                "Headset only"
             }
         } else {
             // Sin audífonos (o API < 28): salida por defecto.
             playOn(ctx, uri, null)
+            route = if (headset != null) "Default (API<28)" else "Speaker (no headset)"
         }
+        showAudioDiagnostic(ctx, outputs, headset, route)
+    }
+
+    /** Diagnóstico temporal: muestra las salidas detectadas y la ruta elegida. */
+    private fun showAudioDiagnostic(
+        ctx: Context,
+        outputs: Array<AudioDeviceInfo>,
+        headset: AudioDeviceInfo?,
+        route: String,
+    ) {
+        val list = outputs.joinToString("\n") { d ->
+            val mark = if (d === headset) " <= HEADSET" else ""
+            "- ${audioTypeName(d.type)} (${d.type}) ${d.productName}$mark"
+        }
+        val mediaVol = (ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager).let {
+            "media ${it.getStreamVolume(AudioManager.STREAM_MUSIC)}/" +
+                "${it.getStreamMaxVolume(AudioManager.STREAM_MUSIC)}, " +
+                "alarm ${it.getStreamVolume(AudioManager.STREAM_ALARM)}/" +
+                "${it.getStreamMaxVolume(AudioManager.STREAM_ALARM)}"
+        }
+        val msg = "Route: $route\nVol: $mediaVol\nOutputs:\n$list"
+        Handler(Looper.getMainLooper()).post {
+            Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun audioTypeName(type: Int): String = when (type) {
+        AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "BUILTIN_SPEAKER"
+        AudioDeviceInfo.TYPE_BUILTIN_SPEAKER_SAFE -> "BUILTIN_SPEAKER_SAFE"
+        AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> "BUILTIN_EARPIECE"
+        AudioDeviceInfo.TYPE_TELEPHONY -> "TELEPHONY"
+        AudioDeviceInfo.TYPE_WIRED_HEADSET -> "WIRED_HEADSET"
+        AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> "WIRED_HEADPHONES"
+        AudioDeviceInfo.TYPE_USB_HEADSET -> "USB_HEADSET"
+        AudioDeviceInfo.TYPE_USB_DEVICE -> "USB_DEVICE"
+        AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> "BLUETOOTH_A2DP"
+        AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> "BLUETOOTH_SCO"
+        AudioDeviceInfo.TYPE_BLE_HEADSET -> "BLE_HEADSET"
+        AudioDeviceInfo.TYPE_BLE_SPEAKER -> "BLE_SPEAKER"
+        AudioDeviceInfo.TYPE_BLE_BROADCAST -> "BLE_BROADCAST"
+        AudioDeviceInfo.TYPE_HEARING_AID -> "HEARING_AID"
+        AudioDeviceInfo.TYPE_HDMI -> "HDMI"
+        else -> "TYPE_$type"
     }
 
     /** Reproduce el tono en bucle, opcionalmente forzando un dispositivo de salida. */
