@@ -353,6 +353,8 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
             )
             mp.setDataSource(ctx, uri)
             mp.isLooping = true
+            val vol = settings.alarmVolume.coerceIn(0f, 1f)
+            mp.setVolume(vol, vol)
             if (device != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 mp.setPreferredDevice(device)
             }
@@ -433,6 +435,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     fun setHeadsetMode(mode: Int) = update(settings.copy(headsetMode = mode))
     fun setVibrationEnabled(value: Boolean) = update(settings.copy(vibrationEnabled = value))
     fun setVibrationPattern(index: Int) = update(settings.copy(vibrationPattern = index))
+    fun setAlarmVolume(value: Float) = update(settings.copy(alarmVolume = value.coerceIn(0f, 1f)))
     fun resetSettings() = update(Settings())
 
     fun addPreset(input: String): Boolean {
