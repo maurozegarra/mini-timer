@@ -107,12 +107,13 @@ class LiveTimerService : Service() {
 
     /**
      * La promoción (chip / Now Bar del sistema) requiere el ajuste activo y se
-     * activa solo al estar bloqueado, para no duplicar con el overlay cuando
-     * está desbloqueado. Si no hay permiso de overlay, se promueve siempre
-     * (degradación elegante).
+     * muestra siempre que estés fuera de la app (background o bloqueo), salvo
+     * que la cápsula flotante se esté mostrando (para no duplicar con ella).
      */
     private fun shouldPromote(): Boolean =
-        TimerBus.showNowBar.value && (if (canOverlay()) isLocked() else true)
+        TimerBus.showNowBar.value &&
+            !TimerBus.appForeground.value &&
+            !shouldShowOverlay()
 
     /** Re-publica la notificación y muestra/oculta cada overlay según el estado. */
     private fun refresh() {
