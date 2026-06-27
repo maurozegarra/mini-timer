@@ -46,7 +46,6 @@ class TimerOverlay(private val context: Context) {
 
     // Ventana INDEPENDIENTE del anillo de la cámara (solo visual, no táctil).
     private var ringRoot: View? = null
-    private var ringParams: WindowManager.LayoutParams? = null
     private var cameraRing: CameraRingView? = null
 
     private var params: WindowManager.LayoutParams? = null
@@ -112,7 +111,6 @@ class TimerOverlay(private val context: Context) {
         )
         rlp.gravity = Gravity.TOP or Gravity.START
         positionRing(rlp)
-        ringParams = rlp
         try {
             wm?.addView(r, rlp)
         } catch (_: Exception) {
