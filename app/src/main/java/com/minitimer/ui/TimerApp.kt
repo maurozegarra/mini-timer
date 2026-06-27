@@ -47,10 +47,8 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -308,20 +306,8 @@ private fun StickmanJumpingJacks(
         fun lp(a: Float, b: Float, f: Float) = a + (b - a) * f
         fun pt(x: Float, y: Float) = Offset(x, y + hop)
 
-        // Fondo circular con gradiente (estilo Samsung Health).
-        val bgRadius = size.minDimension / 2f
-        drawCircle(
-            brush = Brush.linearGradient(
-                colors = listOf(lerp(accent, Color.White, 0.28f), accent),
-                start = Offset(cx, 0f),
-                end = Offset(cx, h),
-            ),
-            radius = bgRadius,
-            center = Offset(cx, h / 2f),
-        )
-
-        // Figura clara que contrasta con el acento, trazo grueso redondeado.
-        val figColor = ON_ACCENT
+        // Sin fondo: figura del color de acento, trazo grueso redondeado.
+        val figColor = accent
         val stroke = h * 0.045f
         fun limb(a: Offset, joint: Offset, end: Offset) {
             drawLine(figColor, a, joint, strokeWidth = stroke, cap = StrokeCap.Round)
