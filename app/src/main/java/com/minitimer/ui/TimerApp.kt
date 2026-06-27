@@ -27,6 +27,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -295,16 +297,24 @@ private fun StickmanJumpingJacks(
             last = now
         }
     }
+    // Al pausar, la figura transiciona a la pose de "parado en espera"
+    // (brazos abajo, pies juntos), en lugar de congelarse a mitad del salto.
+    val rest by animateFloatAsState(
+        targetValue = if (running) 0f else 1f,
+        animationSpec = tween(durationMillis = 320),
+        label = "stickRest",
+    )
     androidx.compose.foundation.Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
         val cx = w / 2f
         val theta = t * (2f * PI.toFloat()) * 1.2f
-        // p: 0 = posición cerrada (brazos abajo, piernas juntas), 1 = abierta.
-        val p = (1f - cos(theta)) / 2f
-        val hop = -h * 0.035f * p
-
         fun lp(a: Float, b: Float, f: Float) = a + (b - a) * f
+        // p del jumping jack; al reposar tiende a la pose de pie (pies juntos).
+        val pRaw = (1f - cos(theta)) / 2f
+        val p = pRaw * (1f - rest)
+        val hop = -h * 0.035f * pRaw * (1f - rest)
+
         fun pt(x: Float, y: Float) = Offset(x, y + hop)
 
         // Sin fondo: figura del color de acento, trazo grueso redondeado.
@@ -339,7 +349,9 @@ private fun StickmanJumpingJacks(
         // p=0, en fase con pies juntos) y el costado abajo (p=1, pies separados).
         // Ángulo medido desde el eje vertical hacia abajo.
         val rad = PI.toFloat() / 180f
-        val armAngle = lp(190f * rad, 15f * rad, p)
+        val downAngle = 15f * rad
+        // En reposo los brazos bajan a los costados (downAngle), no se congelan.
+        val armAngle = lp(lp(190f * rad, downAngle, pRaw), downAngle, rest)
         val elbowBend = 38f * rad
         val upperLen = h * 0.135f
         val foreLen = h * 0.125f
