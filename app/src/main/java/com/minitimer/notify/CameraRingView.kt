@@ -25,7 +25,7 @@ class CameraRingView @JvmOverloads constructor(
 ) : View(context, attrs, defStyleAttr) {
 
     private val density = resources.displayMetrics.density
-    private val stroke = 2.5f * density
+    private val stroke = 3.5f * density
     private val ringInset = 1f * density
 
     private val trackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {

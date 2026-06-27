@@ -211,11 +211,12 @@ class TimerOverlay(private val context: Context) {
         collapsed?.visibility = if (isExpanded) View.GONE else View.VISIBLE
         expanded?.visibility = if (isExpanded) View.VISIBLE else View.GONE
         val lp = params ?: return
-        // Tanto la cápsula como la tarjeta van centradas y debajo de la barra de
-        // estado, para no interferir con el sistema. El anillo es independiente.
+        // Centradas horizontalmente. La cápsula (colapsada) se sube un poco más,
+        // pegada al borde inferior de la barra de estado; la tarjeta expandida
+        // mantiene un margen mayor. El anillo es independiente.
         lp.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
         lp.x = 0
-        lp.y = statusBarHeight() + dp(8)
+        lp.y = statusBarHeight() + if (isExpanded) dp(8) else dp(1)
         if (root != null) {
             try {
                 wm?.updateViewLayout(root, lp)
@@ -272,7 +273,7 @@ class TimerOverlay(private val context: Context) {
         // Dimensiones (dp) del anillo independiente, deben coincidir con las del
         // CameraRingView en overlay_ring.xml. Se usan para centrarlo sobre la
         // cámara antes de aplicar el offset fino del usuario.
-        const val RING_W_DP = 34
-        const val RING_H_DP = 26
+        const val RING_W_DP = 38
+        const val RING_H_DP = 32
     }
 }
