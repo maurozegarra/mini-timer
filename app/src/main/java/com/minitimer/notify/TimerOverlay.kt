@@ -11,7 +11,6 @@ import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.widget.Chronometer
 import android.widget.FrameLayout
-import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.minitimer.R
@@ -42,8 +41,8 @@ class TimerOverlay(private val context: Context) {
     private var collapsedChrono: Chronometer? = null
     private var expandedChrono: Chronometer? = null
     private var infoView: TextView? = null
-    private var btnCancel: ImageButton? = null
-    private var btnPause: ImageButton? = null
+    private var btnCancel: TextView? = null
+    private var btnPause: TextView? = null
 
     // Ventana INDEPENDIENTE del anillo de la cámara (solo visual, no táctil).
     private var ringRoot: View? = null
@@ -182,9 +181,10 @@ class TimerOverlay(private val context: Context) {
             cameraRing?.setStatic(p)
         }
         infoView?.text = buildInfo()
-        btnPause?.setImageResource(
-            if (paused) R.drawable.ic_notif_play else R.drawable.ic_notif_pause,
-        )
+        // Botones de la tarjeta expandida como TEXTO (no íconos).
+        val t = I18n.get(SettingsStore(context).load().language)
+        btnCancel?.text = t.cancel
+        btnPause?.text = if (paused) t.resume else t.pause
     }
 
     private fun buildInfo(): String {
