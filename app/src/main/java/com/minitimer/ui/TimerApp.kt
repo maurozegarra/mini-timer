@@ -35,6 +35,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
@@ -48,6 +54,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.PI
+import kotlin.math.cos
 import com.minitimer.Phase
 import com.minitimer.TimerViewModel
 import com.minitimer.i18n.I18n
@@ -249,6 +257,81 @@ private fun CountdownScreen(vm: TimerViewModel, accent: Color, t: com.minitimer.
                 }
             }
         }
+
+        // Stickman animado (jumping jacks) mientras el timer corre; se congela en
+        // pausa y se oculta al terminar.
+        if (!isDone) {
+            Spacer(Modifier.height(40.dp))
+            StickmanJumpingJacks(
+                accent = accent,
+                running = vm.phase == Phase.RUNNING,
+                modifier = Modifier.size(140.dp),
+            )
+        }
+    }
+}
+
+/**
+ * Stickman dibujado con Canvas haciendo "jumping jacks". La animación avanza solo
+ * mientras [running] es true (se congela en pausa). Sin dependencias ni assets.
+ */
+@Composable
+private fun StickmanJumpingJacks(
+    accent: Color,
+    running: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    var t by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(running) {
+        if (!running) return@LaunchedEffect
+        var last = 0L
+        while (true) {
+            val now = withFrameNanos { it }
+            if (last != 0L) t += (now - last) / 1_000_000_000f
+            last = now
+        }
+    }
+    androidx.compose.foundation.Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val cx = w / 2f
+        val theta = t * (2f * PI.toFloat()) * 1.2f
+        // p: 0 = posición cerrada (brazos abajo, piernas juntas), 1 = abierta.
+        val p = (1f - cos(theta)) / 2f
+        val hop = -h * 0.04f * p
+        val stroke = h * 0.04f
+        fun lerp(a: Float, b: Float, f: Float) = a + (b - a) * f
+
+        val headR = h * 0.09f
+        val shoulderY = h * 0.30f + hop
+        val hipY = h * 0.55f + hop
+        val headCY = shoulderY - headR * 1.7f
+
+        // Cabeza
+        drawCircle(
+            color = accent,
+            radius = headR,
+            center = Offset(cx, headCY),
+            style = Stroke(width = stroke),
+        )
+        // Columna
+        drawLine(
+            color = accent,
+            start = Offset(cx, shoulderY),
+            end = Offset(cx, hipY),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round,
+        )
+        // Piernas
+        val footY = h * 0.86f + hop
+        val footDX = lerp(w * 0.05f, w * 0.20f, p)
+        drawLine(accent, Offset(cx, hipY), Offset(cx - footDX, footY), strokeWidth = stroke, cap = StrokeCap.Round)
+        drawLine(accent, Offset(cx, hipY), Offset(cx + footDX, footY), strokeWidth = stroke, cap = StrokeCap.Round)
+        // Brazos
+        val handDX = lerp(w * 0.06f, w * 0.24f, p)
+        val handY = lerp(shoulderY + (hipY - shoulderY) * 0.95f, headCY - h * 0.06f, p)
+        drawLine(accent, Offset(cx, shoulderY), Offset(cx - handDX, handY), strokeWidth = stroke, cap = StrokeCap.Round)
+        drawLine(accent, Offset(cx, shoulderY), Offset(cx + handDX, handY), strokeWidth = stroke, cap = StrokeCap.Round)
     }
 }
 
