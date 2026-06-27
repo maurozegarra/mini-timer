@@ -62,6 +62,7 @@ class SettingsStore(context: Context) {
         val endAt: Long,
         val remainingMs: Long,
         val totalMs: Long,
+        val label: String,
     )
 
     fun saveTimerState(state: TimerState) {
@@ -70,6 +71,7 @@ class SettingsStore(context: Context) {
             .putLong(KEY_T_END_AT, state.endAt)
             .putLong(KEY_T_REMAINING, state.remainingMs)
             .putLong(KEY_T_TOTAL, state.totalMs)
+            .putString(KEY_T_LABEL, state.label)
             .apply()
     }
 
@@ -80,6 +82,7 @@ class SettingsStore(context: Context) {
             endAt = prefs.getLong(KEY_T_END_AT, 0L),
             remainingMs = prefs.getLong(KEY_T_REMAINING, 0L),
             totalMs = prefs.getLong(KEY_T_TOTAL, 0L),
+            label = prefs.getString(KEY_T_LABEL, "") ?: "",
         )
     }
 
@@ -89,6 +92,7 @@ class SettingsStore(context: Context) {
             .remove(KEY_T_END_AT)
             .remove(KEY_T_REMAINING)
             .remove(KEY_T_TOTAL)
+            .remove(KEY_T_LABEL)
             .apply()
     }
 
@@ -141,6 +145,7 @@ class SettingsStore(context: Context) {
         const val KEY_T_END_AT = "timer_end_at"
         const val KEY_T_REMAINING = "timer_remaining"
         const val KEY_T_TOTAL = "timer_total"
+        const val KEY_T_LABEL = "timer_label"
         const val KEY_LAST_DURATION = "last_duration"
         const val KEY_OVERLAY_ASKED = "overlay_asked"
         const val KEY_RING_OFF_X = "ring_off_x"

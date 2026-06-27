@@ -24,6 +24,9 @@ object TimerBus {
     /** Color de acento actual (ARGB). */
     val accent = MutableStateFlow(0xFFFF5252)
 
+    /** Nombre opcional del timer; vacío = sin nombre. */
+    val label = MutableStateFlow("")
+
     /** Mostrar el anillo de progreso sobre la cámara (overlay). */
     val showRing = MutableStateFlow(false)
 

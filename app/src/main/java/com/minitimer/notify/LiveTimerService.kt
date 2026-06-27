@@ -147,7 +147,8 @@ class LiveTimerService : Service() {
                     TimerBus.done,
                     TimerBus.paused,
                     TimerBus.accent,
-                ) { _, _, _ -> Unit }.collect { refresh() }
+                    TimerBus.label,
+                ) { _, _, _, _ -> Unit }.collect { refresh() }
             }
             // Re-evaluar al cambiar los interruptores de anillo/overlay/Now Bar.
             launch {
@@ -224,10 +225,13 @@ class LiveTimerService : Service() {
             paused -> "$remainingText · ${t.paused}"
             else -> remainingText
         }
-        // Segunda línea (expandido): "<duración> / <hora de término>".
+        // Segunda línea (expandido): el NOMBRE del timer si se ha seteado; si no,
+        // "<duración> / <hora de término>" como respaldo.
+        val label = TimerBus.label.value
         val durationLabel = formatDurationShort(total)
         val subText = when {
             done -> ""
+            label.isNotBlank() -> label
             endAt > 0L -> "$durationLabel / ${formatClock(endAt, t.locale)}"
             else -> durationLabel
         }

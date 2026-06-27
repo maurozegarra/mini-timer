@@ -131,6 +131,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     private fun restoreTimerState(): Boolean {
         val st = store.loadTimerState() ?: return false
         totalMs = st.totalMs
+        label = st.label
         when (st.phase) {
             Phase.RUNNING.name -> {
                 val left = st.endAt - System.currentTimeMillis()
@@ -174,6 +175,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
                 endAt = endAt,
                 remainingMs = remainingMs,
                 totalMs = totalMs,
+                label = label,
             ),
         )
     }
@@ -267,6 +269,8 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     /** Fija el nombre del timer (recortado a 40 caracteres). */
     fun commitLabel(value: String) {
         label = value.take(40)
+        TimerBus.label.value = label
+        if (phase != Phase.SETUP) saveTimerState()
     }
 
     /** Deja el teclado con la última duración usada lista para reutilizarse. */
@@ -446,6 +450,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         TimerBus.paused.value = phase == Phase.PAUSED
         TimerBus.remainingMs.value = remainingMs
         TimerBus.totalMs.value = totalMs
+        TimerBus.label.value = label
         TimerBus.display.value =
             if (phase == Phase.DONE) I18nLabelTimeUp()
             else formatRemaining(remainingMs)
