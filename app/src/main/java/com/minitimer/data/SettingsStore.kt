@@ -110,9 +110,13 @@ class SettingsStore(context: Context) {
     }
 
     fun loadRingOffset(): Pair<Int, Int> =
-        prefs.getInt(KEY_RING_OFF_X, 0) to prefs.getInt(KEY_RING_OFF_Y, 0)
+        prefs.getInt(KEY_RING_OFF_X, 0) to prefs.getInt(KEY_RING_OFF_Y, RING_OFFSET_Y_DEFAULT)
 
     private companion object {
+        // Desplazamiento vertical (dp) por defecto para centrar el anillo sobre
+        // la cámara con las dimensiones actuales del anillo (38x32dp).
+        const val RING_OFFSET_Y_DEFAULT = 3
+
         const val KEY_ACCENT = "accent"
         const val KEY_LANGUAGE = "language"
         const val KEY_PRESETS = "presets"
