@@ -147,14 +147,18 @@ class LiveTimerService : Service() {
             // Mostrar/ocultar el overlay y conmutar la promoción al entrar/salir
             // de la app (foreground/background).
             launch { TimerBus.appForeground.collect { refresh() } }
-            // Pantalla bloqueada: el Now Bar colapsado muestra el contentTitle, no
-            // el cronómetro, así que re-publicamos cada segundo para que el countdown
-            // del título avance. Solo mientras corre y está bloqueado (desbloqueado
-            // el chip usa el cronómetro, sin re-publicar para no colapsar la cápsula).
+            // El contentTitle lleva el countdown, y tanto el Now Bar colapsado
+            // (bloqueado) como la fila grande de la notificación (desbloqueado en la
+            // bandeja) lo muestran sin animarlo solos. Re-publicamos cada segundo
+            // siempre que el timer corra y la app esté en segundo plano (bloqueado o
+            // desbloqueado) para que el número avance en vivo.
             launch {
                 while (true) {
                     delay(1_000)
-                    if (isLocked() && !TimerBus.done.value && !TimerBus.paused.value) {
+                    if (!TimerBus.appForeground.value &&
+                        !TimerBus.done.value &&
+                        !TimerBus.paused.value
+                    ) {
                         repost()
                     }
                 }
