@@ -10,6 +10,7 @@ import android.view.View
 import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.widget.Chronometer
+import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -37,7 +38,8 @@ class TimerOverlay(private val context: Context) {
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
 
     private var root: View? = null
-    private var collapsed: LinearLayout? = null
+    private var collapsed: FrameLayout? = null
+    private var pill: LinearLayout? = null
     private var expanded: LinearLayout? = null
     private var collapsedIcon: ImageView? = null
     private var cameraRing: CameraRingView? = null
@@ -62,6 +64,7 @@ class TimerOverlay(private val context: Context) {
         val v = inflater.inflate(R.layout.overlay_timer, null)
         root = v
         collapsed = v.findViewById(R.id.overlay_collapsed)
+        pill = v.findViewById(R.id.overlay_pill)
         expanded = v.findViewById(R.id.overlay_expanded)
         collapsedIcon = v.findViewById(R.id.overlay_collapsed_icon)
         cameraRing = v.findViewById(R.id.overlay_camera_ring)
@@ -95,7 +98,7 @@ class TimerOverlay(private val context: Context) {
         // de modo que el borde superior conserve la misma distancia al hueco y el
         // grosor adicional se añada únicamente por debajo de la cámara.
         val pillH = dp(PILL_TOP_REF_DP + PILL_BOTTOM_EXTRA_DP)
-        collapsed?.minimumHeight = pillH
+        pill?.minimumHeight = pillH
         // Posición colapsada por defecto: con el hueco (paddingStart + ícono +
         // mitad del gap) centrado sobre la cámara del medio de la pantalla. El
         // borde superior se ancla usando solo la referencia superior, así el

@@ -3,45 +3,55 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content">
 
-    <!-- Estado colapsado: píldora que ABARCA el notch de la cámara con tres
-         zonas en fila: [ícono] [hueco-cámara] [countdown]. El hueco central cae
-         justo sobre el punch-hole, de modo que la cámara queda enmarcada entre
-         el ícono (izquierda) y el countdown (derecha). El fondo de la píldora
-         cubre todo el ancho. La altura se ajusta en código a la barra de estado. -->
-    <LinearLayout
+    <!-- Estado colapsado: contenedor EXTERIOR transparente que extiende la zona
+         táctil hacia abajo (paddingBottom), por debajo de la barra de estado,
+         para que el tap llegue al overlay (la barra de estado del sistema se
+         come los toques en su propia región). La píldora visible va arriba. -->
+    <FrameLayout
         android:id="@+id/overlay_collapsed"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:background="@drawable/overlay_pill_bg"
-        android:paddingStart="10dp"
-        android:paddingEnd="14dp">
+        android:paddingBottom="20dp">
 
-        <ImageView
-            android:id="@+id/overlay_collapsed_icon"
-            android:layout_width="16dp"
-            android:layout_height="16dp"
-            android:layout_marginEnd="6dp"
-            android:src="@drawable/ic_stat_timer"
-            android:scaleType="fitCenter"
-            android:contentDescription="@null" />
-
-        <com.minitimer.notify.CameraRingView
-            android:id="@+id/overlay_camera_ring"
-            android:layout_width="34dp"
-            android:layout_height="26dp"
-            android:layout_marginBottom="6dp" />
-
-        <Chronometer
-            android:id="@+id/overlay_collapsed_chrono"
+        <!-- Píldora visible que ABARCA el notch con tres zonas en fila:
+             [ícono] [hueco-cámara] [countdown]. El hueco central cae sobre el
+             punch-hole, enmarcando la cámara entre el ícono y el countdown.
+             La altura se ajusta en código. -->
+        <LinearLayout
+            android:id="@+id/overlay_pill"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="#FFFFFFFF"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:fontFamily="@font/jetbrains_mono_semibold" />
-    </LinearLayout>
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/overlay_pill_bg"
+            android:paddingStart="10dp"
+            android:paddingEnd="14dp">
+
+            <ImageView
+                android:id="@+id/overlay_collapsed_icon"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_marginEnd="6dp"
+                android:src="@drawable/ic_stat_timer"
+                android:scaleType="fitCenter"
+                android:contentDescription="@null" />
+
+            <com.minitimer.notify.CameraRingView
+                android:id="@+id/overlay_camera_ring"
+                android:layout_width="34dp"
+                android:layout_height="26dp"
+                android:layout_marginBottom="2dp" />
+
+            <Chronometer
+                android:id="@+id/overlay_collapsed_chrono"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFFFF"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:fontFamily="@font/jetbrains_mono_semibold" />
+        </LinearLayout>
+    </FrameLayout>
 
     <!-- Estado expandido: tarjeta con countdown grande + info + botones -->
     <LinearLayout
