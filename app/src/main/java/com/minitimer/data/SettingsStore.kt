@@ -29,6 +29,9 @@ class SettingsStore(context: Context) {
             vibrationEnabled = prefs.getBoolean(KEY_VIBRATION_ENABLED, defaults.vibrationEnabled),
             vibrationPattern = prefs.getInt(KEY_VIBRATION_PATTERN, defaults.vibrationPattern),
             alarmVolume = prefs.getFloat(KEY_ALARM_VOLUME, defaults.alarmVolume),
+            showRing = prefs.getBoolean(KEY_SHOW_RING, defaults.showRing),
+            showOverlay = prefs.getBoolean(KEY_SHOW_OVERLAY, defaults.showOverlay),
+            showNowBar = prefs.getBoolean(KEY_SHOW_NOW_BAR, defaults.showNowBar),
         )
     }
 
@@ -45,6 +48,9 @@ class SettingsStore(context: Context) {
             .putBoolean(KEY_VIBRATION_ENABLED, s.vibrationEnabled)
             .putInt(KEY_VIBRATION_PATTERN, s.vibrationPattern)
             .putFloat(KEY_ALARM_VOLUME, s.alarmVolume)
+            .putBoolean(KEY_SHOW_RING, s.showRing)
+            .putBoolean(KEY_SHOW_OVERLAY, s.showOverlay)
+            .putBoolean(KEY_SHOW_NOW_BAR, s.showNowBar)
             .apply()
     }
 
@@ -128,6 +134,9 @@ class SettingsStore(context: Context) {
         const val KEY_VIBRATION_ENABLED = "vibrationEnabled"
         const val KEY_VIBRATION_PATTERN = "vibrationPattern"
         const val KEY_ALARM_VOLUME = "alarmVolume"
+        const val KEY_SHOW_RING = "showRing"
+        const val KEY_SHOW_OVERLAY = "showOverlay"
+        const val KEY_SHOW_NOW_BAR = "showNowBar"
         const val KEY_T_PHASE = "timer_phase"
         const val KEY_T_END_AT = "timer_end_at"
         const val KEY_T_REMAINING = "timer_remaining"

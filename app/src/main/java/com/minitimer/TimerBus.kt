@@ -24,6 +24,15 @@ object TimerBus {
     /** Color de acento actual (ARGB). */
     val accent = MutableStateFlow(0xFFFF5252)
 
+    /** Mostrar el anillo de progreso sobre la cámara (overlay). */
+    val showRing = MutableStateFlow(false)
+
+    /** Mostrar la cápsula/tarjeta flotante (overlay). */
+    val showOverlay = MutableStateFlow(false)
+
+    /** Promover la notificación como chip / Now Bar. */
+    val showNowBar = MutableStateFlow(true)
+
     /** true si el timer ya terminó (para colorear en rojo). */
     val done = MutableStateFlow(false)
 

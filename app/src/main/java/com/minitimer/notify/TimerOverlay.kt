@@ -51,11 +51,11 @@ class TimerOverlay(private val context: Context) {
     private var params: WindowManager.LayoutParams? = null
     private var isExpanded = false
 
-    val isShowing get() = root != null
+    val isShowing get() = root != null || ringRoot != null
 
-    fun show() {
+    /** Muestra la cápsula/tarjeta flotante (ventana táctil). */
+    fun showCapsule() {
         if (root != null) return
-        // --- Ventana de la cápsula (timer + tarjeta expandida) ---
         val v = inflater.inflate(R.layout.overlay_timer, null)
         root = v
         collapsed = v.findViewById(R.id.overlay_collapsed)
@@ -94,8 +94,12 @@ class TimerOverlay(private val context: Context) {
             root = null
             return
         }
+        update()
+    }
 
-        // --- Ventana INDEPENDIENTE del anillo, sobre la cámara, no táctil ---
+    /** Muestra el anillo de progreso sobre la cámara (ventana no táctil). */
+    fun showRing() {
+        if (ringRoot != null) return
         val r = inflater.inflate(R.layout.overlay_ring, null)
         ringRoot = r
         cameraRing = r.findViewById(R.id.overlay_camera_ring)
@@ -115,8 +119,8 @@ class TimerOverlay(private val context: Context) {
             wm?.addView(r, rlp)
         } catch (_: Exception) {
             ringRoot = null
+            return
         }
-
         update()
     }
 
@@ -127,7 +131,8 @@ class TimerOverlay(private val context: Context) {
         lp.y = ((statusBarHeight() - dp(RING_H_DP)) / 2 + dp(offY)).coerceAtLeast(0)
     }
 
-    fun hide() {
+    /** Oculta la cápsula/tarjeta flotante. */
+    fun hideCapsule() {
         root?.let {
             try {
                 wm?.removeView(it)
@@ -135,6 +140,17 @@ class TimerOverlay(private val context: Context) {
             }
         }
         root = null
+        collapsed = null
+        expanded = null
+        collapsedChrono = null
+        expandedChrono = null
+        infoView = null
+        btnCancel = null
+        btnPause = null
+    }
+
+    /** Oculta el anillo de progreso. */
+    fun hideRing() {
         ringRoot?.let {
             try {
                 wm?.removeView(it)
@@ -142,11 +158,18 @@ class TimerOverlay(private val context: Context) {
             }
         }
         ringRoot = null
+        cameraRing = null
+    }
+
+    /** Oculta ambas ventanas (al destruir el servicio). */
+    fun hide() {
+        hideCapsule()
+        hideRing()
     }
 
     /** Re-vincula el estado actual del timer a las vistas del overlay. */
     fun update() {
-        if (root == null) return
+        if (root == null && ringRoot == null) return
         val accent = TimerBus.accent.value.toInt()
         val paused = TimerBus.paused.value
         val running = !TimerBus.done.value && !paused
