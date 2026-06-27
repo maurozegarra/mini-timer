@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -36,6 +37,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.InputChip
@@ -71,9 +73,13 @@ import com.minitimer.model.AUTO_DISMISS_OPTIONS
 import com.minitimer.model.HEADSET_ONLY
 import com.minitimer.model.SPEAKER_AND_HEADSET
 import com.minitimer.model.VIBRATION_PATTERNS
+import com.minitimer.ui.theme.DONE_RED
 import com.minitimer.ui.theme.JetBrainsMono
 import com.minitimer.ui.theme.ON_ACCENT
 import com.minitimer.ui.theme.SURFACE
+import com.minitimer.ui.theme.TEXT_DIM
+import com.minitimer.ui.theme.TEXT_FADED
+import com.minitimer.ui.theme.TRACK
 import com.minitimer.util.formatRemaining
 import kotlin.math.roundToInt
 
@@ -95,15 +101,15 @@ fun SettingsScreen(vm: TimerViewModel) {
             .verticalScroll(rememberScrollState())
             .padding(top = 8.dp, bottom = 48.dp),
     ) {
-            // Idioma
-            SectionLabel(t.language)
+        // ===== Apariencia =====
+        SettingsGroup(t.groupAppearance, accent) {
+            ItemLabel(t.language)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Chip("Español", s.language == "es", accent) { vm.setLanguage("es") }
                 Chip("English", s.language == "en", accent) { vm.setLanguage("en") }
             }
-
-            // Color
-            SectionLabel(t.color)
+            GroupDivider()
+            ItemLabel(t.color)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -124,9 +130,11 @@ fun SettingsScreen(vm: TimerViewModel) {
                     )
                 }
             }
+        }
 
-            // Presets
-            SectionLabel(t.presets)
+        // ===== Temporizador =====
+        SettingsGroup(t.groupTimer, accent) {
+            ItemLabel(t.presets)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 s.presets.forEach { sec ->
                     InputChip(
@@ -150,7 +158,7 @@ fun SettingsScreen(vm: TimerViewModel) {
                         },
                         shape = RoundedCornerShape(20.dp),
                         colors = InputChipDefaults.inputChipColors(
-                            containerColor = SURFACE,
+                            containerColor = TRACK,
                             labelColor = accent,
                             trailingIconColor = Color.White,
                         ),
@@ -163,13 +171,13 @@ fun SettingsScreen(vm: TimerViewModel) {
                 OutlinedTextField(
                     value = presetInput,
                     onValueChange = { presetInput = it },
-                    placeholder = { Text(t.presetPlaceholder, color = Color(0xFF5A5D5F)) },
+                    placeholder = { Text(t.presetPlaceholder, color = TEXT_FADED) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.weight(1f),
                     colors = TextFieldDefaults.colors(
-                        focusedContainerColor = SURFACE,
-                        unfocusedContainerColor = SURFACE,
+                        focusedContainerColor = TRACK,
+                        unfocusedContainerColor = TRACK,
                         focusedTextColor = Color.White,
                         unfocusedTextColor = Color.White,
                         cursorColor = accent,
@@ -188,9 +196,8 @@ fun SettingsScreen(vm: TimerViewModel) {
                     Text(t.add, fontWeight = FontWeight.Bold)
                 }
             }
-
-            // Auto descartar
-            SectionLabel(t.autoDismiss)
+            GroupDivider()
+            ItemLabel(t.autoDismiss)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 AUTO_DISMISS_OPTIONS.forEach { v ->
                     Chip(if (v == 0) t.off else "${v}s", s.autoDismiss == v, accent) {
@@ -198,47 +205,16 @@ fun SettingsScreen(vm: TimerViewModel) {
                     }
                 }
             }
+        }
 
-            // Ignorar modo silencio
-            Spacer(Modifier.height(24.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        t.ignoreSilent,
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        t.ignoreSilentDesc,
-                        color = Color(0xFF9AA0A4),
-                        fontSize = 13.sp,
-                    )
-                }
-                Spacer(Modifier.width(12.dp))
-                Switch(
-                    checked = s.ignoreSilent,
-                    onCheckedChange = { vm.setIgnoreSilent(it) },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = ON_ACCENT,
-                        checkedTrackColor = accent,
-                        uncheckedThumbColor = Color(0xFFCFD3D6),
-                        uncheckedTrackColor = SURFACE,
-                    ),
-                )
-            }
-
-            // Tono de alarma
-            SectionLabel(t.alarmSound)
+        // ===== Alarma y sonido =====
+        SettingsGroup(t.groupAlarm, accent) {
+            ItemLabel(t.alarmSound)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(SURFACE)
+                    .background(TRACK)
                     .clickable { showSoundDialog = true }
                     .padding(horizontal = 16.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -253,20 +229,19 @@ fun SettingsScreen(vm: TimerViewModel) {
                 Icon(
                     Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = null,
-                    tint = Color(0xFF9AA0A4),
+                    tint = TEXT_DIM,
                 )
             }
-
-            // Volumen de la alarma (stepper +/- en pasos de 5%)
+            GroupDivider()
             val volPct = (s.alarmVolume * 100).roundToInt()
             Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     t.alarmVolume,
                     color = Color.White,
-                    fontSize = 16.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.weight(1f),
                 )
@@ -274,7 +249,7 @@ fun SettingsScreen(vm: TimerViewModel) {
                     onClick = { vm.setAlarmVolume(((volPct - 5).coerceAtLeast(0)) / 100f) },
                     enabled = volPct > 0,
                     colors = IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = SURFACE,
+                        containerColor = TRACK,
                         contentColor = Color.White,
                     ),
                 ) {
@@ -299,9 +274,8 @@ fun SettingsScreen(vm: TimerViewModel) {
                     Icon(Icons.Filled.Add, contentDescription = "Increase volume")
                 }
             }
-
-            // Salida con audífonos
-            SectionLabel(t.headsetTitle)
+            GroupDivider()
+            ItemLabel(t.headsetTitle)
             RadioRow(
                 label = t.headsetBoth,
                 selected = s.headsetMode == SPEAKER_AND_HEADSET,
@@ -312,31 +286,22 @@ fun SettingsScreen(vm: TimerViewModel) {
                 selected = s.headsetMode == HEADSET_ONLY,
                 accent = accent,
             ) { vm.setHeadsetMode(HEADSET_ONLY) }
-
-            // Vibración
-            SectionLabel(t.vibration)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    if (s.vibrationEnabled) t.on else t.off,
-                    color = Color.White,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.weight(1f),
-                )
-                Switch(
-                    checked = s.vibrationEnabled,
-                    onCheckedChange = { vm.setVibrationEnabled(it) },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = ON_ACCENT,
-                        checkedTrackColor = accent,
-                        uncheckedThumbColor = Color(0xFFCFD3D6),
-                        uncheckedTrackColor = SURFACE,
-                    ),
-                )
-            }
+            GroupDivider()
+            SwitchRow(
+                label = t.ignoreSilent,
+                desc = t.ignoreSilentDesc,
+                checked = s.ignoreSilent,
+                accent = accent,
+                onCheckedChange = { vm.setIgnoreSilent(it) },
+            )
+            GroupDivider()
+            SwitchRow(
+                label = t.vibration,
+                desc = null,
+                checked = s.vibrationEnabled,
+                accent = accent,
+                onCheckedChange = { vm.setVibrationEnabled(it) },
+            )
             if (s.vibrationEnabled) {
                 Spacer(Modifier.height(12.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -352,12 +317,14 @@ fun SettingsScreen(vm: TimerViewModel) {
                     }
                 }
             }
+        }
 
-            // Posición del anillo (ajuste fino +/- en dp sobre la cámara)
-            SectionLabel(t.ringPosition)
+        // ===== Overlay =====
+        SettingsGroup(t.groupOverlay, accent) {
+            ItemLabel(t.ringPosition)
             Text(
                 t.ringPositionDesc,
-                color = Color(0xFF9AA0A4),
+                color = TEXT_DIM,
                 fontSize = 13.sp,
             )
             Spacer(Modifier.height(12.dp))
@@ -377,7 +344,7 @@ fun SettingsScreen(vm: TimerViewModel) {
                 onPlus = { vm.nudgeRingY(1) },
             )
             if (vm.ringOffsetX != 0 || vm.ringOffsetY != 0) {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(4.dp))
                 TextButton(
                     onClick = { vm.resetRingOffset() },
                     shape = RoundedCornerShape(12.dp),
@@ -387,16 +354,18 @@ fun SettingsScreen(vm: TimerViewModel) {
                     Text(t.reset, fontWeight = FontWeight.SemiBold)
                 }
             }
+        }
 
-            Spacer(Modifier.height(28.dp))
-            TextButton(
-                onClick = { vm.resetSettings() },
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFFF7A7A)),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
-            ) {
-                Text(t.reset, fontWeight = FontWeight.SemiBold)
-            }
+        Spacer(Modifier.height(28.dp))
+        TextButton(
+            onClick = { vm.resetSettings() },
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.textButtonColors(contentColor = DONE_RED),
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+        ) {
+            Text(t.reset, fontWeight = FontWeight.SemiBold)
+        }
     }
 
     if (showSoundDialog) {
@@ -555,7 +524,7 @@ private fun OffsetStepperRow(
         FilledTonalIconButton(
             onClick = onMinus,
             colors = IconButtonDefaults.filledTonalIconButtonColors(
-                containerColor = SURFACE,
+                containerColor = TRACK,
                 contentColor = Color.White,
             ),
         ) {
@@ -582,11 +551,89 @@ private fun OffsetStepperRow(
     }
 }
 
+/** Encabezado de grupo + contenedor (card) estilo Material 3. */
 @Composable
-private fun SectionLabel(text: String) {
-    Spacer(Modifier.height(24.dp))
-    Text(text, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-    Spacer(Modifier.height(12.dp))
+private fun SettingsGroup(
+    title: String,
+    accent: Color,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Text(
+        title,
+        color = accent,
+        fontSize = 13.sp,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(start = 4.dp, top = 20.dp, bottom = 8.dp),
+    )
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(SURFACE)
+            .padding(16.dp),
+        content = content,
+    )
+}
+
+/** Etiqueta de un ítem dentro de un grupo. */
+@Composable
+private fun ItemLabel(text: String) {
+    Text(
+        text,
+        color = Color.White,
+        fontSize = 15.sp,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(bottom = 10.dp),
+    )
+}
+
+/** Divisor entre ítems de un mismo grupo. */
+@Composable
+private fun GroupDivider() {
+    HorizontalDivider(
+        color = TRACK,
+        thickness = 1.dp,
+        modifier = Modifier.padding(vertical = 16.dp),
+    )
+}
+
+/** Fila con etiqueta (y descripción opcional) + Switch. */
+@Composable
+private fun SwitchRow(
+    label: String,
+    desc: String?,
+    checked: Boolean,
+    accent: Color,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                label,
+                color = Color.White,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            if (desc != null) {
+                Spacer(Modifier.height(4.dp))
+                Text(desc, color = TEXT_DIM, fontSize = 13.sp)
+            }
+        }
+        Spacer(Modifier.width(12.dp))
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = ON_ACCENT,
+                checkedTrackColor = accent,
+                uncheckedThumbColor = Color(0xFFCFD3D6),
+                uncheckedTrackColor = TRACK,
+            ),
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -600,7 +647,7 @@ private fun Chip(label: String, selected: Boolean, accent: Color, onClick: () ->
         },
         shape = RoundedCornerShape(20.dp),
         colors = FilterChipDefaults.filterChipColors(
-            containerColor = SURFACE,
+            containerColor = TRACK,
             labelColor = Color(0xFFCFD3D6),
             selectedContainerColor = accent,
             selectedLabelColor = ON_ACCENT,
