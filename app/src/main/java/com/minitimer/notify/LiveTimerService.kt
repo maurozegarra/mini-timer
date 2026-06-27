@@ -145,6 +145,18 @@ class LiveTimerService : Service() {
             // Mostrar/ocultar el overlay y conmutar la promoción al entrar/salir
             // de la app (foreground/background).
             launch { TimerBus.appForeground.collect { refresh() } }
+            // Pantalla bloqueada: el Now Bar colapsado muestra el contentTitle, no
+            // el cronómetro, así que re-publicamos cada segundo para que el countdown
+            // del título avance. Solo mientras corre y está bloqueado (desbloqueado
+            // el chip usa el cronómetro, sin re-publicar para no colapsar la cápsula).
+            launch {
+                while (true) {
+                    delay(1_000)
+                    if (isLocked() && !TimerBus.done.value && !TimerBus.paused.value) {
+                        repost()
+                    }
+                }
+            }
             // Salvaguarda periódica: re-evaluar overlay/promoción.
             launch {
                 while (true) {
@@ -170,20 +182,22 @@ class LiveTimerService : Service() {
 
         val t = I18n.get(SettingsStore(this).load().language)
 
-        // Título corto (sin duración ni hora final). El countdown en vivo lo
-        // provee el cronómetro del chip (Live Update).
-        val title = when {
-            done -> t.timeUp
-            paused -> t.paused
-            else -> t.title
-        }
-        // Restante derivado de endAt para el texto corto del chip en pausa/fin.
+        // Restante en vivo derivado de endAt (estable).
         val remainingMs = if (endAt > 0L) {
             (endAt - System.currentTimeMillis()).coerceAtLeast(0)
         } else {
             TimerBus.remainingMs.value
         }
         val remainingText = formatRemaining(remainingMs)
+        // El Now Bar colapsado (lock screen) muestra el contentTitle, no el
+        // cronómetro, así que el countdown va en el propio título. En pantalla
+        // bloqueada se re-publica cada segundo (ver observe()); desbloqueado, el
+        // chip del sistema usa el cronómetro. Sin duración ni hora final.
+        val title = when {
+            done -> t.timeUp
+            paused -> "$remainingText · ${t.paused}"
+            else -> remainingText
+        }
 
         val pi = PendingIntent.getActivity(
             this,
