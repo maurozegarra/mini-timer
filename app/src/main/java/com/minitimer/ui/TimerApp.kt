@@ -17,6 +17,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.PaddingValues
@@ -40,19 +43,26 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -101,11 +111,15 @@ fun TimerApp(vm: TimerViewModel) {
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
-                    Text(
-                        if (vm.showSettings) t.settings else t.title,
-                        color = Color.White,
-                        fontWeight = FontWeight.SemiBold,
-                    )
+                    if (vm.showSettings) {
+                        Text(
+                            t.settings,
+                            color = Color.White,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    } else {
+                        EditableTimerTitle(vm = vm, accent = accent, placeholder = t.title)
+                    }
                 },
                 navigationIcon = {
                     if (vm.showSettings) {
@@ -147,6 +161,74 @@ fun TimerApp(vm: TimerViewModel) {
                 else -> CountdownScreen(vm, accent, t)
             }
         }
+    }
+}
+
+/**
+ * Título de la barra superior editable: muestra el nombre del timer (o el
+ * placeholder por defecto) y, al tocarlo, se convierte en un campo de texto
+ * inline centrado. Confirma con Done o al perder el foco.
+ */
+@Composable
+private fun EditableTimerTitle(vm: TimerViewModel, accent: Color, placeholder: String) {
+    var editing by remember { mutableStateOf(false) }
+    var text by remember { mutableStateOf(vm.label) }
+
+    // Sincronizar con el estado externo (p. ej. al cancelar se limpia).
+    LaunchedEffect(vm.label) { if (!editing) text = vm.label }
+
+    if (editing) {
+        val focusRequester = remember { FocusRequester() }
+        BasicTextField(
+            value = text,
+            onValueChange = { text = it.take(40) },
+            singleLine = true,
+            textStyle = TextStyle(
+                color = Color.White,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 20.sp,
+                textAlign = TextAlign.Center,
+            ),
+            cursorBrush = SolidColor(accent),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = {
+                vm.commitLabel(text)
+                editing = false
+            }),
+            modifier = Modifier
+                .widthIn(max = 240.dp)
+                .focusRequester(focusRequester)
+                .onFocusChanged {
+                    if (!it.isFocused && editing) {
+                        vm.commitLabel(text)
+                        editing = false
+                    }
+                },
+            decorationBox = { inner ->
+                Box(contentAlignment = Alignment.Center) {
+                    if (text.isEmpty()) {
+                        Text(
+                            placeholder,
+                            color = TEXT_DIM,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 20.sp,
+                        )
+                    }
+                    inner()
+                }
+            },
+        )
+        LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    } else {
+        Text(
+            text = vm.label.ifBlank { placeholder },
+            color = Color.White,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.clickable {
+                text = vm.label
+                editing = true
+            },
+        )
     }
 }
 
