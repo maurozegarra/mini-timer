@@ -339,7 +339,7 @@ private fun StickmanJumpingJacks(
         // cabeza (clap). Ángulo medido desde el eje vertical hacia abajo.
         val rad = PI.toFloat() / 180f
         val armAngle = lp(15f * rad, 190f * rad, p)
-        val elbowBend = 12f * rad
+        val elbowBend = 26f * rad
         val upperLen = h * 0.135f
         val foreLen = h * 0.125f
         // Brazo izquierdo (dirección hacia la izquierda-arriba según el ángulo).
