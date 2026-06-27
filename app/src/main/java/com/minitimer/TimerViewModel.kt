@@ -72,6 +72,10 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var showSettings by mutableStateOf(false)
 
+    // Nombre opcional del timer (por ejecución). Se muestra en la barra superior.
+    var label by mutableStateOf("")
+        private set
+
     // Offset fino (en dp) del anillo sobre la cámara, ajustable con +/- en ajustes.
     var ringOffsetX by mutableStateOf(store.loadRingOffset().first)
         private set
@@ -238,6 +242,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         autoDismissJob?.cancel()
         store.clearTimerState()
         prefillLastDuration()
+        label = ""
         setPhaseAndBus(Phase.SETUP)
         LiveTimerService.stop(getApplication())
     }
@@ -254,8 +259,14 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         autoDismissJob?.cancel()
         store.clearTimerState()
         prefillLastDuration()
+        label = ""
         setPhaseAndBus(Phase.SETUP)
         LiveTimerService.stop(getApplication())
+    }
+
+    /** Fija el nombre del timer (recortado a 40 caracteres). */
+    fun commitLabel(value: String) {
+        label = value.take(40)
     }
 
     /** Deja el teclado con la última duración usada lista para reutilizarse. */
