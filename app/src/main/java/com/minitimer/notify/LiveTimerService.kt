@@ -20,8 +20,7 @@ import com.minitimer.TimerBus
 import com.minitimer.TimerCommand
 import com.minitimer.data.SettingsStore
 import com.minitimer.i18n.I18n
-import com.minitimer.util.formatClock
-import com.minitimer.util.formatDurationShort
+import com.minitimer.util.formatRemaining
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -146,6 +145,17 @@ class LiveTimerService : Service() {
             // Mostrar/ocultar el overlay y conmutar la promoción al entrar/salir
             // de la app (foreground/background).
             launch { TimerBus.appForeground.collect { refresh() } }
+            // Countdown en vivo: el Now Bar muestra el título (no el cronómetro),
+            // así que re-publicamos cada segundo mientras corre para que la cuenta
+            // regresiva del título avance.
+            launch {
+                while (true) {
+                    delay(1_000)
+                    if (!TimerBus.done.value && !TimerBus.paused.value) {
+                        repost()
+                    }
+                }
+            }
             // Salvaguarda periódica: re-evaluar overlay/promoción.
             launch {
                 while (true) {
@@ -163,23 +173,28 @@ class LiveTimerService : Service() {
 
     private fun buildNotification(): Notification {
         val accent = TimerBus.accent.value.toInt()
-        val total = TimerBus.totalMs.value
         val done = TimerBus.done.value
         val paused = TimerBus.paused.value
         val endAt = TimerBus.endAt.value
-        val display = TimerBus.display.value.ifEmpty { "0:00" }
         val running = !done && !paused
 
         val t = I18n.get(SettingsStore(this).load().language)
 
-        // Línea secundaria: "<duración seleccionada> / <hora de término>".
-        val durationLabel = formatDurationShort(total)
+        // Restante en vivo derivado de endAt (estable). El Now Bar muestra el
+        // título, así que el countdown va en el propio título y se actualiza
+        // re-publicando cada segundo (ver observe()). Sin duración ni hora final.
+        val remainingMs = if (running && endAt > 0L) {
+            (endAt - System.currentTimeMillis()).coerceAtLeast(0)
+        } else {
+            TimerBus.remainingMs.value
+        }
+        val remainingText = formatRemaining(remainingMs)
         val infoLine = when {
             done -> t.timeUp
-            running && endAt > 0L -> "$durationLabel / ${formatClock(endAt, t.locale)}"
-            paused -> "$durationLabel · ${t.paused}"
-            else -> durationLabel
+            paused -> "$remainingText · ${t.paused}"
+            else -> remainingText
         }
+        val shortText = if (done) t.timeUp else remainingText
 
         val pi = PendingIntent.getActivity(
             this,
@@ -230,16 +245,11 @@ class LiveTimerService : Service() {
             builder.setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
         }
 
-        // El countdown del chip (Live Update) se alimenta del cronómetro sobre `when`.
-        if (running && endAt > 0L) {
-            builder.setShowWhen(true)
-            builder.setWhen(endAt)
-            builder.setUsesChronometer(true)
-            builder.setChronometerCountDown(true)
-        } else {
-            builder.setUsesChronometer(false)
-            builder.setShowWhen(false)
-        }
+        // Sin cronómetro: en este dispositivo el Now Bar muestra el título, no el
+        // cronómetro. El countdown en vivo se logra re-publicando el título cada
+        // segundo (ver observe()).
+        builder.setUsesChronometer(false)
+        builder.setShowWhen(false)
 
         // Sin barra de progreso: usamos "Standard Style" (sin Notification.Style),
         // que también califica como Live Update y clona el look del Timer de
@@ -248,11 +258,9 @@ class LiveTimerService : Service() {
             // Promover (chip / Now Bar) solo cuando corresponde (ver shouldPromote):
             // al estar bloqueado, o siempre si no hay permiso de overlay.
             builder.setRequestPromotedOngoing(shouldPromote())
-            // El chip usa el cronómetro mientras corre; el texto corto solo cuando
-            // no hay cronómetro (pausa), para no competir con la cuenta regresiva.
-            if (!running) {
-                builder.setShortCriticalText(display)
-            }
+            // Texto corto del chip = la cuenta regresiva en vivo (se actualiza al
+            // re-publicar cada segundo).
+            builder.setShortCriticalText(shortText)
         }
 
         return builder.build()
