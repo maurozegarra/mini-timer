@@ -100,19 +100,17 @@ class SettingsStore(context: Context) {
         prefs.edit().putBoolean(KEY_OVERLAY_ASKED, true).apply()
     }
 
-    /** Posición (x, y en px) de la píldora colapsada elegida por el usuario al arrastrar. */
-    fun saveOverlayPos(x: Int, y: Int) {
-        prefs.edit().putInt(KEY_OVERLAY_X, x).putInt(KEY_OVERLAY_Y, y).apply()
+    /**
+     * Offset fino (en dp) del anillo/píldora respecto a su posición por defecto,
+     * para centrarlo sobre la cámara con los controles +/- de ajustes. Se guarda
+     * fuera de [Settings] para evitar sobreescrituras al copiar el modelo.
+     */
+    fun saveRingOffset(x: Int, y: Int) {
+        prefs.edit().putInt(KEY_RING_OFF_X, x).putInt(KEY_RING_OFF_Y, y).apply()
     }
 
-    fun loadOverlayPos(): Pair<Int, Int>? {
-        if (!prefs.contains(KEY_OVERLAY_X)) return null
-        return prefs.getInt(KEY_OVERLAY_X, 0) to prefs.getInt(KEY_OVERLAY_Y, 0)
-    }
-
-    fun clearOverlayPos() {
-        prefs.edit().remove(KEY_OVERLAY_X).remove(KEY_OVERLAY_Y).apply()
-    }
+    fun loadRingOffset(): Pair<Int, Int> =
+        prefs.getInt(KEY_RING_OFF_X, 0) to prefs.getInt(KEY_RING_OFF_Y, 0)
 
     private companion object {
         const val KEY_ACCENT = "accent"
@@ -132,7 +130,7 @@ class SettingsStore(context: Context) {
         const val KEY_T_TOTAL = "timer_total"
         const val KEY_LAST_DURATION = "last_duration"
         const val KEY_OVERLAY_ASKED = "overlay_asked"
-        const val KEY_OVERLAY_X = "overlay_x"
-        const val KEY_OVERLAY_Y = "overlay_y"
+        const val KEY_RING_OFF_X = "ring_off_x"
+        const val KEY_RING_OFF_Y = "ring_off_y"
     }
 }

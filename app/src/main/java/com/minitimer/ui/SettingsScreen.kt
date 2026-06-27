@@ -353,6 +353,41 @@ fun SettingsScreen(vm: TimerViewModel) {
                 }
             }
 
+            // Posición del anillo (ajuste fino +/- en dp sobre la cámara)
+            SectionLabel(t.ringPosition)
+            Text(
+                t.ringPositionDesc,
+                color = Color(0xFF9AA0A4),
+                fontSize = 13.sp,
+            )
+            Spacer(Modifier.height(12.dp))
+            OffsetStepperRow(
+                axis = "X",
+                value = vm.ringOffsetX,
+                accent = accent,
+                onMinus = { vm.nudgeRingX(-1) },
+                onPlus = { vm.nudgeRingX(1) },
+            )
+            Spacer(Modifier.height(8.dp))
+            OffsetStepperRow(
+                axis = "Y",
+                value = vm.ringOffsetY,
+                accent = accent,
+                onMinus = { vm.nudgeRingY(-1) },
+                onPlus = { vm.nudgeRingY(1) },
+            )
+            if (vm.ringOffsetX != 0 || vm.ringOffsetY != 0) {
+                Spacer(Modifier.height(8.dp))
+                TextButton(
+                    onClick = { vm.resetRingOffset() },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.textButtonColors(contentColor = accent),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                ) {
+                    Text(t.reset, fontWeight = FontWeight.SemiBold)
+                }
+            }
+
             Spacer(Modifier.height(28.dp))
             TextButton(
                 onClick = { vm.resetSettings() },
@@ -495,6 +530,55 @@ private fun RadioRow(
             fontSize = 15.sp,
             modifier = Modifier.weight(1f),
         )
+    }
+}
+
+@Composable
+private fun OffsetStepperRow(
+    axis: String,
+    value: Int,
+    accent: Color,
+    onMinus: () -> Unit,
+    onPlus: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            axis,
+            color = Color.White,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.weight(1f),
+        )
+        FilledTonalIconButton(
+            onClick = onMinus,
+            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                containerColor = SURFACE,
+                contentColor = Color.White,
+            ),
+        ) {
+            Icon(Icons.Filled.Remove, contentDescription = "Decrease $axis")
+        }
+        Text(
+            "$value",
+            color = accent,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+            fontFamily = JetBrainsMono,
+            modifier = Modifier.width(64.dp),
+        )
+        FilledTonalIconButton(
+            onClick = onPlus,
+            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                containerColor = accent,
+                contentColor = ON_ACCENT,
+            ),
+        ) {
+            Icon(Icons.Filled.Add, contentDescription = "Increase $axis")
+        }
     }
 }
 

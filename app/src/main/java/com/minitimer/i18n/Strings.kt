@@ -35,6 +35,8 @@ data class Strings(
     val select: String,
     val on: String,
     val off: String,
+    val ringPosition: String,
+    val ringPositionDesc: String,
 )
 
 object I18n {
@@ -72,6 +74,8 @@ object I18n {
         select = "Seleccionar",
         on = "Activado",
         off = "Desactivado",
+        ringPosition = "Posición del anillo",
+        ringPositionDesc = "Ajusta finamente el anillo sobre la cámara (dp)",
     )
 
     val EN = Strings(
@@ -106,5 +110,7 @@ object I18n {
         select = "Select",
         on = "On",
         off = "Off",
+        ringPosition = "Ring position",
+        ringPositionDesc = "Fine-tune the ring over the camera (dp)",
     )
 }

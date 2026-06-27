@@ -15,7 +15,6 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
 import com.minitimer.R
 import com.minitimer.TimerBus
 import com.minitimer.TimerCommand
@@ -24,7 +23,6 @@ import com.minitimer.i18n.I18n
 import com.minitimer.util.formatClock
 import com.minitimer.util.formatDurationShort
 import kotlin.math.abs
-import kotlin.math.roundToInt
 
 /**
  * Ventana overlay (TYPE_APPLICATION_OVERLAY) que clona el control del Timer de
@@ -107,12 +105,12 @@ class TimerOverlay(private val context: Context) {
         // extra inferior engrosa la píldora hacia abajo.
         collapsedX = screenWidth() / 2 - dp(CAMERA_GAP_CENTER_DP)
         collapsedY = ((statusBarHeight() - dp(PILL_TOP_REF_DP)) / 2).coerceAtLeast(0)
-        // Si el usuario ya posicionó la píldora arrastrándola, respetar esa elección.
-        SettingsStore(context).loadOverlayPos()?.let { (x, y) ->
-            collapsedX = x
-            collapsedY = y
-        }
-        attachDrag(v, lp)
+        // Ajuste fino del usuario (en dp) desde los controles +/- de ajustes,
+        // para centrar el anillo sobre la cámara de su dispositivo.
+        val (offX, offY) = SettingsStore(context).loadRingOffset()
+        collapsedX += dp(offX)
+        collapsedY += dp(offY)
+        attachTap(v)
         applyExpanded()
         try {
             wm?.addView(v, lp)
@@ -216,20 +214,20 @@ class TimerOverlay(private val context: Context) {
         }
     }
 
-    /** Permite arrastrar la ventana; un toque sin desplazamiento alterna colapsar/expandir. */
-    private fun attachDrag(v: View, lp: WindowManager.LayoutParams) {
+    /**
+     * Un toque sin desplazamiento alterna colapsar/expandir. El posicionamiento
+     * del anillo se hace con los controles +/- de ajustes (offset persistido),
+     * no arrastrando, para tener un centrado fino y reproducible.
+     */
+    private fun attachTap(v: View) {
         var downX = 0f
         var downY = 0f
-        var startX = 0
-        var startY = 0
         var moved = false
         v.setOnTouchListener { _, e ->
             when (e.action) {
                 MotionEvent.ACTION_DOWN -> {
                     downX = e.rawX
                     downY = e.rawY
-                    startX = lp.x
-                    startY = lp.y
                     moved = false
                     true
                 }
@@ -239,51 +237,15 @@ class TimerOverlay(private val context: Context) {
                     if (!moved && (abs(dx) > touchSlop || abs(dy) > touchSlop)) {
                         moved = true
                     }
-                    if (moved) {
-                        lp.x = startX + dx.toInt()
-                        lp.y = startY + dy.toInt()
-                        try {
-                            wm?.updateViewLayout(v, lp)
-                        } catch (_: Exception) {
-                        }
-                    }
                     true
                 }
                 MotionEvent.ACTION_UP -> {
-                    if (!moved) {
-                        toggleExpanded()
-                    } else if (!isExpanded) {
-                        // Recordar y PERSISTIR la posición colapsada tras arrastrar,
-                        // para que el usuario pueda centrar el anillo manualmente y
-                        // su elección sobreviva a reinicios del overlay.
-                        collapsedX = lp.x
-                        collapsedY = lp.y
-                        SettingsStore(context).saveOverlayPos(collapsedX, collapsedY)
-                        showPositionToast()
-                    }
+                    if (!moved) toggleExpanded()
                     true
                 }
                 else -> false
             }
         }
-    }
-
-    /**
-     * TEMPORAL (calibración): muestra la posición elegida y, sobre todo, el offset
-     * en dp respecto a la posición por defecto. Esos dos números (offset dp X/Y)
-     * son los que se hardcodearán como ajuste fijo para luego retirar el arrastre.
-     */
-    private fun showPositionToast() {
-        val density = context.resources.displayMetrics.density
-        val defX = screenWidth() / 2 - dp(CAMERA_GAP_CENTER_DP)
-        val defY = ((statusBarHeight() - dp(PILL_TOP_REF_DP)) / 2).coerceAtLeast(0)
-        val offXdp = ((collapsedX - defX) / density).roundToInt()
-        val offYdp = ((collapsedY - defY) / density).roundToInt()
-        Toast.makeText(
-            context,
-            "offset dp -> X: $offXdp  Y: $offYdp\n(px x=$collapsedX y=$collapsedY)",
-            Toast.LENGTH_LONG,
-        ).show()
     }
 
     private fun dp(value: Int): Int =
