@@ -225,15 +225,15 @@ class LiveTimerService : Service() {
             paused -> "$remainingText · ${t.paused}"
             else -> remainingText
         }
-        // Segunda línea (expandido): el NOMBRE del timer si se ha seteado; si no,
-        // "<duración> / <hora de término>" como respaldo.
+        // Segunda línea (expandido): "<nombre|duración> / <hora de término>".
+        // El primer segmento es el NOMBRE si se ha seteado; si no, la duración.
         val label = TimerBus.label.value
         val durationLabel = formatDurationShort(total)
+        val leadLabel = if (label.isNotBlank()) label else durationLabel
         val subText = when {
             done -> ""
-            label.isNotBlank() -> label
-            endAt > 0L -> "$durationLabel / ${formatClock(endAt, t.locale)}"
-            else -> durationLabel
+            endAt > 0L -> "$leadLabel / ${formatClock(endAt, t.locale)}"
+            else -> leadLabel
         }
 
         val pi = PendingIntent.getActivity(
