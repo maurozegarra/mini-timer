@@ -35,6 +35,9 @@ enum class Phase { SETUP, RUNNING, PAUSED, DONE }
 /** Un tono de alarma disponible para seleccionar. */
 data class AlarmSound(val name: String, val uri: String)
 
+/** Límite (en dp) del ajuste fino del anillo en cada eje. */
+private const val RING_OFFSET_LIMIT = 100
+
 /**
  * Salidas de audífonos capaces de reproducir MEDIA, por orden de preferencia.
  * IMPORTANTE: se excluye BLUETOOTH_SCO (canal de llamadas, mono) porque NO
@@ -68,6 +71,12 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     var remainingMs by mutableStateOf(0L)
         private set
     var showSettings by mutableStateOf(false)
+
+    // Offset fino (en dp) del anillo sobre la cámara, ajustable con +/- en ajustes.
+    var ringOffsetX by mutableStateOf(store.loadRingOffset().first)
+        private set
+    var ringOffsetY by mutableStateOf(store.loadRingOffset().second)
+        private set
 
     private var endAt = 0L
     private var tickJob: Job? = null
@@ -454,6 +463,23 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         update(Settings())
         // Re-aplicar "Beep" como tono por defecto (Settings() deja el tono en null).
         ensureDefaultAlarmSound()
+    }
+
+    /** Ajuste fino (en dp) de la posición del anillo sobre la cámara. */
+    fun nudgeRingX(delta: Int) {
+        ringOffsetX = (ringOffsetX + delta).coerceIn(-RING_OFFSET_LIMIT, RING_OFFSET_LIMIT)
+        store.saveRingOffset(ringOffsetX, ringOffsetY)
+    }
+
+    fun nudgeRingY(delta: Int) {
+        ringOffsetY = (ringOffsetY + delta).coerceIn(-RING_OFFSET_LIMIT, RING_OFFSET_LIMIT)
+        store.saveRingOffset(ringOffsetX, ringOffsetY)
+    }
+
+    fun resetRingOffset() {
+        ringOffsetX = 0
+        ringOffsetY = 0
+        store.saveRingOffset(0, 0)
     }
 
     fun addPreset(input: String): Boolean {
