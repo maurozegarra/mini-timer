@@ -179,6 +179,9 @@ private fun EditableTimerTitle(vm: TimerViewModel, accent: Color, placeholder: S
 
     if (editing) {
         val focusRequester = remember { FocusRequester() }
+        // Evita salir de edición por el evento inicial de "sin foco" que llega
+        // antes de que requestFocus() tome efecto: solo se sale si ya hubo foco.
+        var hasFocused by remember { mutableStateOf(false) }
         BasicTextField(
             value = text,
             onValueChange = { text = it.take(40) },
@@ -199,7 +202,9 @@ private fun EditableTimerTitle(vm: TimerViewModel, accent: Color, placeholder: S
                 .widthIn(max = 240.dp)
                 .focusRequester(focusRequester)
                 .onFocusChanged {
-                    if (!it.isFocused && editing) {
+                    if (it.isFocused) {
+                        hasFocused = true
+                    } else if (hasFocused && editing) {
                         vm.commitLabel(text)
                         editing = false
                     }
