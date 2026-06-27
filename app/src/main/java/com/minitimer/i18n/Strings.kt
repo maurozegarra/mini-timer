@@ -37,6 +37,10 @@ data class Strings(
     val off: String,
     val ringPosition: String,
     val ringPositionDesc: String,
+    val groupAppearance: String,
+    val groupTimer: String,
+    val groupAlarm: String,
+    val groupOverlay: String,
 )
 
 object I18n {
@@ -76,6 +80,10 @@ object I18n {
         off = "Desactivado",
         ringPosition = "Posición del anillo",
         ringPositionDesc = "Ajusta finamente el anillo sobre la cámara (dp)",
+        groupAppearance = "Apariencia",
+        groupTimer = "Temporizador",
+        groupAlarm = "Alarma y sonido",
+        groupOverlay = "Overlay",
     )
 
     val EN = Strings(
@@ -112,5 +120,9 @@ object I18n {
         off = "Off",
         ringPosition = "Ring position",
         ringPositionDesc = "Fine-tune the ring over the camera (dp)",
+        groupAppearance = "Appearance",
+        groupTimer = "Timer",
+        groupAlarm = "Alarm & sound",
+        groupOverlay = "Overlay",
     )
 }
