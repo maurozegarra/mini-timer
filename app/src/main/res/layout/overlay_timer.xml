@@ -3,20 +3,14 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content">
 
-    <!-- Estado colapsado: contenedor EXTERIOR transparente que extiende la zona
-         táctil hacia abajo (paddingBottom), por debajo de la barra de estado,
-         para que el tap llegue al overlay (la barra de estado del sistema se
-         come los toques en su propia región). La píldora visible va arriba. -->
+    <!-- Estado colapsado: cápsula que SOLO muestra el countdown, ubicada debajo
+         de la barra de estado para no interferir con el sistema. El anillo de la
+         cámara es ahora una ventana independiente (overlay_ring.xml). -->
     <FrameLayout
         android:id="@+id/overlay_collapsed"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:paddingBottom="20dp">
+        android:layout_height="wrap_content">
 
-        <!-- Píldora visible que ABARCA el notch con tres zonas en fila:
-             [ícono] [hueco-cámara] [countdown]. El hueco central cae sobre el
-             punch-hole, enmarcando la cámara entre el ícono y el countdown.
-             La altura se ajusta en código. -->
         <LinearLayout
             android:id="@+id/overlay_pill"
             android:layout_width="wrap_content"
@@ -24,23 +18,10 @@
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:background="@drawable/overlay_pill_bg"
-            android:paddingStart="10dp"
-            android:paddingEnd="14dp">
-
-            <ImageView
-                android:id="@+id/overlay_collapsed_icon"
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:layout_marginEnd="6dp"
-                android:src="@drawable/ic_stat_timer"
-                android:scaleType="fitCenter"
-                android:contentDescription="@null" />
-
-            <com.minitimer.notify.CameraRingView
-                android:id="@+id/overlay_camera_ring"
-                android:layout_width="34dp"
-                android:layout_height="26dp"
-                android:layout_marginBottom="6dp" />
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp">
 
             <Chronometer
                 android:id="@+id/overlay_collapsed_chrono"
