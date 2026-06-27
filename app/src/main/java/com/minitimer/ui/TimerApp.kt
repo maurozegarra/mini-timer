@@ -347,7 +347,7 @@ private fun StickmanJumpingJacks(
         val lShoulder = pt(cx - shoulderDX, shoulderY)
         val lUp = Offset(-sin(armAngle), cos(armAngle))
         val lElbow = Offset(lShoulder.x + lUp.x * upperLen, lShoulder.y + lUp.y * upperLen)
-        val lFore = Offset(-sin(armAngle - elbowBend), cos(armAngle - elbowBend))
+        val lFore = Offset(-sin(armAngle + elbowBend), cos(armAngle + elbowBend))
         val lHand = Offset(lElbow.x + lFore.x * foreLen, lElbow.y + lFore.y * foreLen)
         drawLine(figColor, lShoulder, lElbow, strokeWidth = stroke, cap = StrokeCap.Round)
         drawLine(figColor, lElbow, lHand, strokeWidth = stroke, cap = StrokeCap.Round)
