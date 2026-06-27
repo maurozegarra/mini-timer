@@ -89,13 +89,16 @@ class TimerOverlay(private val context: Context) {
             PixelFormat.TRANSLUCENT,
         )
         params = lp
-        // La píldora ocupa la altura de la barra de estado para envolver el notch;
-        // así la cámara queda centrada verticalmente dentro de la píldora.
-        collapsed?.minimumHeight = statusBarHeight()
-        // Posición colapsada por defecto: arriba, con el hueco (paddingStart +
-        // mitad del gap) centrado sobre la cámara del medio de la pantalla.
+        // Píldora delgada centrada verticalmente dentro de la barra de estado,
+        // de modo que la cámara quede centrada dentro de la píldora sin que esta
+        // ocupe todo el alto de la barra.
+        val pillH = dp(PILL_HEIGHT_DP)
+        collapsed?.minimumHeight = pillH
+        // Posición colapsada por defecto: con el hueco (paddingStart + ícono +
+        // mitad del gap) centrado sobre la cámara del medio de la pantalla, y la
+        // píldora centrada verticalmente en la barra de estado.
         collapsedX = screenWidth() / 2 - dp(CAMERA_GAP_CENTER_DP)
-        collapsedY = 0
+        collapsedY = ((statusBarHeight() - pillH) / 2).coerceAtLeast(0)
         attachDrag(v, lp)
         applyExpanded()
         try {
@@ -253,5 +256,8 @@ class TimerOverlay(private val context: Context) {
         // del hueco de la cámara = paddingStart (10) + ícono (16) + margen (6) +
         // mitad del gap (34/2 = 17).
         const val CAMERA_GAP_CENTER_DP = 49
+
+        // Alto de la píldora colapsada (más delgada que la barra de estado).
+        const val PILL_HEIGHT_DP = 26
     }
 }
