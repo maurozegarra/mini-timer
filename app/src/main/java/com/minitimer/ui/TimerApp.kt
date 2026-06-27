@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.PI
 import kotlin.math.cos
+import kotlin.math.sin
 import com.minitimer.Phase
 import com.minitimer.TimerViewModel
 import com.minitimer.i18n.I18n
@@ -333,13 +334,29 @@ private fun StickmanJumpingJacks(
         limb(pt(cx - hipDX, hipY), pt(cx - kneeDX, kneeY), pt(cx - footDX, footY))
         limb(pt(cx + hipDX, hipY), pt(cx + kneeDX, kneeY), pt(cx + footDX, footY))
 
-        // Brazos (hombro -> codo -> mano): abajo cerrados, arriba abiertos.
-        val elbowX = lp(w * 0.14f, w * 0.20f, p)
-        val elbowY = lp(shoulderY + h * 0.10f, shoulderY - h * 0.07f, p)
-        val handX = lp(w * 0.10f, w * 0.12f, p)
-        val handY = lp(hipY + h * 0.04f, headCY - h * 0.10f, p)
-        limb(pt(cx - shoulderDX, shoulderY), pt(cx - elbowX, elbowY), pt(cx - handX, handY))
-        limb(pt(cx + shoulderDX, shoulderY), pt(cx + elbowX, elbowY), pt(cx + handX, handY))
+        // Brazos: rotación alrededor del hombro con longitud fija, casi rectos.
+        // Barren en arco desde el costado (abajo) hasta casi tocarse sobre la
+        // cabeza (clap). Ángulo medido desde el eje vertical hacia abajo.
+        val rad = PI.toFloat() / 180f
+        val armAngle = lp(15f * rad, 190f * rad, p)
+        val elbowBend = 12f * rad
+        val upperLen = h * 0.135f
+        val foreLen = h * 0.125f
+        // Brazo izquierdo (dirección hacia la izquierda-arriba según el ángulo).
+        val lShoulder = pt(cx - shoulderDX, shoulderY)
+        val lUp = Offset(-sin(armAngle), cos(armAngle))
+        val lElbow = Offset(lShoulder.x + lUp.x * upperLen, lShoulder.y + lUp.y * upperLen)
+        val lFore = Offset(-sin(armAngle - elbowBend), cos(armAngle - elbowBend))
+        val lHand = Offset(lElbow.x + lFore.x * foreLen, lElbow.y + lFore.y * foreLen)
+        drawLine(figColor, lShoulder, lElbow, strokeWidth = stroke, cap = StrokeCap.Round)
+        drawLine(figColor, lElbow, lHand, strokeWidth = stroke, cap = StrokeCap.Round)
+        // Brazo derecho: espejo del izquierdo respecto al eje central.
+        fun mirror(o: Offset) = Offset(2f * cx - o.x, o.y)
+        val rShoulder = mirror(lShoulder)
+        val rElbow = mirror(lElbow)
+        val rHand = mirror(lHand)
+        drawLine(figColor, rShoulder, rElbow, strokeWidth = stroke, cap = StrokeCap.Round)
+        drawLine(figColor, rElbow, rHand, strokeWidth = stroke, cap = StrokeCap.Round)
     }
 }
 
