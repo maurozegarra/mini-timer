@@ -40,6 +40,7 @@ class TimerOverlay(private val context: Context) {
     private var collapsed: LinearLayout? = null
     private var expanded: LinearLayout? = null
     private var collapsedIcon: ImageView? = null
+    private var cameraRing: CameraRingView? = null
     private var collapsedChrono: Chronometer? = null
     private var expandedChrono: Chronometer? = null
     private var infoView: TextView? = null
@@ -63,6 +64,7 @@ class TimerOverlay(private val context: Context) {
         collapsed = v.findViewById(R.id.overlay_collapsed)
         expanded = v.findViewById(R.id.overlay_expanded)
         collapsedIcon = v.findViewById(R.id.overlay_collapsed_icon)
+        cameraRing = v.findViewById(R.id.overlay_camera_ring)
         collapsedChrono = v.findViewById(R.id.overlay_collapsed_chrono)
         expandedChrono = v.findViewById(R.id.overlay_expanded_chrono)
         infoView = v.findViewById(R.id.overlay_info)
@@ -144,6 +146,16 @@ class TimerOverlay(private val context: Context) {
         collapsedChrono?.setTextColor(0xFFFFFFFF.toInt())
         collapsedIcon?.setColorFilter(accent)
         expandedChrono?.setTextColor(accent)
+
+        // Anillo de progreso alrededor del hueco de la cámara.
+        cameraRing?.setColor(accent)
+        val total = TimerBus.totalMs.value
+        if (running && TimerBus.endAt.value > 0L && total > 0L) {
+            cameraRing?.setRunning(TimerBus.endAt.value, total)
+        } else {
+            val p = if (total > 0L) remaining.toFloat() / total else 0f
+            cameraRing?.setStatic(p)
+        }
         infoView?.text = buildInfo()
         btnPause?.setImageResource(
             if (paused) R.drawable.ic_notif_play else R.drawable.ic_notif_pause,
