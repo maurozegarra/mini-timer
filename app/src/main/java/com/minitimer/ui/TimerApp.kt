@@ -47,8 +47,10 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -272,8 +274,11 @@ private fun CountdownScreen(vm: TimerViewModel, accent: Color, t: com.minitimer.
 }
 
 /**
- * Stickman dibujado con Canvas haciendo "jumping jacks". La animación avanza solo
- * mientras [running] es true (se congela en pausa). Sin dependencias ni assets.
+ * Stickman haciendo "jumping jacks", al estilo de los iconos de ejercicio de
+ * Samsung Health ("My exercises"): figura clara de trazo grueso con extremos
+ * redondeados, cabeza sólida y articulaciones (codos/rodillas) sobre un fondo
+ * circular con gradiente del color de acento. La animación avanza solo mientras
+ * [running] es true (se congela en pausa). Sin dependencias ni assets.
  */
 @Composable
 private fun StickmanJumpingJacks(
@@ -298,40 +303,57 @@ private fun StickmanJumpingJacks(
         val theta = t * (2f * PI.toFloat()) * 1.2f
         // p: 0 = posición cerrada (brazos abajo, piernas juntas), 1 = abierta.
         val p = (1f - cos(theta)) / 2f
-        val hop = -h * 0.04f * p
-        val stroke = h * 0.04f
-        fun lerp(a: Float, b: Float, f: Float) = a + (b - a) * f
+        val hop = -h * 0.035f * p
 
-        val headR = h * 0.09f
-        val shoulderY = h * 0.30f + hop
-        val hipY = h * 0.55f + hop
-        val headCY = shoulderY - headR * 1.7f
+        fun lp(a: Float, b: Float, f: Float) = a + (b - a) * f
+        fun pt(x: Float, y: Float) = Offset(x, y + hop)
 
-        // Cabeza
+        // Fondo circular con gradiente (estilo Samsung Health).
+        val bgRadius = size.minDimension / 2f
         drawCircle(
-            color = accent,
-            radius = headR,
-            center = Offset(cx, headCY),
-            style = Stroke(width = stroke),
+            brush = Brush.linearGradient(
+                colors = listOf(lerp(accent, Color.White, 0.28f), accent),
+                start = Offset(cx, 0f),
+                end = Offset(cx, h),
+            ),
+            radius = bgRadius,
+            center = Offset(cx, h / 2f),
         )
-        // Columna
-        drawLine(
-            color = accent,
-            start = Offset(cx, shoulderY),
-            end = Offset(cx, hipY),
-            strokeWidth = stroke,
-            cap = StrokeCap.Round,
-        )
-        // Piernas
-        val footY = h * 0.86f + hop
-        val footDX = lerp(w * 0.05f, w * 0.20f, p)
-        drawLine(accent, Offset(cx, hipY), Offset(cx - footDX, footY), strokeWidth = stroke, cap = StrokeCap.Round)
-        drawLine(accent, Offset(cx, hipY), Offset(cx + footDX, footY), strokeWidth = stroke, cap = StrokeCap.Round)
-        // Brazos
-        val handDX = lerp(w * 0.06f, w * 0.24f, p)
-        val handY = lerp(shoulderY + (hipY - shoulderY) * 0.95f, headCY - h * 0.06f, p)
-        drawLine(accent, Offset(cx, shoulderY), Offset(cx - handDX, handY), strokeWidth = stroke, cap = StrokeCap.Round)
-        drawLine(accent, Offset(cx, shoulderY), Offset(cx + handDX, handY), strokeWidth = stroke, cap = StrokeCap.Round)
+
+        // Figura clara que contrasta con el acento, trazo grueso redondeado.
+        val figColor = ON_ACCENT
+        val stroke = h * 0.045f
+        fun limb(a: Offset, joint: Offset, end: Offset) {
+            drawLine(figColor, a, joint, strokeWidth = stroke, cap = StrokeCap.Round)
+            drawLine(figColor, joint, end, strokeWidth = stroke, cap = StrokeCap.Round)
+        }
+
+        val headR = h * 0.085f
+        val shoulderY = h * 0.34f
+        val hipY = h * 0.56f
+        val headCY = shoulderY - headR * 1.6f
+        val shoulderDX = w * 0.05f
+        val hipDX = w * 0.04f
+        val kneeY = h * 0.70f
+        val footY = h * 0.84f
+
+        // Cabeza sólida + cuello/columna.
+        drawCircle(color = figColor, radius = headR, center = pt(cx, headCY))
+        drawLine(figColor, pt(cx, shoulderY - headR * 0.2f), pt(cx, hipY), strokeWidth = stroke, cap = StrokeCap.Round)
+
+        // Piernas (cadera -> rodilla -> pie), se separan al abrir.
+        val kneeDX = lp(w * 0.05f, w * 0.13f, p)
+        val footDX = lp(w * 0.05f, w * 0.22f, p)
+        limb(pt(cx - hipDX, hipY), pt(cx - kneeDX, kneeY), pt(cx - footDX, footY))
+        limb(pt(cx + hipDX, hipY), pt(cx + kneeDX, kneeY), pt(cx + footDX, footY))
+
+        // Brazos (hombro -> codo -> mano): abajo cerrados, arriba abiertos.
+        val elbowX = lp(w * 0.14f, w * 0.20f, p)
+        val elbowY = lp(shoulderY + h * 0.10f, shoulderY - h * 0.07f, p)
+        val handX = lp(w * 0.10f, w * 0.12f, p)
+        val handY = lp(hipY + h * 0.04f, headCY - h * 0.10f, p)
+        limb(pt(cx - shoulderDX, shoulderY), pt(cx - elbowX, elbowY), pt(cx - handX, handY))
+        limb(pt(cx + shoulderDX, shoulderY), pt(cx + elbowX, elbowY), pt(cx + handX, handY))
     }
 }
 
