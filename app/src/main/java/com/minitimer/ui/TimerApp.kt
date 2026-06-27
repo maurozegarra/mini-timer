@@ -334,12 +334,13 @@ private fun StickmanJumpingJacks(
         limb(pt(cx - hipDX, hipY), pt(cx - kneeDX, kneeY), pt(cx - footDX, footY))
         limb(pt(cx + hipDX, hipY), pt(cx + kneeDX, kneeY), pt(cx + footDX, footY))
 
-        // Brazos: rotación alrededor del hombro con longitud fija, casi rectos.
-        // Barren en arco desde el costado (abajo) hasta casi tocarse sobre la
-        // cabeza (clap). Ángulo medido desde el eje vertical hacia abajo.
+        // Brazos: rotación alrededor del hombro con longitud fija, codos
+        // flexionados. Barren en arco entre casi tocarse sobre la cabeza (clap,
+        // p=0, en fase con pies juntos) y el costado abajo (p=1, pies separados).
+        // Ángulo medido desde el eje vertical hacia abajo.
         val rad = PI.toFloat() / 180f
-        val armAngle = lp(15f * rad, 190f * rad, p)
-        val elbowBend = 26f * rad
+        val armAngle = lp(190f * rad, 15f * rad, p)
+        val elbowBend = 38f * rad
         val upperLen = h * 0.135f
         val foreLen = h * 0.125f
         // Brazo izquierdo (dirección hacia la izquierda-arriba según el ángulo).
