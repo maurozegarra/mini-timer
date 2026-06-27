@@ -287,16 +287,11 @@ class LiveTimerService : Service() {
             builder.setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
         }
 
-        // Cuenta regresiva en vivo del chip vía cronómetro sobre `when` (Live Update).
-        if (running && endAt > 0L) {
-            builder.setShowWhen(true)
-            builder.setWhen(endAt)
-            builder.setUsesChronometer(true)
-            builder.setChronometerCountDown(true)
-        } else {
-            builder.setUsesChronometer(false)
-            builder.setShowWhen(false)
-        }
+        // Sin cronómetro en la cabecera (se quitó para evitar la redundancia con
+        // el countdown del título). El countdown en vivo va en el contentTitle, que
+        // se re-publica cada segundo cuando la app está en segundo plano.
+        builder.setUsesChronometer(false)
+        builder.setShowWhen(false)
 
         if (Build.VERSION.SDK_INT >= 36) {
             // Sin ProgressStyle: usamos Standard Style (también válido como Live
@@ -304,11 +299,9 @@ class LiveTimerService : Service() {
             // en la segunda línea; no se muestra barra de progreso.
             // Promover (chip / Now Bar) solo cuando corresponde (ver shouldPromote).
             builder.setRequestPromotedOngoing(shouldPromote())
-            // El chip usa el cronómetro mientras corre; solo fijamos texto corto
-            // cuando NO hay cronómetro (pausa/fin), para no tapar la cuenta regresiva.
-            if (!running) {
-                builder.setShortCriticalText(if (done) t.timeUp else remainingText)
-            }
+            // Sin cronómetro: el texto corto del chip colapsado lleva el countdown
+            // (o "¡Tiempo!" al finalizar). Se actualiza vía re-publicación.
+            builder.setShortCriticalText(if (done) t.timeUp else remainingText)
         }
 
         return builder.build()
