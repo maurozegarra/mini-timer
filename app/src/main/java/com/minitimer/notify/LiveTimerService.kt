@@ -20,6 +20,8 @@ import com.minitimer.TimerBus
 import com.minitimer.TimerCommand
 import com.minitimer.data.SettingsStore
 import com.minitimer.i18n.I18n
+import com.minitimer.util.formatClock
+import com.minitimer.util.formatDurationShort
 import com.minitimer.util.formatRemaining
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -198,6 +200,13 @@ class LiveTimerService : Service() {
             paused -> "$remainingText · ${t.paused}"
             else -> remainingText
         }
+        // Segunda línea (expandido): "<duración> / <hora de término>".
+        val durationLabel = formatDurationShort(total)
+        val subText = when {
+            done -> ""
+            endAt > 0L -> "$durationLabel / ${formatClock(endAt, t.locale)}"
+            else -> durationLabel
+        }
 
         val pi = PendingIntent.getActivity(
             this,
@@ -223,6 +232,8 @@ class LiveTimerService : Service() {
             // El countdown en vivo lo provee el cronómetro; el título solo indica
             // el estado (Timer / pausa / ¡Tiempo!), sin duración ni hora final.
             .setContentTitle(title)
+            // Segunda línea (expandido): duración / hora de término.
+            .setContentText(subText)
             .setColor(accent)
             .setCategory(Notification.CATEGORY_STOPWATCH)
             .setOngoing(!done)
@@ -260,19 +271,9 @@ class LiveTimerService : Service() {
         }
 
         if (Build.VERSION.SDK_INT >= 36) {
-            // ProgressStyle: trata la notificación como Live Update "progress-centric"
-            // (como el demo de countdown de Google), para que Samsung la promueva por
-            // completo y renderice el cronómetro en el Now Bar. Una sola franja =
-            // duración total; progreso = tiempo transcurrido.
-            if (!done && total > 0L) {
-                val totalSec = (total / 1000L).toInt().coerceAtLeast(1)
-                val elapsedSec = ((total - remainingMs) / 1000L).toInt().coerceIn(0, totalSec)
-                builder.setStyle(
-                    Notification.ProgressStyle()
-                        .addProgressSegment(Notification.ProgressStyle.Segment(totalSec))
-                        .setProgress(elapsedSec),
-                )
-            }
+            // Sin ProgressStyle: usamos Standard Style (también válido como Live
+            // Update). El countdown en vivo va en el título y la duración/hora final
+            // en la segunda línea; no se muestra barra de progreso.
             // Promover (chip / Now Bar) solo cuando corresponde (ver shouldPromote).
             builder.setRequestPromotedOngoing(shouldPromote())
             // El chip usa el cronómetro mientras corre; solo fijamos texto corto
