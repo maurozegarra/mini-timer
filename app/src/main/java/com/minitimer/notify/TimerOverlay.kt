@@ -2,8 +2,6 @@ package com.minitimer.notify
 
 import android.content.Context
 import android.graphics.PixelFormat
-import android.graphics.Rect
-import android.os.Build
 import android.os.SystemClock
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -107,6 +105,11 @@ class TimerOverlay(private val context: Context) {
         // extra inferior engrosa la píldora hacia abajo.
         collapsedX = screenWidth() / 2 - dp(CAMERA_GAP_CENTER_DP)
         collapsedY = ((statusBarHeight() - dp(PILL_TOP_REF_DP)) / 2).coerceAtLeast(0)
+        // Si el usuario ya posicionó la píldora arrastrándola, respetar esa elección.
+        SettingsStore(context).loadOverlayPos()?.let { (x, y) ->
+            collapsedX = x
+            collapsedY = y
+        }
         attachDrag(v, lp)
         applyExpanded()
         try {
@@ -116,45 +119,6 @@ class TimerOverlay(private val context: Context) {
             return
         }
         update()
-        // Centrado definitivo del anillo sobre la cámara una vez medida la vista.
-        root?.post { centerOnCamera() }
-    }
-
-    /** Rect del recorte de la cámara según el SO (el más cercano al borde superior). */
-    private fun cameraRect(): Rect? {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return null
-        val cutout = root?.rootWindowInsets?.displayCutout ?: return null
-        return cutout.boundingRects.minByOrNull { it.top }
-    }
-
-    /**
-     * Centra el anillo EXACTAMENTE sobre el recorte de la cámara: lee la posición
-     * real del cutout (DisplayCutout) y desplaza la ventana según la diferencia
-     * con el centro real del anillo medido en pantalla. Auto-corrige cualquier
-     * margen/padding/densidad sin constantes a mano. En dispositivos sin cutout
-     * (o API < 28) se mantiene la posición por defecto basada en dp.
-     */
-    private fun centerOnCamera() {
-        if (isExpanded) return
-        val ring = cameraRing ?: return
-        val lp = params ?: return
-        val cam = cameraRect() ?: return
-        if (ring.width == 0 || ring.height == 0) {
-            root?.post { centerOnCamera() }
-            return
-        }
-        val loc = IntArray(2)
-        ring.getLocationOnScreen(loc)
-        val ringCx = loc[0] + ring.width / 2
-        val ringCy = loc[1] + ring.height / 2
-        lp.x += cam.centerX() - ringCx
-        lp.y += cam.centerY() - ringCy
-        collapsedX = lp.x
-        collapsedY = lp.y
-        try {
-            wm?.updateViewLayout(root, lp)
-        } catch (_: Exception) {
-        }
     }
 
     fun hide() {
@@ -287,9 +251,12 @@ class TimerOverlay(private val context: Context) {
                     if (!moved) {
                         toggleExpanded()
                     } else if (!isExpanded) {
-                        // Recordar la posición colapsada tras arrastrar.
+                        // Recordar y PERSISTIR la posición colapsada tras arrastrar,
+                        // para que el usuario pueda centrar el anillo manualmente y
+                        // su elección sobreviva a reinicios del overlay.
                         collapsedX = lp.x
                         collapsedY = lp.y
+                        SettingsStore(context).saveOverlayPos(collapsedX, collapsedY)
                     }
                     true
                 }
