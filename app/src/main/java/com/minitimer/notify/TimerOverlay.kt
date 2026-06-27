@@ -15,6 +15,7 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import com.minitimer.R
 import com.minitimer.TimerBus
 import com.minitimer.TimerCommand
@@ -23,6 +24,7 @@ import com.minitimer.i18n.I18n
 import com.minitimer.util.formatClock
 import com.minitimer.util.formatDurationShort
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /**
  * Ventana overlay (TYPE_APPLICATION_OVERLAY) que clona el control del Timer de
@@ -257,12 +259,31 @@ class TimerOverlay(private val context: Context) {
                         collapsedX = lp.x
                         collapsedY = lp.y
                         SettingsStore(context).saveOverlayPos(collapsedX, collapsedY)
+                        showPositionToast()
                     }
                     true
                 }
                 else -> false
             }
         }
+    }
+
+    /**
+     * TEMPORAL (calibración): muestra la posición elegida y, sobre todo, el offset
+     * en dp respecto a la posición por defecto. Esos dos números (offset dp X/Y)
+     * son los que se hardcodearán como ajuste fijo para luego retirar el arrastre.
+     */
+    private fun showPositionToast() {
+        val density = context.resources.displayMetrics.density
+        val defX = screenWidth() / 2 - dp(CAMERA_GAP_CENTER_DP)
+        val defY = ((statusBarHeight() - dp(PILL_TOP_REF_DP)) / 2).coerceAtLeast(0)
+        val offXdp = ((collapsedX - defX) / density).roundToInt()
+        val offYdp = ((collapsedY - defY) / density).roundToInt()
+        Toast.makeText(
+            context,
+            "offset dp -> X: $offXdp  Y: $offYdp\n(px x=$collapsedX y=$collapsedY)",
+            Toast.LENGTH_LONG,
+        ).show()
     }
 
     private fun dp(value: Int): Int =
