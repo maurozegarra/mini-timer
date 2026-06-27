@@ -12,7 +12,6 @@ import android.view.WindowManager
 import android.widget.Chronometer
 import android.widget.FrameLayout
 import android.widget.ImageButton
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.minitimer.R
@@ -39,35 +38,30 @@ class TimerOverlay(private val context: Context) {
 
     private var root: View? = null
     private var collapsed: FrameLayout? = null
-    private var pill: LinearLayout? = null
     private var expanded: LinearLayout? = null
-    private var collapsedIcon: ImageView? = null
-    private var cameraRing: CameraRingView? = null
     private var collapsedChrono: Chronometer? = null
     private var expandedChrono: Chronometer? = null
     private var infoView: TextView? = null
     private var btnCancel: ImageButton? = null
     private var btnPause: ImageButton? = null
 
+    // Ventana INDEPENDIENTE del anillo de la cámara (solo visual, no táctil).
+    private var ringRoot: View? = null
+    private var ringParams: WindowManager.LayoutParams? = null
+    private var cameraRing: CameraRingView? = null
+
     private var params: WindowManager.LayoutParams? = null
     private var isExpanded = false
-
-    // Posición del estado colapsado (se actualiza al arrastrar). Por defecto:
-    // pegado arriba (status bar) y a la derecha de la cámara central.
-    private var collapsedX = 0
-    private var collapsedY = 0
 
     val isShowing get() = root != null
 
     fun show() {
         if (root != null) return
+        // --- Ventana de la cápsula (timer + tarjeta expandida) ---
         val v = inflater.inflate(R.layout.overlay_timer, null)
         root = v
         collapsed = v.findViewById(R.id.overlay_collapsed)
-        pill = v.findViewById(R.id.overlay_pill)
         expanded = v.findViewById(R.id.overlay_expanded)
-        collapsedIcon = v.findViewById(R.id.overlay_collapsed_icon)
-        cameraRing = v.findViewById(R.id.overlay_camera_ring)
         collapsedChrono = v.findViewById(R.id.overlay_collapsed_chrono)
         expandedChrono = v.findViewById(R.id.overlay_expanded_chrono)
         infoView = v.findViewById(R.id.overlay_info)
@@ -94,22 +88,6 @@ class TimerOverlay(private val context: Context) {
             PixelFormat.TRANSLUCENT,
         )
         params = lp
-        // Píldora delgada. El alto total = referencia superior + extra inferior,
-        // de modo que el borde superior conserve la misma distancia al hueco y el
-        // grosor adicional se añada únicamente por debajo de la cámara.
-        val pillH = dp(PILL_TOP_REF_DP + PILL_BOTTOM_EXTRA_DP)
-        pill?.minimumHeight = pillH
-        // Posición colapsada por defecto: con el hueco (paddingStart + ícono +
-        // mitad del gap) centrado sobre la cámara del medio de la pantalla. El
-        // borde superior se ancla usando solo la referencia superior, así el
-        // extra inferior engrosa la píldora hacia abajo.
-        collapsedX = screenWidth() / 2 - dp(CAMERA_GAP_CENTER_DP)
-        collapsedY = ((statusBarHeight() - dp(PILL_TOP_REF_DP)) / 2).coerceAtLeast(0)
-        // Ajuste fino del usuario (en dp) desde los controles +/- de ajustes,
-        // para centrar el anillo sobre la cámara de su dispositivo.
-        val (offX, offY) = SettingsStore(context).loadRingOffset()
-        collapsedX += dp(offX)
-        collapsedY += dp(offY)
         attachTap(v)
         applyExpanded()
         try {
@@ -118,16 +96,55 @@ class TimerOverlay(private val context: Context) {
             root = null
             return
         }
+
+        // --- Ventana INDEPENDIENTE del anillo, sobre la cámara, no táctil ---
+        val r = inflater.inflate(R.layout.overlay_ring, null)
+        ringRoot = r
+        cameraRing = r.findViewById(R.id.overlay_camera_ring)
+        val rlp = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT,
+        )
+        rlp.gravity = Gravity.TOP or Gravity.START
+        positionRing(rlp)
+        ringParams = rlp
+        try {
+            wm?.addView(r, rlp)
+        } catch (_: Exception) {
+            ringRoot = null
+        }
+
         update()
     }
 
+    /** Centra el anillo sobre la cámara (centro-superior) + offset fino del usuario. */
+    private fun positionRing(lp: WindowManager.LayoutParams) {
+        val (offX, offY) = SettingsStore(context).loadRingOffset()
+        lp.x = screenWidth() / 2 - dp(RING_W_DP) / 2 + dp(offX)
+        lp.y = ((statusBarHeight() - dp(RING_H_DP)) / 2 + dp(offY)).coerceAtLeast(0)
+    }
+
     fun hide() {
-        val v = root ?: return
-        try {
-            wm?.removeView(v)
-        } catch (_: Exception) {
+        root?.let {
+            try {
+                wm?.removeView(it)
+            } catch (_: Exception) {
+            }
         }
         root = null
+        ringRoot?.let {
+            try {
+                wm?.removeView(it)
+            } catch (_: Exception) {
+            }
+        }
+        ringRoot = null
     }
 
     /** Re-vincula el estado actual del timer a las vistas del overlay. */
@@ -151,8 +168,8 @@ class TimerOverlay(private val context: Context) {
             chrono.base = base
             if (running) chrono.start() else chrono.stop()
         }
-        collapsedChrono?.setTextColor(0xFFFFFFFF.toInt())
-        collapsedIcon?.setColorFilter(accent)
+        // La cápsula muestra el timer con el color de acento seleccionado.
+        collapsedChrono?.setTextColor(accent)
         expandedChrono?.setTextColor(accent)
 
         // Anillo de progreso alrededor del hueco de la cámara.
@@ -194,18 +211,11 @@ class TimerOverlay(private val context: Context) {
         collapsed?.visibility = if (isExpanded) View.GONE else View.VISIBLE
         expanded?.visibility = if (isExpanded) View.VISIBLE else View.GONE
         val lp = params ?: return
-        if (isExpanded) {
-            // Tarjeta centrada, justo debajo de la barra de estado.
-            lp.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            lp.x = 0
-            lp.y = statusBarHeight() + dp(8)
-        } else {
-            // Píldora arriba (status bar), anclada desde la izquierda a la
-            // derecha de la cámara.
-            lp.gravity = Gravity.TOP or Gravity.START
-            lp.x = collapsedX
-            lp.y = collapsedY
-        }
+        // Tanto la cápsula como la tarjeta van centradas y debajo de la barra de
+        // estado, para no interferir con el sistema. El anillo es independiente.
+        lp.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+        lp.x = 0
+        lp.y = statusBarHeight() + dp(8)
         if (root != null) {
             try {
                 wm?.updateViewLayout(root, lp)
@@ -259,15 +269,10 @@ class TimerOverlay(private val context: Context) {
     }
 
     private companion object {
-        // Distancia (dp) desde el borde izquierdo de la píldora hasta el centro
-        // del hueco de la cámara = paddingStart (10) + ícono (16) + margen (6) +
-        // mitad del gap (34/2 = 17).
-        const val CAMERA_GAP_CENTER_DP = 49
-
-        // Alto de la píldora colapsada (más delgada que la barra de estado).
-        // Se reparte en una referencia superior (define la distancia del borde
-        // superior al hueco) y un extra que engrosa la píldora hacia abajo.
-        const val PILL_TOP_REF_DP = 26
-        const val PILL_BOTTOM_EXTRA_DP = 6
+        // Dimensiones (dp) del anillo independiente, deben coincidir con las del
+        // CameraRingView en overlay_ring.xml. Se usan para centrarlo sobre la
+        // cámara antes de aplicar el offset fino del usuario.
+        const val RING_W_DP = 34
+        const val RING_H_DP = 26
     }
 }

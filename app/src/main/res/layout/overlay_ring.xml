@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Anillo de progreso INDEPENDIENTE que se posiciona sobre el hueco de la
+     cámara (punch-hole). Vive en su propia ventana, no táctil, para no
+     interferir con el sistema ni con la app de fondo. Su posición fina se
+     ajusta con los controles +/- de la configuración. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content">
+
+    <com.minitimer.notify.CameraRingView
+        android:id="@+id/overlay_camera_ring"
+        android:layout_width="34dp"
+        android:layout_height="26dp" />
+</FrameLayout>
