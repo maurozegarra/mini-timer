@@ -34,7 +34,8 @@
         </LinearLayout>
     </FrameLayout>
 
-    <!-- Estado expandido: tarjeta con countdown grande + info + botones -->
+    <!-- Estado expandido: tarjeta con countdown grande + info + botones.
+         minWidth fuerza un aspecto más rectangular (más ancho que alto). -->
     <LinearLayout
         android:id="@+id/overlay_expanded"
         android:layout_width="wrap_content"
@@ -42,8 +43,9 @@
         android:orientation="vertical"
         android:gravity="center_horizontal"
         android:background="@drawable/overlay_card_bg"
-        android:paddingStart="28dp"
-        android:paddingEnd="28dp"
+        android:minWidth="340dp"
+        android:paddingStart="32dp"
+        android:paddingEnd="32dp"
         android:paddingTop="20dp"
         android:paddingBottom="20dp"
         android:visibility="gone">
@@ -72,24 +74,40 @@
             android:orientation="horizontal"
             android:gravity="center">
 
-            <ImageButton
+            <TextView
                 android:id="@+id/overlay_btn_cancel"
-                android:layout_width="52dp"
-                android:layout_height="52dp"
-                android:layout_marginEnd="28dp"
-                android:background="@drawable/overlay_btn_bg"
-                android:src="@drawable/ic_notif_close"
-                android:scaleType="centerInside"
-                android:contentDescription="@null" />
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="16dp"
+                android:background="@drawable/overlay_btn_text_bg"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:minWidth="110dp"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                android:paddingTop="12dp"
+                android:paddingBottom="12dp"
+                android:textColor="#FFFFFFFF"
+                android:textSize="15sp"
+                android:textStyle="bold" />
 
-            <ImageButton
+            <TextView
                 android:id="@+id/overlay_btn_pause"
-                android:layout_width="52dp"
-                android:layout_height="52dp"
-                android:background="@drawable/overlay_btn_bg"
-                android:src="@drawable/ic_notif_pause"
-                android:scaleType="centerInside"
-                android:contentDescription="@null" />
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/overlay_btn_text_bg"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:minWidth="110dp"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                android:paddingTop="12dp"
+                android:paddingBottom="12dp"
+                android:textColor="#FFFFFFFF"
+                android:textSize="15sp"
+                android:textStyle="bold" />
         </LinearLayout>
     </LinearLayout>
 </FrameLayout>
