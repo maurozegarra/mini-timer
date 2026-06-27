@@ -48,11 +48,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -108,6 +111,8 @@ fun TimerApp(vm: TimerViewModel) {
         onDispose { view.keepScreenOn = false }
     }
 
+    val focusManager = LocalFocusManager.current
+
     BackHandler(enabled = vm.showSettings) { vm.showSettings = false }
 
     Scaffold(
@@ -158,6 +163,11 @@ fun TimerApp(vm: TimerViewModel) {
                 .fillMaxSize()
                 .padding(inner)
                 .padding(horizontal = 24.dp)
+                // Tocar cualquier zona vacía quita el foco del título editable,
+                // lo que guarda el nombre y cierra el teclado.
+                .pointerInput(Unit) {
+                    detectTapGestures(onTap = { focusManager.clearFocus() })
+                }
         ) {
             when {
                 vm.showSettings -> SettingsScreen(vm)
