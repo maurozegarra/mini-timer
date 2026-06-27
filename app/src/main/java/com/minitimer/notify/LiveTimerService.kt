@@ -12,11 +12,8 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.os.Build
-import android.os.Bundle
 import android.os.IBinder
-import android.os.SystemClock
 import android.provider.Settings
-import android.widget.RemoteViews
 import com.minitimer.MainActivity
 import com.minitimer.R
 import com.minitimer.TimerBus
@@ -150,7 +147,6 @@ class LiveTimerService : Service() {
 
     private fun buildNotification(): Notification {
         val accent = TimerBus.accent.value.toInt()
-        val remaining = TimerBus.remainingMs.value
         val total = TimerBus.totalMs.value
         val done = TimerBus.done.value
         val paused = TimerBus.paused.value
@@ -243,42 +239,7 @@ class LiveTimerService : Service() {
             }
         }
 
-        // Extras propietarios de One UI (Live Notifications / Now Bar): replican el
-        // look del Timer de Samsung -> cronómetro grande como sección primaria (sin
-        // título) y la duración/hora como texto secundario. Si One UI no respeta
-        // estos extras (apps no whitelisteadas), simplemente se ignoran y queda el
-        // fallback estándar de arriba.
-        if (!done) {
-            builder.addExtras(buildOneUiExtras(remaining, infoLine, running, t.title))
-        }
-
         return builder.build()
-    }
-
-    /** Extras de One UI para mostrar el cronómetro grande sin título en el Now Bar. */
-    private fun buildOneUiExtras(
-        remaining: Long,
-        secondaryInfo: String,
-        running: Boolean,
-        chipText: String,
-    ): Bundle {
-        val rv = RemoteViews(packageName, R.layout.notif_chronometer)
-        // El Chronometer usa base sobre elapsedRealtime (no epoch); en cuenta
-        // regresiva muestra (base - ahora) = tiempo restante.
-        val base = SystemClock.elapsedRealtime() + remaining
-        rv.setChronometerCountDown(R.id.notif_chronometer, true)
-        rv.setChronometer(R.id.notif_chronometer, base, null, running)
-        return Bundle().apply {
-            putParcelable("android.ongoingActivityNoti.chronometerRemoteView", rv)
-            putInt("android.ongoingActivityNoti.chronometerRemoteViewPosition", 1)
-            putString(
-                "android.ongoingActivityNoti.chronometerRemoteViewTag",
-                "ongoing_remote_views_tag",
-            )
-            putString("android.ongoingActivityNoti.chipExpandedText", chipText)
-            putString("android.ongoingActivityNoti.secondaryInfo", secondaryInfo)
-            putInt("android.ongoingActivityNoti.nowbarChronometerPosition", 1)
-        }
     }
 
     /** Crea una acción de notificación que envía un comando al servicio. */
