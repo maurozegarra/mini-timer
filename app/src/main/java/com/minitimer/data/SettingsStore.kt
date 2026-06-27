@@ -100,6 +100,20 @@ class SettingsStore(context: Context) {
         prefs.edit().putBoolean(KEY_OVERLAY_ASKED, true).apply()
     }
 
+    /** Posición (x, y en px) de la píldora colapsada elegida por el usuario al arrastrar. */
+    fun saveOverlayPos(x: Int, y: Int) {
+        prefs.edit().putInt(KEY_OVERLAY_X, x).putInt(KEY_OVERLAY_Y, y).apply()
+    }
+
+    fun loadOverlayPos(): Pair<Int, Int>? {
+        if (!prefs.contains(KEY_OVERLAY_X)) return null
+        return prefs.getInt(KEY_OVERLAY_X, 0) to prefs.getInt(KEY_OVERLAY_Y, 0)
+    }
+
+    fun clearOverlayPos() {
+        prefs.edit().remove(KEY_OVERLAY_X).remove(KEY_OVERLAY_Y).apply()
+    }
+
     private companion object {
         const val KEY_ACCENT = "accent"
         const val KEY_LANGUAGE = "language"
@@ -118,5 +132,7 @@ class SettingsStore(context: Context) {
         const val KEY_T_TOTAL = "timer_total"
         const val KEY_LAST_DURATION = "last_duration"
         const val KEY_OVERLAY_ASKED = "overlay_asked"
+        const val KEY_OVERLAY_X = "overlay_x"
+        const val KEY_OVERLAY_Y = "overlay_y"
     }
 }
