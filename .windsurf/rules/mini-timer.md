@@ -9,6 +9,9 @@ description: Convenciones de comportamiento para el proyecto mini-timer
 # Código
 - No agregar ni eliminar comentarios o documentación, salvo que el usuario lo pida explícitamente.
 
+# UI / Diseño
+- Usar Material Design 3 (Material You) en toda la interfaz: componentes, tipografía, formas, elevación y paleta de color.
+
 # Versionado
 - El versionado sube +1 por cada APK generado (no por commit).
 - `versionName` = "1.0.<n>" y `versionCode` = <n> en `app/build.gradle.kts`; la fuente de verdad es el `versionName` actual.
