@@ -145,17 +145,6 @@ class LiveTimerService : Service() {
             // Mostrar/ocultar el overlay y conmutar la promoción al entrar/salir
             // de la app (foreground/background).
             launch { TimerBus.appForeground.collect { refresh() } }
-            // Countdown en vivo: el Now Bar muestra el título (no el cronómetro),
-            // así que re-publicamos cada segundo mientras corre para que la cuenta
-            // regresiva del título avance.
-            launch {
-                while (true) {
-                    delay(1_000)
-                    if (!TimerBus.done.value && !TimerBus.paused.value) {
-                        repost()
-                    }
-                }
-            }
             // Salvaguarda periódica: re-evaluar overlay/promoción.
             launch {
                 while (true) {
@@ -173,6 +162,7 @@ class LiveTimerService : Service() {
 
     private fun buildNotification(): Notification {
         val accent = TimerBus.accent.value.toInt()
+        val total = TimerBus.totalMs.value
         val done = TimerBus.done.value
         val paused = TimerBus.paused.value
         val endAt = TimerBus.endAt.value
@@ -180,21 +170,20 @@ class LiveTimerService : Service() {
 
         val t = I18n.get(SettingsStore(this).load().language)
 
-        // Restante en vivo derivado de endAt (estable). El Now Bar muestra el
-        // título, así que el countdown va en el propio título y se actualiza
-        // re-publicando cada segundo (ver observe()). Sin duración ni hora final.
-        val remainingMs = if (running && endAt > 0L) {
+        // Título corto (sin duración ni hora final). El countdown en vivo lo
+        // provee el cronómetro del chip (Live Update).
+        val title = when {
+            done -> t.timeUp
+            paused -> t.paused
+            else -> t.title
+        }
+        // Restante derivado de endAt para el texto corto del chip en pausa/fin.
+        val remainingMs = if (endAt > 0L) {
             (endAt - System.currentTimeMillis()).coerceAtLeast(0)
         } else {
             TimerBus.remainingMs.value
         }
         val remainingText = formatRemaining(remainingMs)
-        val infoLine = when {
-            done -> t.timeUp
-            paused -> "$remainingText · ${t.paused}"
-            else -> remainingText
-        }
-        val shortText = if (done) t.timeUp else remainingText
 
         val pi = PendingIntent.getActivity(
             this,
@@ -217,9 +206,9 @@ class LiveTimerService : Service() {
 
         val builder = Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(smallIcon)
-            // El countdown en vivo lo provee el cronómetro; el título secundario
-            // muestra la duración y la hora de término.
-            .setContentTitle(infoLine)
+            // El countdown en vivo lo provee el cronómetro; el título solo indica
+            // el estado (Timer / pausa / ¡Tiempo!), sin duración ni hora final.
+            .setContentTitle(title)
             .setColor(accent)
             .setCategory(Notification.CATEGORY_STOPWATCH)
             .setOngoing(!done)
@@ -245,22 +234,38 @@ class LiveTimerService : Service() {
             builder.setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
         }
 
-        // Sin cronómetro: en este dispositivo el Now Bar muestra el título, no el
-        // cronómetro. El countdown en vivo se logra re-publicando el título cada
-        // segundo (ver observe()).
-        builder.setUsesChronometer(false)
-        builder.setShowWhen(false)
+        // Cuenta regresiva en vivo del chip vía cronómetro sobre `when` (Live Update).
+        if (running && endAt > 0L) {
+            builder.setShowWhen(true)
+            builder.setWhen(endAt)
+            builder.setUsesChronometer(true)
+            builder.setChronometerCountDown(true)
+        } else {
+            builder.setUsesChronometer(false)
+            builder.setShowWhen(false)
+        }
 
-        // Sin barra de progreso: usamos "Standard Style" (sin Notification.Style),
-        // que también califica como Live Update y clona el look del Timer de
-        // Samsung (cápsula + expandida sin progress bar).
         if (Build.VERSION.SDK_INT >= 36) {
-            // Promover (chip / Now Bar) solo cuando corresponde (ver shouldPromote):
-            // al estar bloqueado, o siempre si no hay permiso de overlay.
+            // ProgressStyle: trata la notificación como Live Update "progress-centric"
+            // (como el demo de countdown de Google), para que Samsung la promueva por
+            // completo y renderice el cronómetro en el Now Bar. Una sola franja =
+            // duración total; progreso = tiempo transcurrido.
+            if (!done && total > 0L) {
+                val totalSec = (total / 1000L).toInt().coerceAtLeast(1)
+                val elapsedSec = ((total - remainingMs) / 1000L).toInt().coerceIn(0, totalSec)
+                builder.setStyle(
+                    Notification.ProgressStyle()
+                        .addProgressSegment(Notification.ProgressStyle.Segment(totalSec))
+                        .setProgress(elapsedSec),
+                )
+            }
+            // Promover (chip / Now Bar) solo cuando corresponde (ver shouldPromote).
             builder.setRequestPromotedOngoing(shouldPromote())
-            // Texto corto del chip = la cuenta regresiva en vivo (se actualiza al
-            // re-publicar cada segundo).
-            builder.setShortCriticalText(shortText)
+            // El chip usa el cronómetro mientras corre; solo fijamos texto corto
+            // cuando NO hay cronómetro (pausa/fin), para no tapar la cuenta regresiva.
+            if (!running) {
+                builder.setShortCriticalText(if (done) t.timeUp else remainingText)
+            }
         }
 
         return builder.build()
