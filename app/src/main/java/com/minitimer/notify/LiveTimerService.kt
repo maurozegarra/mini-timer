@@ -20,6 +20,8 @@ import com.minitimer.TimerBus
 import com.minitimer.TimerCommand
 import com.minitimer.data.SettingsStore
 import com.minitimer.i18n.I18n
+import com.minitimer.util.formatClock
+import com.minitimer.util.formatDurationShort
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -161,6 +163,7 @@ class LiveTimerService : Service() {
 
     private fun buildNotification(): Notification {
         val accent = TimerBus.accent.value.toInt()
+        val total = TimerBus.totalMs.value
         val done = TimerBus.done.value
         val paused = TimerBus.paused.value
         val endAt = TimerBus.endAt.value
@@ -169,13 +172,13 @@ class LiveTimerService : Service() {
 
         val t = I18n.get(SettingsStore(this).load().language)
 
-        // Título: el countdown en vivo lo provee el cronómetro. No se muestran
-        // la duración ni la hora de término. En pausa se muestra el restante
-        // congelado; al terminar, el aviso de "¡Tiempo!".
-        val title = when {
+        // Línea secundaria: "<duración seleccionada> / <hora de término>".
+        val durationLabel = formatDurationShort(total)
+        val infoLine = when {
             done -> t.timeUp
-            paused -> "$display · ${t.paused}"
-            else -> t.title
+            running && endAt > 0L -> "$durationLabel / ${formatClock(endAt, t.locale)}"
+            paused -> "$durationLabel · ${t.paused}"
+            else -> durationLabel
         }
 
         val pi = PendingIntent.getActivity(
@@ -199,9 +202,9 @@ class LiveTimerService : Service() {
 
         val builder = Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(smallIcon)
-            // El countdown en vivo lo provee el cronómetro; el título solo indica
-            // el estado (Timer / pausa / ¡Tiempo!), sin duración ni hora final.
-            .setContentTitle(title)
+            // El countdown en vivo lo provee el cronómetro; el título secundario
+            // muestra la duración y la hora de término.
+            .setContentTitle(infoLine)
             .setColor(accent)
             .setCategory(Notification.CATEGORY_STOPWATCH)
             .setOngoing(!done)
