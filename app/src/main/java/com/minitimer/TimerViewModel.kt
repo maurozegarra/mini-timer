@@ -85,6 +85,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         TimerBus.accent.value = settings.accent
+        publishOverlayPrefs()
         ensureDefaultAlarmSound()
         if (!restoreTimerState()) {
             // Sin timer activo: pre-rellenar con la última duración seleccionada.
@@ -447,6 +448,14 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         settings = newSettings
         store.save(newSettings)
         TimerBus.accent.value = newSettings.accent
+        publishOverlayPrefs()
+    }
+
+    /** Publica al [TimerBus] los interruptores de anillo/overlay/Now Bar. */
+    private fun publishOverlayPrefs() {
+        TimerBus.showRing.value = settings.showRing
+        TimerBus.showOverlay.value = settings.showOverlay
+        TimerBus.showNowBar.value = settings.showNowBar
     }
 
     fun setLanguage(lang: String) = update(settings.copy(language = lang))
@@ -459,6 +468,9 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     fun setVibrationEnabled(value: Boolean) = update(settings.copy(vibrationEnabled = value))
     fun setVibrationPattern(index: Int) = update(settings.copy(vibrationPattern = index))
     fun setAlarmVolume(value: Float) = update(settings.copy(alarmVolume = value.coerceIn(0f, 1f)))
+    fun setShowRing(value: Boolean) = update(settings.copy(showRing = value))
+    fun setShowOverlay(value: Boolean) = update(settings.copy(showOverlay = value))
+    fun setShowNowBar(value: Boolean) = update(settings.copy(showNowBar = value))
     fun resetSettings() {
         update(Settings())
         // Re-aplicar "Beep" como tono por defecto (Settings() deja el tono en null).

@@ -41,6 +41,12 @@ data class Strings(
     val groupTimer: String,
     val groupAlarm: String,
     val groupOverlay: String,
+    val showRing: String,
+    val showRingDesc: String,
+    val showOverlay: String,
+    val showOverlayDesc: String,
+    val showNowBar: String,
+    val showNowBarDesc: String,
 )
 
 object I18n {
@@ -84,6 +90,12 @@ object I18n {
         groupTimer = "Temporizador",
         groupAlarm = "Alarma y sonido",
         groupOverlay = "Overlay",
+        showRing = "Mostrar anillo de progreso",
+        showRingDesc = "Anillo alrededor de la cámara mientras el timer corre fuera de la app",
+        showOverlay = "Mostrar overlay flotante",
+        showOverlayDesc = "Cápsula/tarjeta flotante sobre otras apps",
+        showNowBar = "Mostrar Now Bar",
+        showNowBarDesc = "Chip del temporizador en la pantalla de bloqueo",
     )
 
     val EN = Strings(
@@ -124,5 +136,11 @@ object I18n {
         groupTimer = "Timer",
         groupAlarm = "Alarm & sound",
         groupOverlay = "Overlay",
+        showRing = "Show progress ring",
+        showRingDesc = "Ring around the camera while the timer runs outside the app",
+        showOverlay = "Show floating overlay",
+        showOverlayDesc = "Floating capsule/card over other apps",
+        showNowBar = "Show Now Bar",
+        showNowBarDesc = "Timer chip on the lock screen",
     )
 }

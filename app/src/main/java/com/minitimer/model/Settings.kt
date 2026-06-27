@@ -23,6 +23,12 @@ data class Settings(
     val vibrationPattern: Int = 0,
     /** Volumen de la alarma, 0f..1f (relativo al volumen del stream). */
     val alarmVolume: Float = 1f,
+    /** Mostrar el anillo de progreso sobre la cámara (overlay). */
+    val showRing: Boolean = false,
+    /** Mostrar la cápsula/tarjeta flotante (overlay). */
+    val showOverlay: Boolean = false,
+    /** Promover la notificación como chip / Now Bar. */
+    val showNowBar: Boolean = true,
 )
 
 /** Patrón de vibración con nombre y tiempos (ms) para waveform en bucle. */

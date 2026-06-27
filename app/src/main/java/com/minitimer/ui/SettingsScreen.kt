@@ -321,37 +321,64 @@ fun SettingsScreen(vm: TimerViewModel) {
 
         // ===== Overlay =====
         SettingsGroup(t.groupOverlay, accent) {
-            ItemLabel(t.ringPosition)
-            Text(
-                t.ringPositionDesc,
-                color = TEXT_DIM,
-                fontSize = 13.sp,
-            )
-            Spacer(Modifier.height(12.dp))
-            OffsetStepperRow(
-                axis = "X",
-                value = vm.ringOffsetX,
+            SwitchRow(
+                label = t.showNowBar,
+                desc = t.showNowBarDesc,
+                checked = s.showNowBar,
                 accent = accent,
-                onMinus = { vm.nudgeRingX(-1) },
-                onPlus = { vm.nudgeRingX(1) },
+                onCheckedChange = { vm.setShowNowBar(it) },
             )
-            Spacer(Modifier.height(8.dp))
-            OffsetStepperRow(
-                axis = "Y",
-                value = vm.ringOffsetY,
+            GroupDivider()
+            SwitchRow(
+                label = t.showOverlay,
+                desc = t.showOverlayDesc,
+                checked = s.showOverlay,
                 accent = accent,
-                onMinus = { vm.nudgeRingY(-1) },
-                onPlus = { vm.nudgeRingY(1) },
+                onCheckedChange = { vm.setShowOverlay(it) },
             )
-            if (vm.ringOffsetX != 0 || vm.ringOffsetY != 0) {
-                Spacer(Modifier.height(4.dp))
-                TextButton(
-                    onClick = { vm.resetRingOffset() },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.textButtonColors(contentColor = accent),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                ) {
-                    Text(t.reset, fontWeight = FontWeight.SemiBold)
+            GroupDivider()
+            SwitchRow(
+                label = t.showRing,
+                desc = t.showRingDesc,
+                checked = s.showRing,
+                accent = accent,
+                onCheckedChange = { vm.setShowRing(it) },
+            )
+            // Posición del anillo: solo relevante si el anillo está activo.
+            if (s.showRing) {
+                GroupDivider()
+                ItemLabel(t.ringPosition)
+                Text(
+                    t.ringPositionDesc,
+                    color = TEXT_DIM,
+                    fontSize = 13.sp,
+                )
+                Spacer(Modifier.height(12.dp))
+                OffsetStepperRow(
+                    axis = "X",
+                    value = vm.ringOffsetX,
+                    accent = accent,
+                    onMinus = { vm.nudgeRingX(-1) },
+                    onPlus = { vm.nudgeRingX(1) },
+                )
+                Spacer(Modifier.height(8.dp))
+                OffsetStepperRow(
+                    axis = "Y",
+                    value = vm.ringOffsetY,
+                    accent = accent,
+                    onMinus = { vm.nudgeRingY(-1) },
+                    onPlus = { vm.nudgeRingY(1) },
+                )
+                if (vm.ringOffsetX != 0 || vm.ringOffsetY != 0) {
+                    Spacer(Modifier.height(4.dp))
+                    TextButton(
+                        onClick = { vm.resetRingOffset() },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.textButtonColors(contentColor = accent),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                    ) {
+                        Text(t.reset, fontWeight = FontWeight.SemiBold)
+                    }
                 }
             }
         }

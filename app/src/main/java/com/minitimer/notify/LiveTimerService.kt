@@ -87,32 +87,39 @@ class LiveTimerService : Service() {
     private fun isLocked(): Boolean = keyguard?.isKeyguardLocked == true
 
     /**
-     * El overlay flotante se muestra solo cuando: hay permiso, el timer no
-     * terminó, la app está en background y el dispositivo está desbloqueado
-     * (no puede dibujarse sobre el lock screen).
+     * Condiciones base de runtime para dibujar cualquier overlay propio (cápsula
+     * o anillo): hay permiso, el timer no terminó, la app está en background y el
+     * dispositivo está desbloqueado (no puede dibujarse sobre el lock screen).
      */
-    private fun shouldShowOverlay(): Boolean =
+    private fun canDrawOverlayNow(): Boolean =
         canOverlay() &&
             !TimerBus.done.value &&
             !TimerBus.appForeground.value &&
             !isLocked()
 
-    /**
-     * La promoción (chip / Now Bar del sistema) se activa solo al estar
-     * bloqueado, para no duplicar con el overlay cuando está desbloqueado. Si no
-     * hay permiso de overlay, se promueve siempre (degradación elegante).
-     */
-    private fun shouldPromote(): Boolean = if (canOverlay()) isLocked() else true
+    /** La cápsula flotante: habilitada por ajuste + condiciones de runtime. */
+    private fun shouldShowOverlay(): Boolean =
+        TimerBus.showOverlay.value && canDrawOverlayNow()
 
-    /** Re-publica la notificación y muestra/oculta el overlay según el estado. */
+    /** El anillo sobre la cámara: habilitado por ajuste + condiciones de runtime. */
+    private fun shouldShowRing(): Boolean =
+        TimerBus.showRing.value && canDrawOverlayNow()
+
+    /**
+     * La promoción (chip / Now Bar del sistema) requiere el ajuste activo y se
+     * activa solo al estar bloqueado, para no duplicar con el overlay cuando
+     * está desbloqueado. Si no hay permiso de overlay, se promueve siempre
+     * (degradación elegante).
+     */
+    private fun shouldPromote(): Boolean =
+        TimerBus.showNowBar.value && (if (canOverlay()) isLocked() else true)
+
+    /** Re-publica la notificación y muestra/oculta cada overlay según el estado. */
     private fun refresh() {
         repost()
-        if (shouldShowOverlay()) {
-            overlay?.show()
-            overlay?.update()
-        } else {
-            overlay?.hide()
-        }
+        if (shouldShowOverlay()) overlay?.showCapsule() else overlay?.hideCapsule()
+        if (shouldShowRing()) overlay?.showRing() else overlay?.hideRing()
+        overlay?.update()
     }
 
     private fun observe() {
@@ -125,6 +132,14 @@ class LiveTimerService : Service() {
                     TimerBus.done,
                     TimerBus.paused,
                     TimerBus.accent,
+                ) { _, _, _ -> Unit }.collect { refresh() }
+            }
+            // Re-evaluar al cambiar los interruptores de anillo/overlay/Now Bar.
+            launch {
+                combine(
+                    TimerBus.showRing,
+                    TimerBus.showOverlay,
+                    TimerBus.showNowBar,
                 ) { _, _, _ -> Unit }.collect { refresh() }
             }
             // Mostrar/ocultar el overlay y conmutar la promoción al entrar/salir
