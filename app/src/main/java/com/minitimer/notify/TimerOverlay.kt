@@ -48,6 +48,11 @@ class TimerOverlay(private val context: Context) {
     private var ringRoot: View? = null
     private var cameraRing: CameraRingView? = null
 
+    // Ventana invisible cuyo único fin es mantener la pantalla encendida
+    // (FLAG_KEEP_SCREEN_ON) cuando el timer corre en segundo plano y la pantalla
+    // está desbloqueada, aunque la cápsula/anillo estén ocultos.
+    private var keepAwakeRoot: View? = null
+
     private var params: WindowManager.LayoutParams? = null
     private var isExpanded = false
 
@@ -161,10 +166,44 @@ class TimerOverlay(private val context: Context) {
         cameraRing = null
     }
 
-    /** Oculta ambas ventanas (al destruir el servicio). */
+    /** Mantiene la pantalla encendida con una ventana invisible 1x1. */
+    fun showKeepAwake() {
+        if (keepAwakeRoot != null) return
+        val v = View(context)
+        keepAwakeRoot = v
+        val lp = WindowManager.LayoutParams(
+            1,
+            1,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
+            PixelFormat.TRANSLUCENT,
+        )
+        lp.gravity = Gravity.TOP or Gravity.START
+        try {
+            wm?.addView(v, lp)
+        } catch (_: Exception) {
+            keepAwakeRoot = null
+        }
+    }
+
+    /** Libera la ventana que mantiene la pantalla encendida. */
+    fun hideKeepAwake() {
+        keepAwakeRoot?.let {
+            try {
+                wm?.removeView(it)
+            } catch (_: Exception) {
+            }
+        }
+        keepAwakeRoot = null
+    }
+
+    /** Oculta todas las ventanas (al destruir el servicio). */
     fun hide() {
         hideCapsule()
         hideRing()
+        hideKeepAwake()
     }
 
     /** Re-vincula el estado actual del timer a las vistas del overlay. */

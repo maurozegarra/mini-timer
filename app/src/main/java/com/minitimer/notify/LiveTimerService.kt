@@ -116,11 +116,24 @@ class LiveTimerService : Service() {
             !TimerBus.appForeground.value &&
             !shouldShowOverlay()
 
+    /**
+     * Mantener la pantalla encendida cuando el timer corre en segundo plano y la
+     * pantalla está desbloqueada (no tiene sentido forzarla con el dispositivo
+     * bloqueado). Requiere permiso de overlay para la ventana invisible.
+     */
+    private fun shouldKeepScreenOn(): Boolean =
+        canOverlay() &&
+            !TimerBus.appForeground.value &&
+            !TimerBus.done.value &&
+            !TimerBus.paused.value &&
+            !isLocked()
+
     /** Re-publica la notificación y muestra/oculta cada overlay según el estado. */
     private fun refresh() {
         repost()
         if (shouldShowOverlay()) overlay?.showCapsule() else overlay?.hideCapsule()
         if (shouldShowRing()) overlay?.showRing() else overlay?.hideRing()
+        if (shouldKeepScreenOn()) overlay?.showKeepAwake() else overlay?.hideKeepAwake()
         overlay?.update()
     }
 
@@ -160,6 +173,13 @@ class LiveTimerService : Service() {
                         !TimerBus.paused.value
                     ) {
                         repost()
+                    }
+                    // Reaccionar a bloqueo/desbloqueo (no hay un flow para esto):
+                    // mantener o liberar la pantalla encendida cada segundo.
+                    if (shouldKeepScreenOn()) {
+                        overlay?.showKeepAwake()
+                    } else {
+                        overlay?.hideKeepAwake()
                     }
                 }
             }
