@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -54,6 +55,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -199,7 +201,7 @@ private fun EditableTimerTitle(vm: TimerViewModel, accent: Color, placeholder: S
                 editing = false
             }),
             modifier = Modifier
-                .widthIn(max = 240.dp)
+                .widthIn(min = 140.dp, max = 240.dp)
                 .focusRequester(focusRequester)
                 .onFocusChanged {
                     if (it.isFocused) {
@@ -210,11 +212,28 @@ private fun EditableTimerTitle(vm: TimerViewModel, accent: Color, placeholder: S
                     }
                 },
             decorationBox = { inner ->
-                Box(contentAlignment = Alignment.Center) {
+                // Contenedor estilo "filled text field" de MD3: superficie
+                // redondeada con un indicador inferior en color de acento.
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                        .background(SURFACE)
+                        .drawBehind {
+                            val stroke = 2.dp.toPx()
+                            drawLine(
+                                color = accent,
+                                start = Offset(0f, size.height - stroke / 2),
+                                end = Offset(size.width, size.height - stroke / 2),
+                                strokeWidth = stroke,
+                            )
+                        }
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                ) {
                     if (text.isEmpty()) {
                         Text(
                             placeholder,
-                            color = TEXT_DIM,
+                            color = TEXT_FADED,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 20.sp,
                         )
@@ -225,15 +244,32 @@ private fun EditableTimerTitle(vm: TimerViewModel, accent: Color, placeholder: S
         )
         LaunchedEffect(Unit) { focusRequester.requestFocus() }
     } else {
-        Text(
-            text = vm.label.ifBlank { placeholder },
-            color = Color.White,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.clickable {
-                text = vm.label
-                editing = true
-            },
-        )
+        // Affordance MD3: nombre + lápiz tenue, con ripple redondeado al tocar.
+        val hasName = vm.label.isNotBlank()
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .clip(RoundedCornerShape(12.dp))
+                .clickable {
+                    text = vm.label
+                    editing = true
+                }
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+        ) {
+            Text(
+                text = vm.label.ifBlank { placeholder },
+                color = if (hasName) Color.White else TEXT_DIM,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 20.sp,
+            )
+            Spacer(Modifier.width(6.dp))
+            Icon(
+                imageVector = Icons.Outlined.Edit,
+                contentDescription = "Edit name",
+                tint = TEXT_DIM,
+                modifier = Modifier.size(16.dp),
+            )
+        }
     }
 }
 
