@@ -62,9 +62,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -174,10 +176,10 @@ fun TimerApp(vm: TimerViewModel) {
 @Composable
 private fun EditableTimerTitle(vm: TimerViewModel, accent: Color, placeholder: String) {
     var editing by remember { mutableStateOf(false) }
-    var text by remember { mutableStateOf(vm.label) }
+    var text by remember { mutableStateOf(TextFieldValue(vm.label)) }
 
     // Sincronizar con el estado externo (p. ej. al cancelar se limpia).
-    LaunchedEffect(vm.label) { if (!editing) text = vm.label }
+    LaunchedEffect(vm.label) { if (!editing) text = TextFieldValue(vm.label) }
 
     if (editing) {
         val focusRequester = remember { FocusRequester() }
@@ -186,7 +188,7 @@ private fun EditableTimerTitle(vm: TimerViewModel, accent: Color, placeholder: S
         var hasFocused by remember { mutableStateOf(false) }
         BasicTextField(
             value = text,
-            onValueChange = { text = it.take(40) },
+            onValueChange = { text = it.copy(text = it.text.take(40)) },
             singleLine = true,
             textStyle = TextStyle(
                 color = Color.White,
@@ -197,7 +199,7 @@ private fun EditableTimerTitle(vm: TimerViewModel, accent: Color, placeholder: S
             cursorBrush = SolidColor(accent),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = {
-                vm.commitLabel(text)
+                vm.commitLabel(text.text)
                 editing = false
             }),
             modifier = Modifier
@@ -207,7 +209,7 @@ private fun EditableTimerTitle(vm: TimerViewModel, accent: Color, placeholder: S
                     if (it.isFocused) {
                         hasFocused = true
                     } else if (hasFocused && editing) {
-                        vm.commitLabel(text)
+                        vm.commitLabel(text.text)
                         editing = false
                     }
                 },
@@ -230,7 +232,7 @@ private fun EditableTimerTitle(vm: TimerViewModel, accent: Color, placeholder: S
                         }
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                 ) {
-                    if (text.isEmpty()) {
+                    if (text.text.isEmpty()) {
                         Text(
                             placeholder,
                             color = TEXT_FADED,
@@ -251,7 +253,11 @@ private fun EditableTimerTitle(vm: TimerViewModel, accent: Color, placeholder: S
             modifier = Modifier
                 .clip(RoundedCornerShape(12.dp))
                 .clickable {
-                    text = vm.label
+                    // Cursor al final del texto al volver a editar.
+                    text = TextFieldValue(
+                        text = vm.label,
+                        selection = TextRange(vm.label.length),
+                    )
                     editing = true
                 }
                 .padding(horizontal = 12.dp, vertical = 6.dp),
