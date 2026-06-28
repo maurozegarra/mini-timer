@@ -63,6 +63,13 @@ data class Strings(
     val tabAthlete: String,
     val tabWater: String,
     val comingSoon: String,
+    val createdTab: String,
+    val savedHint: String,
+    val createWorkout: String,
+    val edit: String,
+    val duplicate: String,
+    val workoutNameHint: String,
+    val save: String,
 )
 
 object I18n {
@@ -128,6 +135,13 @@ object I18n {
         tabAthlete = "Atleta",
         tabWater = "Agua",
         comingSoon = "Próximamente",
+        createdTab = "Creados",
+        savedHint = "Los workouts que crees se guardarán aquí.",
+        createWorkout = "Crear workout",
+        edit = "Editar",
+        duplicate = "Duplicar",
+        workoutNameHint = "Dale un nombre a tu workout",
+        save = "Guardar",
     )
 
     val EN = Strings(
@@ -190,5 +204,12 @@ object I18n {
         tabAthlete = "Athlete",
         tabWater = "Water",
         comingSoon = "Coming soon",
+        createdTab = "Created",
+        savedHint = "Workouts you create will be saved here.",
+        createWorkout = "Create Workout",
+        edit = "Edit",
+        duplicate = "Duplicate",
+        workoutNameHint = "Give your workout a name",
+        save = "Save",
     )
 }

@@ -2,6 +2,7 @@ package com.minitimer.ui
 
 import android.view.HapticFeedbackConstants
 import androidx.activity.compose.BackHandler
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -94,9 +95,11 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.minitimer.AthleteViewModel
 import com.minitimer.Phase
 import com.minitimer.R
 import com.minitimer.TimerViewModel
+import com.minitimer.ui.athlete.AthleteScreen
 import com.minitimer.i18n.I18n
 import com.minitimer.model.TimerItem
 import com.minitimer.ui.theme.BG
@@ -120,7 +123,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TimerApp(vm: TimerViewModel) {
+fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
     val t = I18n.get(vm.settings.language)
     val accent = Color(vm.settings.accent)
 
@@ -247,9 +250,10 @@ fun TimerApp(vm: TimerViewModel) {
                     onOpen = { vm.detailId = it },
                     onBlocked = onBlocked,
                 )
+                selectedTab == 1 -> AthleteScreen(athleteVm, accent, t)
                 else -> ComingSoonScreen(
-                    icon = if (selectedTab == 1) R.drawable.ic_tab_athlete else R.drawable.ic_tab_water,
-                    title = if (selectedTab == 1) t.tabAthlete else t.tabWater,
+                    icon = R.drawable.ic_tab_water,
+                    title = t.tabWater,
                     subtitle = t.comingSoon,
                 )
             }
