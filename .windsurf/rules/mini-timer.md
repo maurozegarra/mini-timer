@@ -12,6 +12,12 @@ description: Convenciones de comportamiento para el proyecto mini-timer
 # UI / Diseño
 - Usar Material Design 3 (Material You) en toda la interfaz: componentes, tipografía, formas, elevación y paleta de color.
 
+# Audio / Alarma
+- Principio: "lo que pruebas es lo que suena": el preview de Ajustes debe sonar EXACTAMENTE igual que la alarma real (mismo stream, usage, escalado y comportamiento).
+- Volumen INDEPENDIENTE del equipo: subir el stream de alarma al máximo durante la reproducción (preview y alarma) y restaurarlo al terminar; el nivel fino lo da `perceptualVolume` sobre `MediaPlayer.setVolume`. Así 100% = máximo real del hardware, sin depender del volumen configurado en el equipo.
+- Reproducir con `USAGE_ALARM` para que suene aunque el equipo esté en silencio o en No molestar.
+- Mientras suena, pedir foco de audio `AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK` (baja la música de fondo) y abandonarlo al terminar para que la música recupere su volumen.
+
 # Versionado
 - El versionado sube +1 por cada APK generado (no por commit).
 - `versionName` = "1.0.<n>" y `versionCode` = <n> en `app/build.gradle.kts`; la fuente de verdad es el `versionName` actual.

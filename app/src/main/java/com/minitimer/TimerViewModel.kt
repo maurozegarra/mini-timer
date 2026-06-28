@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioDeviceInfo
+import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.RingtoneManager
@@ -93,6 +94,8 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     private var tickJob: Job? = null
     private var autoDismissJob: Job? = null
     private val players = mutableListOf<MediaPlayer>()
+    private var savedAlarmStreamVolume: Int? = null
+    private var audioFocusRequest: AudioFocusRequest? = null
 
     init {
         TimerBus.accent.value = settings.accent
@@ -356,27 +359,24 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
             ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
             ?: return
 
+        // Volumen independiente del equipo + ducking de la música mientras suena.
+        boostAlarmStream()
+        requestAlarmFocus()
+
         // Enrutamiento cuando hay audífonos conectados.
         val outputs = audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
         val headset = findMediaHeadset(outputs)
         val speaker = outputs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
 
         if (headset != null) {
-            // Reproducir como MEDIA: el sistema lo enruta a la salida de media
-            // activa (los audífonos), incluido A2DP / LE Audio. No forzamos el
-            // dispositivo para evitar elegir un modo BT inactivo.
-            play(ctx, uri, mediaUsage = true, device = null)
+            // Con audífonos: enrutar la alarma a ellos; en SPEAKER_AND_HEADSET,
+            // también por el altavoz.
+            play(ctx, uri, device = headset)
             if (settings.headsetMode == SPEAKER_AND_HEADSET && speaker != null) {
-                // Altavoz en paralelo, como alarma (sí se enruta al altavoz).
-                play(ctx, uri, mediaUsage = false, device = speaker)
+                play(ctx, uri, device = speaker)
             }
         } else {
-            // Sin audífonos: reproducir por el altavoz como MEDIA (no ALARM) para
-            // que el volumen efectivo dependa del MISMO stream que la vista previa
-            // de ajustes. Con USAGE_ALARM el sonido salía por el stream de alarma,
-            // que puede estar a 0 en el teléfono (típico en Samsung), dejando la
-            // alarma muda aunque la vista previa (MEDIA) se oyera bien.
-            play(ctx, uri, mediaUsage = true, device = null)
+            play(ctx, uri, device = null)
         }
     }
 
@@ -400,27 +400,16 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /**
-     * Reproduce el tono en bucle. [mediaUsage]=true usa USAGE_MEDIA (necesario
-     * para que se enrute a Bluetooth A2DP / LE Audio); false usa USAGE_ALARM
-     * (para el altavoz). [device] fuerza opcionalmente la salida.
+     * Reproduce el tono de alarma en bucle con USAGE_ALARM (suena en silencio y
+     * es excepción de No molestar). [device] fuerza opcionalmente la salida.
      */
-    private fun play(ctx: Context, uri: Uri, mediaUsage: Boolean, device: AudioDeviceInfo?) {
+    private fun play(ctx: Context, uri: Uri, device: AudioDeviceInfo?) {
         try {
-            val usage = if (mediaUsage) {
-                AudioAttributes.USAGE_MEDIA
-            } else {
-                AudioAttributes.USAGE_ALARM
-            }
-            val contentType = if (mediaUsage) {
-                AudioAttributes.CONTENT_TYPE_MUSIC
-            } else {
-                AudioAttributes.CONTENT_TYPE_SONIFICATION
-            }
             val mp = MediaPlayer()
             mp.setAudioAttributes(
                 AudioAttributes.Builder()
-                    .setUsage(usage)
-                    .setContentType(contentType)
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .build(),
             )
             mp.setDataSource(ctx, uri)
@@ -447,6 +436,66 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
             mp.release()
         }
         players.clear()
+        abandonAlarmFocus()
+        restoreAlarmStream()
+    }
+
+    private val audioManager: AudioManager
+        get() = getApplication<Application>().getSystemService(Context.AUDIO_SERVICE) as AudioManager
+
+    /**
+     * Sube el stream de alarma al máximo (guardando el valor original) para que
+     * el volumen sea independiente del nivel configurado en el equipo.
+     */
+    private fun boostAlarmStream() {
+        if (savedAlarmStreamVolume != null) return
+        try {
+            val am = audioManager
+            savedAlarmStreamVolume = am.getStreamVolume(AudioManager.STREAM_ALARM)
+            val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+            am.setStreamVolume(AudioManager.STREAM_ALARM, max, 0)
+        } catch (_: Exception) {
+        }
+    }
+
+    /** Restaura el volumen del stream de alarma previo a [boostAlarmStream]. */
+    private fun restoreAlarmStream() {
+        val saved = savedAlarmStreamVolume ?: return
+        try {
+            audioManager.setStreamVolume(AudioManager.STREAM_ALARM, saved, 0)
+        } catch (_: Exception) {
+        }
+        savedAlarmStreamVolume = null
+    }
+
+    /**
+     * Pide foco de audio transitorio con ducking: el sistema baja la música de
+     * fondo mientras suena la alarma y la restaura al abandonarlo.
+     */
+    private fun requestAlarmFocus() {
+        if (audioFocusRequest != null) return
+        try {
+            val attrs = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ALARM)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
+            val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                .setAudioAttributes(attrs)
+                .build()
+            audioManager.requestAudioFocus(req)
+            audioFocusRequest = req
+        } catch (_: Exception) {
+        }
+    }
+
+    /** Abandona el foco de audio para que la música recupere su volumen. */
+    private fun abandonAlarmFocus() {
+        val req = audioFocusRequest ?: return
+        try {
+            audioManager.abandonAudioFocusRequest(req)
+        } catch (_: Exception) {
+        }
+        audioFocusRequest = null
     }
 
     private fun getVibrator(ctx: Context): Vibrator =
@@ -576,26 +625,33 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         return result
     }
 
-    /** Reproduce un tono como vista previa (al volumen de alarma configurado). */
+    /**
+     * Reproduce un tono como vista previa EXACTAMENTE como sonará la alarma real:
+     * stream de alarma al máximo + USAGE_ALARM + ducking de la música.
+     */
     fun previewSound(uriStr: String) {
         stopPreview()
         val ctx = getApplication<Application>()
         try {
-            // Usamos MediaPlayer.setVolume (escalar fiable) en vez de
-            // Ringtone.volume, que varios equipos (p. ej. Samsung) ignoran y
-            // reproducían el preview al volumen del stream de alarma. USAGE_MEDIA
-            // para enrutar a Bluetooth A2DP / LE Audio igual que la alarma.
+            boostAlarmStream()
+            requestAlarmFocus()
             val mp = MediaPlayer()
             mp.setAudioAttributes(
                 AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .build(),
             )
             mp.setDataSource(ctx, Uri.parse(uriStr))
             val vol = perceptualVolume(settings.alarmVolume)
             mp.setVolume(vol, vol)
             mp.setOnPreparedListener { it.start() }
+            mp.setOnCompletionListener {
+                it.release()
+                if (previewPlayer === it) previewPlayer = null
+                abandonAlarmFocus()
+                restoreAlarmStream()
+            }
             mp.prepareAsync()
             previewPlayer = mp
         } catch (_: Exception) {
@@ -625,6 +681,8 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         } catch (_: Exception) {
         }
         previewPlayer = null
+        abandonAlarmFocus()
+        restoreAlarmStream()
     }
 
     override fun onCleared() {
