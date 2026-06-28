@@ -14,6 +14,7 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
@@ -22,6 +23,7 @@ import androidx.lifecycle.viewModelScope
 import com.minitimer.data.SettingsStore
 import com.minitimer.model.SPEAKER_AND_HEADSET
 import com.minitimer.model.Settings
+import com.minitimer.model.TimerItem
 import com.minitimer.model.VIBRATION_PATTERNS
 import com.minitimer.notify.LiveTimerService
 import com.minitimer.util.dedupeSorted
@@ -31,7 +33,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-enum class Phase { SETUP, RUNNING, PAUSED, DONE }
+enum class Phase { IDLE, RUNNING, PAUSED, DONE }
 
 /** Un tono de alarma disponible para seleccionar. */
 data class AlarmSound(val name: String, val uri: String)
@@ -70,18 +72,17 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     var settings by mutableStateOf(store.load())
         private set
 
-    var phase by mutableStateOf(Phase.SETUP)
-        private set
     var digits by mutableStateOf("")
         private set
-    var totalMs by mutableStateOf(0L)
-        private set
-    var remainingMs by mutableStateOf(0L)
+    var draftName by mutableStateOf("")
         private set
     var showSettings by mutableStateOf(false)
 
-    // Nombre opcional del timer (por ejecución). Se muestra en la barra superior.
-    var label by mutableStateOf("")
+    /** Lista de temporizadores (multi-timer). */
+    val timers = mutableStateListOf<TimerItem>()
+
+    /** Id del timer que ocupa el slot activo (RUNNING/PAUSED/DONE); null si ninguno. */
+    var activeId by mutableStateOf<Long?>(null)
         private set
 
     // Offset fino (en dp) del anillo sobre la cámara, ajustable con +/- en ajustes.
@@ -90,7 +91,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     var ringOffsetY by mutableStateOf(store.loadRingOffset().second)
         private set
 
-    private var endAt = 0L
+    private var nextId = 1L
     private var tickJob: Job? = null
     private var autoDismissJob: Job? = null
     private val players = mutableListOf<MediaPlayer>()
@@ -101,21 +102,18 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         TimerBus.accent.value = settings.accent
         publishOverlayPrefs()
         ensureDefaultAlarmSound()
-        if (!restoreTimerState()) {
-            // Sin timer activo: pre-rellenar con la última duración y el último
-            // nombre usados.
-            val last = store.loadLastDuration()
-            if (last > 0) digits = secondsToDigits(last)
-            label = store.loadLastLabel()
-            TimerBus.label.value = label
-        }
+        restore()
+        val last = store.loadLastDuration()
+        if (last > 0) digits = secondsToDigits(last)
         // Comandos desde los botones del Now Bar (Pausa/Reanudar/Cancelar).
         viewModelScope.launch {
             TimerBus.command.collect { cmd ->
+                val id = activeId ?: return@collect
                 when (cmd) {
-                    TimerCommand.PAUSE -> if (phase == Phase.RUNNING) pause()
-                    TimerCommand.RESUME -> if (phase == Phase.PAUSED) resume()
-                    TimerCommand.CANCEL -> cancel()
+                    TimerCommand.PAUSE -> pauseTimer(id)
+                    TimerCommand.RESUME -> startTimer(id)
+                    TimerCommand.CANCEL ->
+                        if (item(id)?.phase == Phase.DONE) dismissTimer(id) else resetTimer(id)
                 }
             }
         }
@@ -140,38 +138,58 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** Restaura un timer activo tras la muerte del proceso (swipe en Recientes). */
-    private fun restoreTimerState(): Boolean {
-        val st = store.loadTimerState() ?: return false
-        totalMs = st.totalMs
-        label = st.label
-        when (st.phase) {
-            Phase.RUNNING.name -> {
-                val left = st.endAt - System.currentTimeMillis()
+    // ---------- Lista de timers ----------
+    private fun idx(id: Long) = timers.indexOfFirst { it.id == id }
+    fun item(id: Long): TimerItem? = timers.firstOrNull { it.id == id }
+    private val activeItem: TimerItem? get() = activeId?.let { item(it) }
+
+    private fun setItem(id: Long, persist: Boolean = true, transform: (TimerItem) -> TimerItem) {
+        val i = idx(id)
+        if (i < 0) return
+        timers[i] = transform(timers[i])
+        if (persist) persist()
+    }
+
+    private fun persist() = store.saveTimers(timers.toList(), activeId)
+
+    private fun syncService() {
+        if (activeId != null) LiveTimerService.start(getApplication())
+        else LiveTimerService.stop(getApplication())
+    }
+
+    /** Restaura la lista y normaliza el timer activo tras la muerte del proceso. */
+    private fun restore() {
+        val (loaded, active) = store.loadTimers()
+        timers.clear()
+        timers.addAll(loaded)
+        nextId = (timers.maxOfOrNull { it.id } ?: 0L) + 1
+        val a = active?.let { item(it) } ?: return
+        when (a.phase) {
+            Phase.RUNNING -> {
+                val left = a.endAt - System.currentTimeMillis()
                 if (left > 0L) {
-                    endAt = st.endAt
-                    remainingMs = left
-                    TimerBus.endAt.value = endAt
-                    setPhaseAndBus(Phase.RUNNING)
+                    setItem(a.id, persist = false) { it.copy(remainingMs = left) }
+                    activeId = a.id
                     startTicking()
-                    LiveTimerService.start(getApplication())
                 } else {
-                    remainingMs = 0
-                    onFinished()
+                    // Terminó mientras el proceso estaba muerto: marcar DONE sin
+                    // disparar la alarma de forma sorpresiva.
+                    setItem(a.id, persist = false) {
+                        it.copy(
+                            phase = Phase.DONE,
+                            remainingMs = 0,
+                            lastFinished = System.currentTimeMillis(),
+                        )
+                    }
+                    activeId = a.id
                 }
             }
-            Phase.PAUSED.name -> {
-                remainingMs = st.remainingMs
-                setPhaseAndBus(Phase.PAUSED)
-                LiveTimerService.start(getApplication())
-            }
-            Phase.DONE.name -> {
-                remainingMs = 0
-                onFinished()
-            }
-            else -> return false
+            Phase.PAUSED, Phase.DONE -> activeId = a.id
+            Phase.IDLE -> activeId = null
         }
-        return true
+        syncService()
+        publishActive()
+        persist()
     }
 
     private fun secondsToDigits(sec: Int): String {
@@ -179,18 +197,6 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         val m = (sec % 3600) / 60
         val s = sec % 60
         return "%02d%02d%02d".format(h, m, s).trimStart('0')
-    }
-
-    private fun saveTimerState() {
-        store.saveTimerState(
-            SettingsStore.TimerState(
-                phase = phase.name,
-                endAt = endAt,
-                remainingMs = remainingMs,
-                totalMs = totalMs,
-                label = label,
-            ),
-        )
     }
 
     // ---------- Tiempo configurado desde los dígitos ----------
@@ -219,115 +225,160 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    // ---------- Acciones ----------
-    fun start() = startWithSeconds(totalSeconds)
+    // ---------- Nuevo timer (teclado) ----------
+    fun updateDraftName(value: String) { draftName = value.take(40) }
 
-    fun startWithSeconds(sec: Int) {
-        if (sec <= 0) return
-        store.saveLastDuration(sec)
-        if (label.isNotBlank()) store.saveLastLabel(label)
-        val ms = sec * 1000L
-        endAt = System.currentTimeMillis() + ms
-        totalMs = ms
-        remainingMs = ms
-        TimerBus.endAt.value = endAt
-        setPhaseAndBus(Phase.RUNNING)
-        saveTimerState()
-        startTicking()
-        LiveTimerService.start(getApplication())
-    }
-
-    fun pause() {
-        remainingMs = (endAt - System.currentTimeMillis()).coerceAtLeast(0)
-        tickJob?.cancel()
-        setPhaseAndBus(Phase.PAUSED)
-        saveTimerState()
-    }
-
-    fun resume() {
-        endAt = System.currentTimeMillis() + remainingMs
-        TimerBus.endAt.value = endAt
-        setPhaseAndBus(Phase.RUNNING)
-        saveTimerState()
-        startTicking()
-    }
-
-    fun cancel() {
-        stopAlarm()
-        tickJob?.cancel()
-        autoDismissJob?.cancel()
-        store.clearTimerState()
-        prefillLastDuration()
-        setPhaseAndBus(Phase.SETUP)
-        LiveTimerService.stop(getApplication())
-    }
-
-    fun restart() {
-        stopAlarm()
-        autoDismissJob?.cancel()
-        startWithSeconds((totalMs / 1000).toInt())
-    }
-
-    fun dismiss() {
-        stopAlarm()
-        tickJob?.cancel()
-        autoDismissJob?.cancel()
-        store.clearTimerState()
-        prefillLastDuration()
-        setPhaseAndBus(Phase.SETUP)
-        LiveTimerService.stop(getApplication())
-    }
-
-    /** Refleja el texto en edición en vivo (sin persistir), para que acciones
-     *  como Start tomen el nombre actual aunque no se haya confirmado aún. */
-    fun setDraftLabel(value: String) {
-        label = value.take(40)
-        TimerBus.label.value = label
-    }
-
-    /** Fija el nombre del timer (recortado a 40 caracteres). */
-    fun commitLabel(value: String) {
-        label = value.take(40)
-        TimerBus.label.value = label
-        if (label.isNotBlank()) store.saveLastLabel(label)
-        if (phase != Phase.SETUP) saveTimerState()
-    }
-
-    /** Deja el teclado con la última duración usada y restaura el último nombre. */
-    private fun prefillLastDuration() {
+    /** Prepara la hoja "Nuevo": rellena con la última duración/nombre usados. */
+    fun prepareNewTimer() {
         val last = store.loadLastDuration()
         digits = if (last > 0) secondsToDigits(last) else ""
-        label = store.loadLastLabel()
+        draftName = store.loadLastLabel()
+    }
+
+    /**
+     * Crea un timer con los dígitos actuales e intenta iniciarlo. Devuelve true
+     * si se inició; false si quedó creado pero bloqueado por otro timer activo.
+     */
+    fun confirmNewTimer(): Boolean {
+        val sec = totalSeconds
+        if (sec <= 0) return true
+        val id = addTimer(sec, draftName)
+        val started = startTimer(id)
+        digits = ""
+        draftName = ""
+        return started
+    }
+
+    fun addTimer(sec: Int, name: String): Long {
+        val ms = sec * 1000L
+        val id = nextId++
+        timers.add(
+            TimerItem(id = id, name = name.take(40), totalMs = ms, remainingMs = ms, phase = Phase.IDLE),
+        )
+        store.saveLastDuration(sec)
+        if (name.isNotBlank()) store.saveLastLabel(name)
+        persist()
+        return id
+    }
+
+    // ---------- Acciones por timer ----------
+    /** Inicia/reanuda un timer. Devuelve false si otro timer ocupa el slot. */
+    fun startTimer(id: Long): Boolean {
+        if (activeId != null && activeId != id) return false
+        val it = item(id) ?: return false
+        val rem = it.remainingMs.coerceAtLeast(0)
+        if (rem <= 0) return false
+        val end = System.currentTimeMillis() + rem
+        setItem(id) { c -> c.copy(phase = Phase.RUNNING, remainingMs = rem, endAt = end) }
+        activeId = id
+        syncService()
+        publishActive()
+        startTicking()
+        return true
+    }
+
+    fun pauseTimer(id: Long) {
+        val it = item(id) ?: return
+        if (it.phase != Phase.RUNNING) return
+        val rem = (it.endAt - System.currentTimeMillis()).coerceAtLeast(0)
+        tickJob?.cancel()
+        setItem(id) { c -> c.copy(phase = Phase.PAUSED, remainingMs = rem) }
+        publishActive()
+    }
+
+    /** Play/Pausa de la tarjeta. Devuelve false si el inicio quedó bloqueado. */
+    fun togglePlay(id: Long): Boolean {
+        val it = item(id) ?: return true
+        return when (it.phase) {
+            Phase.RUNNING -> { pauseTimer(id); true }
+            Phase.PAUSED, Phase.IDLE -> startTimer(id)
+            Phase.DONE -> true
+        }
+    }
+
+    /** Detiene y deja el timer en IDLE (vuelve a su total). Libera el slot. */
+    fun resetTimer(id: Long) {
+        val wasActive = activeId == id
+        if (wasActive) {
+            tickJob?.cancel()
+            autoDismissJob?.cancel()
+            stopAlarm()
+        }
+        setItem(id, persist = false) { c -> c.copy(phase = Phase.IDLE, remainingMs = c.totalMs, endAt = 0L) }
+        if (wasActive) {
+            activeId = null
+            clearBus()
+            syncService()
+        }
+        persist()
+    }
+
+    /** Descarta un timer terminado (detiene alarma) y lo deja en IDLE. */
+    fun dismissTimer(id: Long) = resetTimer(id)
+
+    fun deleteTimer(id: Long) {
+        val wasActive = activeId == id
+        if (wasActive) {
+            tickJob?.cancel()
+            autoDismissJob?.cancel()
+            stopAlarm()
+        }
+        timers.removeAll { it.id == id }
+        if (wasActive) {
+            activeId = null
+            clearBus()
+            syncService()
+        }
+        persist()
+    }
+
+    fun addTime(id: Long) {
+        val incMs = settings.addIncrementSec * 1000L
+        setItem(id) { c ->
+            c.copy(
+                totalMs = c.totalMs + incMs,
+                remainingMs = c.remainingMs + incMs,
+                endAt = if (c.phase == Phase.RUNNING) c.endAt + incMs else c.endAt,
+            )
+        }
+        if (activeId == id) publishActive()
+    }
+
+    fun toggleStar(id: Long) = setItem(id) { it.copy(starred = !it.starred) }
+
+    fun renameTimer(id: Long, name: String) {
+        setItem(id) { it.copy(name = name.take(40)) }
+        if (activeId == id) publishActive()
     }
 
     private fun startTicking() {
         tickJob?.cancel()
         tickJob = viewModelScope.launch {
             while (true) {
-                val left = endAt - System.currentTimeMillis()
-                if (left <= 0) {
-                    remainingMs = 0
-                    onFinished()
+                val a = activeItem
+                if (a == null || a.phase != Phase.RUNNING) break
+                val left = a.endAt - System.currentTimeMillis()
+                if (left <= 0L) {
+                    finishTimer(a.id)
                     break
-                } else {
-                    remainingMs = left
-                    updateBus()
                 }
+                setItem(a.id, persist = false) { it.copy(remainingMs = left) }
+                publishActive()
                 delay(100)
             }
         }
     }
 
-    private fun onFinished() {
-        setPhaseAndBus(Phase.DONE)
-        saveTimerState()
+    private fun finishTimer(id: Long) {
+        setItem(id) { it.copy(phase = Phase.DONE, remainingMs = 0, lastFinished = System.currentTimeMillis()) }
+        publishActive()
         startAlarm()
         val secs = settings.autoDismiss
         if (secs > 0) {
             autoDismissJob?.cancel()
             autoDismissJob = viewModelScope.launch {
                 delay(secs * 1000L)
-                dismiss()
+                dismissTimer(id)
             }
         }
     }
@@ -520,26 +571,33 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    // ---------- Bus ----------
-    private fun setPhaseAndBus(p: Phase) {
-        phase = p
-        TimerBus.done.value = p == Phase.DONE
-        updateBus()
-    }
-
-    private fun updateBus() {
-        TimerBus.done.value = phase == Phase.DONE
-        TimerBus.paused.value = phase == Phase.PAUSED
-        TimerBus.remainingMs.value = remainingMs
-        TimerBus.totalMs.value = totalMs
-        TimerBus.label.value = label
+    // ---------- Bus (refleja el timer activo) ----------
+    private fun publishActive() {
+        val a = activeItem
+        if (a == null) {
+            clearBus()
+            return
+        }
+        TimerBus.done.value = a.phase == Phase.DONE
+        TimerBus.paused.value = a.phase == Phase.PAUSED
+        TimerBus.remainingMs.value = a.remainingMs
+        TimerBus.totalMs.value = a.totalMs
+        TimerBus.endAt.value = a.endAt
+        TimerBus.label.value = a.name
         TimerBus.display.value =
-            if (phase == Phase.DONE) I18nLabelTimeUp()
-            else formatRemaining(remainingMs)
+            if (a.phase == Phase.DONE) com.minitimer.i18n.I18n.get(settings.language).timeUp
+            else formatRemaining(a.remainingMs)
     }
 
-    private fun I18nLabelTimeUp(): String =
-        com.minitimer.i18n.I18n.get(settings.language).timeUp
+    private fun clearBus() {
+        TimerBus.done.value = false
+        TimerBus.paused.value = false
+        TimerBus.remainingMs.value = 0L
+        TimerBus.totalMs.value = 0L
+        TimerBus.endAt.value = 0L
+        TimerBus.label.value = ""
+        TimerBus.display.value = ""
+    }
 
     // ---------- Ajustes ----------
     private fun update(newSettings: Settings) {
@@ -569,6 +627,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     fun setShowRing(value: Boolean) = update(settings.copy(showRing = value))
     fun setShowOverlay(value: Boolean) = update(settings.copy(showOverlay = value))
     fun setShowNowBar(value: Boolean) = update(settings.copy(showNowBar = value))
+    fun setAddIncrement(sec: Int) = update(settings.copy(addIncrementSec = sec))
     fun resetSettings() {
         update(Settings())
         // Re-aplicar "Beep" como tono por defecto (Settings() deja el tono en null).

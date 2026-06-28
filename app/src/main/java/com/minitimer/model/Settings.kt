@@ -29,7 +29,12 @@ data class Settings(
     val showOverlay: Boolean = false,
     /** Promover la notificación como chip / Now Bar. */
     val showNowBar: Boolean = true,
+    /** Incremento (en segundos) del botón "+tiempo" de cada tarjeta. */
+    val addIncrementSec: Int = 30,
 )
+
+/** Opciones (en segundos) para el incremento del botón "+tiempo". */
+val ADD_INCREMENT_OPTIONS: List<Int> = listOf(15, 30, 60, 300)
 
 /** Patrón de vibración con nombre y tiempos (ms) para waveform en bucle. */
 data class VibrationPattern(val name: String, val timings: LongArray)

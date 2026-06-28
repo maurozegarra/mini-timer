@@ -1,7 +1,11 @@
 package com.minitimer.data
 
 import android.content.Context
+import com.minitimer.Phase
 import com.minitimer.model.Settings
+import com.minitimer.model.TimerItem
+import org.json.JSONArray
+import org.json.JSONObject
 
 /** Persistencia simple de los ajustes con SharedPreferences. */
 class SettingsStore(context: Context) {
@@ -32,6 +36,7 @@ class SettingsStore(context: Context) {
             showRing = prefs.getBoolean(KEY_SHOW_RING, defaults.showRing),
             showOverlay = prefs.getBoolean(KEY_SHOW_OVERLAY, defaults.showOverlay),
             showNowBar = prefs.getBoolean(KEY_SHOW_NOW_BAR, defaults.showNowBar),
+            addIncrementSec = prefs.getInt(KEY_ADD_INC, defaults.addIncrementSec),
         )
     }
 
@@ -51,49 +56,62 @@ class SettingsStore(context: Context) {
             .putBoolean(KEY_SHOW_RING, s.showRing)
             .putBoolean(KEY_SHOW_OVERLAY, s.showOverlay)
             .putBoolean(KEY_SHOW_NOW_BAR, s.showNowBar)
+            .putInt(KEY_ADD_INC, s.addIncrementSec)
             .apply()
     }
 
-    // ---------- Estado del timer activo (sobrevive a la muerte del proceso) ----------
+    // ---------- Lista de timers (sobrevive a la muerte del proceso) ----------
 
-    /** Estado persistido de un timer en curso/pausado/terminado. */
-    data class TimerState(
-        val phase: String,
-        val endAt: Long,
-        val remainingMs: Long,
-        val totalMs: Long,
-        val label: String,
-    )
-
-    fun saveTimerState(state: TimerState) {
+    /** Persiste la lista de timers y cuál es el activo (id) como JSON. */
+    fun saveTimers(items: List<TimerItem>, activeId: Long?) {
+        val arr = JSONArray()
+        items.forEach { it ->
+            arr.put(
+                JSONObject()
+                    .put("id", it.id)
+                    .put("name", it.name)
+                    .put("totalMs", it.totalMs)
+                    .put("remainingMs", it.remainingMs)
+                    .put("phase", it.phase.name)
+                    .put("endAt", it.endAt)
+                    .put("starred", it.starred)
+                    .put("lastFinished", it.lastFinished),
+            )
+        }
         prefs.edit()
-            .putString(KEY_T_PHASE, state.phase)
-            .putLong(KEY_T_END_AT, state.endAt)
-            .putLong(KEY_T_REMAINING, state.remainingMs)
-            .putLong(KEY_T_TOTAL, state.totalMs)
-            .putString(KEY_T_LABEL, state.label)
+            .putString(KEY_TIMERS, arr.toString())
+            .putLong(KEY_ACTIVE_ID, activeId ?: -1L)
             .apply()
     }
 
-    fun loadTimerState(): TimerState? {
-        val phase = prefs.getString(KEY_T_PHASE, null) ?: return null
-        return TimerState(
-            phase = phase,
-            endAt = prefs.getLong(KEY_T_END_AT, 0L),
-            remainingMs = prefs.getLong(KEY_T_REMAINING, 0L),
-            totalMs = prefs.getLong(KEY_T_TOTAL, 0L),
-            label = prefs.getString(KEY_T_LABEL, "") ?: "",
-        )
-    }
-
-    fun clearTimerState() {
-        prefs.edit()
-            .remove(KEY_T_PHASE)
-            .remove(KEY_T_END_AT)
-            .remove(KEY_T_REMAINING)
-            .remove(KEY_T_TOTAL)
-            .remove(KEY_T_LABEL)
-            .apply()
+    /** Carga la lista de timers persistida y el id del activo (null si ninguno). */
+    fun loadTimers(): Pair<List<TimerItem>, Long?> {
+        val raw = prefs.getString(KEY_TIMERS, null) ?: return emptyList<TimerItem>() to null
+        val items = mutableListOf<TimerItem>()
+        try {
+            val arr = JSONArray(raw)
+            for (i in 0 until arr.length()) {
+                val o = arr.getJSONObject(i)
+                val phase = runCatching { Phase.valueOf(o.getString("phase")) }
+                    .getOrDefault(Phase.IDLE)
+                items.add(
+                    TimerItem(
+                        id = o.getLong("id"),
+                        name = o.optString("name", ""),
+                        totalMs = o.getLong("totalMs"),
+                        remainingMs = o.getLong("remainingMs"),
+                        phase = phase,
+                        endAt = o.optLong("endAt", 0L),
+                        starred = o.optBoolean("starred", false),
+                        lastFinished = o.optLong("lastFinished", 0L),
+                    ),
+                )
+            }
+        } catch (_: Exception) {
+            return emptyList<TimerItem>() to null
+        }
+        val active = prefs.getLong(KEY_ACTIVE_ID, -1L).takeIf { it >= 0 }
+        return items to active
     }
 
     /** Última duración (en segundos) que el usuario inició, para pre-rellenarla. */
@@ -148,11 +166,9 @@ class SettingsStore(context: Context) {
         const val KEY_SHOW_RING = "showRing"
         const val KEY_SHOW_OVERLAY = "showOverlay"
         const val KEY_SHOW_NOW_BAR = "showNowBar"
-        const val KEY_T_PHASE = "timer_phase"
-        const val KEY_T_END_AT = "timer_end_at"
-        const val KEY_T_REMAINING = "timer_remaining"
-        const val KEY_T_TOTAL = "timer_total"
-        const val KEY_T_LABEL = "timer_label"
+        const val KEY_ADD_INC = "addIncrement"
+        const val KEY_TIMERS = "timers_json"
+        const val KEY_ACTIVE_ID = "active_id"
         const val KEY_LAST_DURATION = "last_duration"
         const val KEY_LAST_LABEL = "last_label"
         const val KEY_OVERLAY_ASKED = "overlay_asked"
