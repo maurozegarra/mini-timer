@@ -18,14 +18,14 @@
     <!-- Cristal (dos triángulos) -->
     <path
         android:fillColor="#00000000"
-        android:strokeColor="#FFAEB4C0"
+        android:strokeColor="#FFFFFFFF"
         android:strokeWidth="5"
         android:strokeLineJoin="round"
         android:strokeLineCap="round"
         android:pathData="M40,34 L68,34 L54,53 Z" />
     <path
         android:fillColor="#00000000"
-        android:strokeColor="#FFAEB4C0"
+        android:strokeColor="#FFFFFFFF"
         android:strokeWidth="5"
         android:strokeLineJoin="round"
         android:strokeLineCap="round"
