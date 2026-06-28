@@ -11,3 +11,9 @@ val JetBrainsMono = FontFamily(
     Font(R.font.jetbrains_mono_regular, FontWeight.Normal),
     Font(R.font.jetbrains_mono_semibold, FontWeight.SemiBold),
 )
+
+// Kanit (geométrica fuerte) para "Athlete".
+// PENDIENTE: colocar el TTF en app/src/main/res/font/kanit_bold_italic.ttf y cambiar a:
+//   val Kanit = FontFamily(Font(R.font.kanit_bold_italic, FontWeight.Bold, FontStyle.Italic))
+// Por ahora usa la fuente por defecto (en negrita itálica desde las llamadas).
+val Kanit = FontFamily.Default

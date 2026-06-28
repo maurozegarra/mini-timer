@@ -48,6 +48,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -72,16 +73,25 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.minitimer.Phase
@@ -92,6 +102,7 @@ import com.minitimer.model.TimerItem
 import com.minitimer.ui.theme.BG
 import com.minitimer.ui.theme.DONE_RED
 import com.minitimer.ui.theme.JetBrainsMono
+import com.minitimer.ui.theme.Kanit
 import com.minitimer.ui.theme.ON_ACCENT
 import com.minitimer.ui.theme.SURFACE
 import com.minitimer.ui.theme.TEXT_DIM
@@ -147,14 +158,19 @@ fun TimerApp(vm: TimerViewModel) {
                             placeholder = t.noName,
                             onCommit = { vm.renameTimer(detail.id, it) },
                         )
-                        else -> {
-                            val tabTitle = when (selectedTab) {
-                                1 -> t.tabAthlete
-                                2 -> t.tabWater
-                                else -> t.title
-                            }
-                            Text(tabTitle, color = Color.White, fontWeight = FontWeight.SemiBold)
-                        }
+                        selectedTab == 1 -> Text(
+                            t.tabAthlete,
+                            color = Color.White,
+                            fontFamily = Kanit,
+                            fontWeight = FontWeight.Bold,
+                            fontStyle = FontStyle.Italic,
+                            fontSize = 22.sp,
+                        )
+                        else -> Text(
+                            if (selectedTab == 2) t.tabWater else t.title,
+                            color = Color.White,
+                            fontWeight = FontWeight.SemiBold,
+                        )
                     }
                 },
                 navigationIcon = {
@@ -270,11 +286,15 @@ private fun BottomNavBar(
                 selected = selected == index,
                 onClick = { onSelect(index) },
                 icon = {
-                    Icon(
-                        painter = painterResource(iconRes),
-                        contentDescription = label,
-                        modifier = Modifier.size(24.dp),
-                    )
+                    if (index == 1) {
+                        AthleteTabIcon(modifier = Modifier.size(24.dp))
+                    } else {
+                        Icon(
+                            painter = painterResource(iconRes),
+                            contentDescription = label,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
                 },
                 label = { Text(label, fontSize = 12.sp) },
                 colors = NavigationBarItemDefaults.colors(
@@ -286,6 +306,49 @@ private fun BottomNavBar(
                 ),
             )
         }
+    }
+}
+
+@Composable
+private fun AthleteTabIcon(modifier: Modifier = Modifier) {
+    val color = LocalContentColor.current
+    val measurer = rememberTextMeasurer()
+    Canvas(modifier = modifier) {
+        val sx = size.width / 24f
+        val sy = size.height / 24f
+        val pts = listOf(
+            12f to 3f, 19.04f to 6.39f, 20.77f to 14f,
+            15.91f to 20.11f, 8.09f to 20.11f, 3.23f to 14f, 4.96f to 6.39f,
+        )
+        val hept = Path().apply {
+            moveTo(pts[0].first * sx, pts[0].second * sy)
+            for (i in 1 until pts.size) lineTo(pts[i].first * sx, pts[i].second * sy)
+            close()
+        }
+        val canvas = drawContext.canvas
+        canvas.saveLayer(Rect(Offset.Zero, size), Paint())
+        rotate(-12f, pivot = Offset(size.width / 2f, size.height / 2f)) {
+            drawPath(hept, color)
+        }
+        val layout = measurer.measure(
+            text = "M",
+            style = TextStyle(
+                fontFamily = Kanit,
+                fontWeight = FontWeight.Bold,
+                fontStyle = FontStyle.Italic,
+                fontSize = (size.height * 0.62f).toSp(),
+            ),
+        )
+        drawText(
+            textLayoutResult = layout,
+            color = Color.Black,
+            topLeft = Offset(
+                (size.width - layout.size.width) / 2f,
+                (size.height - layout.size.height) / 2f,
+            ),
+            blendMode = BlendMode.DstOut,
+        )
+        canvas.restore()
     }
 }
 
