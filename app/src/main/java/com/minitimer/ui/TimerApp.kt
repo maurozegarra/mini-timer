@@ -479,68 +479,71 @@ private fun StickmanJumpingJacks(
         val w = size.width
         val h = size.height
         val cx = w / 2f
-        val theta = t * (2f * PI.toFloat()) * 1.2f
+        val rad = PI.toFloat() / 180f
         fun lp(a: Float, b: Float, f: Float) = a + (b - a) * f
-        // p del jumping jack; al reposar tiende a la pose de pie (pies juntos).
-        val pRaw = (1f - cos(theta)) / 2f
-        val p = pRaw * (1f - rest)
-        val hop = -h * 0.035f * pRaw * (1f - rest)
+
+        // Una repetición por segundo (theta avanza 2π por segundo).
+        val theta = t * (2f * PI.toFloat())
+        // p oscila 0..1: 0 = brazos arriba / piernas juntas; 1 = brazos abajo /
+        // piernas abiertas. Al reposar se mezcla hacia la pose de pie.
+        val p = (1f - cos(theta)) / 2f
+
+        // Ángulos (grados) medidos desde el eje vertical-abajo.
+        val armUp = 120f
+        val armDown = 14f
+        val bendUp = 45f
+        val legClosed = 6f
+        val legOpen = 34f
+        val legBend = 7f * rad
+        // Pose en reposo (de pie): brazos abajo a los costados, piernas juntas.
+        val armAngle = lp(lp(armUp, armDown, p), armDown, rest) * rad
+        val armBend = lp(lp(bendUp, 0f, p), 0f, rest) * rad
+        val legAngle = lp(lp(legClosed, legOpen, p), legClosed, rest) * rad
+        // Salto a mitad del movimiento (máximo en p=0.5), anulado en reposo.
+        val hop = -h * 0.08f * sin(p * PI.toFloat()) * (1f - rest)
 
         fun pt(x: Float, y: Float) = Offset(x, y + hop)
 
-        // Sin fondo: figura del color de acento, trazo grueso redondeado.
+        // Figura del color de acento, trazo grueso redondeado.
         val figColor = accent
-        val stroke = h * 0.045f
-        fun limb(a: Offset, joint: Offset, end: Offset) {
-            drawLine(figColor, a, joint, strokeWidth = stroke, cap = StrokeCap.Round)
-            drawLine(figColor, joint, end, strokeWidth = stroke, cap = StrokeCap.Round)
-        }
+        val strokeBody = h * 0.075f
+        val strokeArm = h * 0.06f
+        val strokeLeg = h * 0.065f
 
         val headR = h * 0.085f
-        val shoulderY = h * 0.34f
-        val hipY = h * 0.56f
-        val headCY = shoulderY - headR * 1.6f
-        val shoulderDX = w * 0.05f
-        val hipDX = w * 0.04f
-        val kneeY = h * 0.70f
-        val footY = h * 0.84f
+        val headCY = h * 0.22f
+        val torsoTop = h * 0.30f
+        val shoulderY = h * 0.33f
+        val hipY = h * 0.59f
+        val upperArm = h * 0.15f
+        val foreArm = h * 0.135f
+        val thigh = h * 0.16f
+        val shin = h * 0.15f
 
-        // Cabeza sólida + cuello/columna.
+        // Extremidad de dos segmentos que rota alrededor de [origin]; [side] = -1
+        // izquierda, +1 derecha; [angle]/[bend] en radianes desde la vertical.
+        fun limb(origin: Offset, side: Float, angle: Float, bend: Float, upper: Float, lower: Float, stroke: Float) {
+            val jx = origin.x + side * upper * sin(angle)
+            val jy = origin.y + upper * cos(angle)
+            val ex = jx + side * lower * sin(angle + bend)
+            val ey = jy + lower * cos(angle + bend)
+            drawLine(figColor, origin, Offset(jx, jy), strokeWidth = stroke, cap = StrokeCap.Round)
+            drawLine(figColor, Offset(jx, jy), Offset(ex, ey), strokeWidth = stroke, cap = StrokeCap.Round)
+        }
+
+        // Cabeza sólida + columna.
         drawCircle(color = figColor, radius = headR, center = pt(cx, headCY))
-        drawLine(figColor, pt(cx, shoulderY - headR * 0.2f), pt(cx, hipY), strokeWidth = stroke, cap = StrokeCap.Round)
+        drawLine(figColor, pt(cx, torsoTop), pt(cx, hipY), strokeWidth = strokeBody, cap = StrokeCap.Round)
 
-        // Piernas (cadera -> rodilla -> pie), se separan al abrir.
-        val kneeDX = lp(w * 0.05f, w * 0.13f, p)
-        val footDX = lp(w * 0.05f, w * 0.22f, p)
-        limb(pt(cx - hipDX, hipY), pt(cx - kneeDX, kneeY), pt(cx - footDX, footY))
-        limb(pt(cx + hipDX, hipY), pt(cx + kneeDX, kneeY), pt(cx + footDX, footY))
+        // Piernas (cadera -> rodilla -> pie), se abren en V.
+        val hip = pt(cx, hipY)
+        limb(hip, -1f, legAngle, legBend, thigh, shin, strokeLeg)
+        limb(hip, +1f, legAngle, legBend, thigh, shin, strokeLeg)
 
-        // Brazos: rotación alrededor del hombro con longitud fija, codos
-        // flexionados. Barren en arco entre casi tocarse sobre la cabeza (clap,
-        // p=0, en fase con pies juntos) y el costado abajo (p=1, pies separados).
-        // Ángulo medido desde el eje vertical hacia abajo.
-        val rad = PI.toFloat() / 180f
-        val downAngle = 15f * rad
-        // En reposo los brazos bajan a los costados (downAngle), no se congelan.
-        val armAngle = lp(lp(190f * rad, downAngle, pRaw), downAngle, rest)
-        val elbowBend = 38f * rad
-        val upperLen = h * 0.135f
-        val foreLen = h * 0.125f
-        // Brazo izquierdo (dirección hacia la izquierda-arriba según el ángulo).
-        val lShoulder = pt(cx - shoulderDX, shoulderY)
-        val lUp = Offset(-sin(armAngle), cos(armAngle))
-        val lElbow = Offset(lShoulder.x + lUp.x * upperLen, lShoulder.y + lUp.y * upperLen)
-        val lFore = Offset(-sin(armAngle + elbowBend), cos(armAngle + elbowBend))
-        val lHand = Offset(lElbow.x + lFore.x * foreLen, lElbow.y + lFore.y * foreLen)
-        drawLine(figColor, lShoulder, lElbow, strokeWidth = stroke, cap = StrokeCap.Round)
-        drawLine(figColor, lElbow, lHand, strokeWidth = stroke, cap = StrokeCap.Round)
-        // Brazo derecho: espejo del izquierdo respecto al eje central.
-        fun mirror(o: Offset) = Offset(2f * cx - o.x, o.y)
-        val rShoulder = mirror(lShoulder)
-        val rElbow = mirror(lElbow)
-        val rHand = mirror(lHand)
-        drawLine(figColor, rShoulder, rElbow, strokeWidth = stroke, cap = StrokeCap.Round)
-        drawLine(figColor, rElbow, rHand, strokeWidth = stroke, cap = StrokeCap.Round)
+        // Brazos (hombro -> codo -> mano), suben en V con codos flexionados.
+        val shoulder = pt(cx, shoulderY)
+        limb(shoulder, -1f, armAngle, armBend, upperArm, foreArm, strokeArm)
+        limb(shoulder, +1f, armAngle, armBend, upperArm, foreArm, strokeArm)
     }
 }
 
