@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -308,21 +309,29 @@ private fun ItemCard(
             .graphicsLayer { translationY = dragOffset }
             .clip(RoundedCornerShape(12.dp))
             .background(if (dragging) SURFACE else TRACK)
-            .clickable { onClick() }
-            .padding(horizontal = 12.dp),
+            .padding(start = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Placeholder (animación futura del ejercicio).
-        Box(
+        // Área de contenido: tocar aquí edita el item.
+        Row(
             modifier = Modifier
-                .size(44.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(BG),
-        )
-        Spacer(Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, color = Color.White, fontWeight = FontWeight.Medium)
-            Text(subtitle, color = TEXT_DIM, fontSize = 13.sp)
+                .weight(1f)
+                .fillMaxHeight()
+                .clickable { onClick() },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // Placeholder (animación futura del ejercicio).
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(BG),
+            )
+            Spacer(Modifier.width(12.dp))
+            Column {
+                Text(title, color = Color.White, fontWeight = FontWeight.Medium)
+                Text(subtitle, color = TEXT_DIM, fontSize = 13.sp)
+            }
         }
         var menu by remember { mutableStateOf(false) }
         Box {
@@ -344,15 +353,21 @@ private fun ItemCard(
                 )
             }
         }
-        Icon(
-            Icons.Filled.DragHandle,
-            contentDescription = null,
-            tint = TEXT_DIM,
+        // Handle de arrastre: mantener presionado y arrastrar para reordenar.
+        Box(
             modifier = Modifier
-                .padding(start = 4.dp)
-                .size(24.dp)
-                .then(dragModifier),
-        )
+                .fillMaxHeight()
+                .then(dragModifier)
+                .padding(horizontal = 12.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.Filled.DragHandle,
+                contentDescription = null,
+                tint = TEXT_DIM,
+                modifier = Modifier.size(24.dp),
+            )
+        }
     }
 }
 
