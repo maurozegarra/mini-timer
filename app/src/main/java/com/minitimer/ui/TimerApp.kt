@@ -263,7 +263,7 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
     ) { inner ->
         Box(modifier = Modifier.fillMaxSize().padding(inner)) {
             when {
-                vm.showSettings -> Box(Modifier.padding(horizontal = 24.dp)) { SettingsScreen(vm) }
+                vm.showSettings -> Box(Modifier.padding(horizontal = 24.dp)) { SettingsScreen(vm, athleteVm) }
                 detail != null -> TimerDetailBody(vm, detail, accent, t, onBlocked)
                 selectedTab == 0 -> TimerListScreen(
                     vm = vm,

@@ -50,6 +50,17 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
         observePlayer()
     }
 
+    /** Recarga todo desde el store (tras restaurar un respaldo). */
+    fun reload() {
+        workouts.clear()
+        workouts.addAll(store.loadWorkouts())
+        customExercises.clear()
+        customExercises.addAll(store.loadCustomExercises())
+        sessions.clear()
+        sessions.addAll(store.loadSessions())
+        nextId = (allIds().maxOrNull() ?: 0L) + 1
+    }
+
     /** Refleja el estado publicado por el servicio del player en la UI. */
     private fun observePlayer() {
         viewModelScope.launch {
