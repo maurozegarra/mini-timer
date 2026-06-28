@@ -4,37 +4,40 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Botón superior del cronómetro -->
+    <!-- Tapas superior e inferior (acento) -->
+    <path
+        android:strokeColor="#FFFF5252"
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:pathData="M37,31 L71,31" />
+    <path
+        android:strokeColor="#FFFF5252"
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:pathData="M37,77 L71,77" />
+    <!-- Cristal (dos triángulos) -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFAEB4C0"
+        android:strokeWidth="5"
+        android:strokeLineJoin="round"
+        android:strokeLineCap="round"
+        android:pathData="M40,34 L68,34 L54,53 Z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFAEB4C0"
+        android:strokeWidth="5"
+        android:strokeLineJoin="round"
+        android:strokeLineCap="round"
+        android:pathData="M54,55 L40,74 L68,74 Z" />
+    <!-- Grano cayendo (acento) -->
+    <path
+        android:strokeColor="#FFFF5252"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M54,53 L54,60" />
+    <!-- Arena acumulada abajo (acento) -->
     <path
         android:fillColor="#FFFF5252"
-        android:pathData="M49.5,30 L49.5,22 Q49.5,18.5 54,18.5 Q58.5,18.5 58.5,22 L58.5,30 Z" />
-    <!-- Asa lateral -->
-    <path
-        android:strokeColor="#FFFF5252"
-        android:strokeWidth="5"
-        android:strokeLineCap="round"
-        android:pathData="M71,33 L76,28" />
-    <!-- Anillo base (track) -->
-    <path
-        android:fillColor="#00000000"
-        android:strokeColor="#33FFFFFF"
-        android:strokeWidth="7"
-        android:pathData="M54,58 m-26,0 a26,26 0 1,1 52,0 a26,26 0 1,1 -52,0" />
-    <!-- Arco de progreso (acento) -->
-    <path
-        android:fillColor="#00000000"
-        android:strokeColor="#FFFF5252"
-        android:strokeWidth="7"
-        android:strokeLineCap="round"
-        android:pathData="M54,32 A26,26 0 0 1 80,58" />
-    <!-- Manecilla -->
-    <path
-        android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="5"
-        android:strokeLineCap="round"
-        android:pathData="M54,58 L54,41" />
-    <!-- Eje central -->
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M54,58 m-3.5,0 a3.5,3.5 0 1,1 7,0 a3.5,3.5 0 1,1 -7,0" />
+        android:pathData="M45,74 L63,74 L54,65 Z" />
 </vector>
