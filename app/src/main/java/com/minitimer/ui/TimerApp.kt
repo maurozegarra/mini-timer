@@ -173,9 +173,9 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                             placeholder = t.noName,
                             onCommit = { vm.renameTimer(detail.id, it) },
                         )
-                        athletePlaying -> Text(athleteVm.playerName, color = Color.White, fontWeight = FontWeight.SemiBold)
-                        athleteChoosing -> Text(t.chooseExercise, color = Color.White, fontWeight = FontWeight.SemiBold)
-                        athleteEditing -> Text(t.createWorkout, color = Color.White, fontWeight = FontWeight.SemiBold)
+                        athletePlaying -> Text(athleteVm.playerName, color = Color.White, fontFamily = Kanit, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic, fontSize = 20.sp)
+                        athleteChoosing -> Text(t.chooseExercise, color = Color.White, fontFamily = Kanit, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic, fontSize = 20.sp)
+                        athleteEditing -> Text(t.createWorkout, color = Color.White, fontFamily = Kanit, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic, fontSize = 20.sp)
                         selectedTab == 1 -> Text(
                             t.tabAthlete,
                             color = Color.White,
