@@ -355,8 +355,19 @@ class LiveTimerService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        // Cancelar primero los colectores/bucles para que no haya re-publicaciones
+        // tardías (al cancelar, el cambio a SETUP dispara un repost que podía dejar
+        // una notificación huérfana congelada tras detener el servicio).
         job?.cancel()
         scope.cancel()
+        // Quitar explícitamente la notificación del foreground service.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } else {
+            @Suppress("DEPRECATION")
+            stopForeground(true)
+        }
+        getSystemService(NotificationManager::class.java).cancel(NOTIF_ID)
         try {
             unregisterReceiver(screenReceiver)
         } catch (_: Exception) {
