@@ -77,7 +77,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.PI
+import kotlin.math.acos
+import kotlin.math.atan2
 import kotlin.math.cos
+import kotlin.math.hypot
 import kotlin.math.sin
 import com.minitimer.Phase
 import com.minitimer.TimerViewModel
@@ -436,11 +439,21 @@ private fun CountdownScreen(vm: TimerViewModel, accent: Color, t: com.minitimer.
         // pausa y se oculta al terminar.
         if (!isDone) {
             Spacer(Modifier.height(40.dp))
-            StickmanJumpingJacks(
-                accent = accent,
-                running = vm.phase == Phase.RUNNING,
-                modifier = Modifier.size(140.dp),
-            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                StickmanJumpingJacks(
+                    accent = accent,
+                    running = vm.phase == Phase.RUNNING,
+                    modifier = Modifier.size(130.dp),
+                )
+                StickmanPistolSquat(
+                    accent = accent,
+                    running = vm.phase == Phase.RUNNING,
+                    modifier = Modifier.size(130.dp),
+                )
+            }
         }
     }
 }
@@ -544,6 +557,118 @@ private fun StickmanJumpingJacks(
         val shoulder = pt(cx, shoulderY)
         limb(shoulder, -1f, armAngle, armBend, upperArm, foreArm, strokeArm)
         limb(shoulder, +1f, armAngle, armBend, upperArm, foreArm, strokeArm)
+    }
+}
+
+/**
+ * Stickman de perfil haciendo "pistol squats" (sentadilla a una pierna): de pie
+ * sobre una pierna con la otra extendida al frente, baja flexionando la pierna
+ * de apoyo (cinemática inversa, pie plantado) y sube. Brazos al frente para
+ * balance. Avanza solo mientras [running] es true (se endereza al pausar).
+ */
+@Composable
+private fun StickmanPistolSquat(
+    accent: Color,
+    running: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    var t by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(running) {
+        if (!running) return@LaunchedEffect
+        var last = 0L
+        while (true) {
+            val now = withFrameNanos { it }
+            if (last != 0L) t += (now - last) / 1_000_000_000f
+            last = now
+        }
+    }
+    val rest by animateFloatAsState(
+        targetValue = if (running) 0f else 1f,
+        animationSpec = tween(durationMillis = 320),
+        label = "pistolRest",
+    )
+    androidx.compose.foundation.Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        // Cinemática en unidades del viewBox 200x220; se mapea al lienzo.
+        val k = h / 220f
+        val cx = w / 2f
+        fun map(x: Float, y: Float) = Offset(cx + (x - 100f) * k, y * k)
+        val rad = PI.toFloat() / 180f
+        fun lp(a: Float, b: Float, f: Float) = a + (b - a) * f
+
+        // 0.6 repeticiones por segundo; al reposar tiende a q=0 (de pie).
+        val theta = t * (2f * PI.toFloat()) * 0.6f
+        val q = ((1f - cos(theta)) / 2f) * (1f - rest)
+
+        // Parámetros de la pose (profundidad 165, inclinación 38°).
+        val ax = 96f
+        val ay = 190f
+        val hipX = lp(96f, 72f, q)
+        val hipY = lp(100f, 165f, q)
+        // Pierna de apoyo: IK de dos segmentos, rodilla hacia adelante.
+        val l1 = 46f
+        val l2 = 46f
+        val dx = ax - hipX
+        val dy = ay - hipY
+        val d = hypot(dx, dy).coerceAtMost(l1 + l2 - 0.01f)
+        val a1 = atan2(dy, dx)
+        val cosA = ((l1 * l1 + d * d - l2 * l2) / (2f * l1 * d)).coerceIn(-1f, 1f)
+        val ang = acos(cosA)
+        val k1x = hipX + l1 * cos(a1 - ang)
+        val k1y = hipY + l1 * sin(a1 - ang)
+        val k2x = hipX + l1 * cos(a1 + ang)
+        val k2y = hipY + l1 * sin(a1 + ang)
+        val kneeX = if (k1x > k2x) k1x else k2x
+        val kneeY = if (k1x > k2x) k1y else k2y
+
+        val figColor = accent
+        val sBody = 15f * k
+        val sArm = 12f * k
+        val sLeg = 13f * k
+        fun seg(ax1: Float, ay1: Float, bx: Float, by: Float, stroke: Float) {
+            drawLine(figColor, map(ax1, ay1), map(bx, by), strokeWidth = stroke, cap = StrokeCap.Round)
+        }
+
+        // Pierna libre extendida al frente (se dibuja detrás).
+        val angF = lp(32f, -6f, q) * rad
+        val ft = 44f
+        val fs = 42f
+        val kFx = hipX + ft * cos(angF)
+        val kFy = hipY + ft * sin(angF)
+        val fFx = kFx + fs * cos(angF - 4f * rad)
+        val fFy = kFy + fs * sin(angF - 4f * rad)
+        seg(hipX, hipY, kFx, kFy, 12f * k)
+        seg(kFx, kFy, fFx, fFy, 11f * k)
+
+        // Pierna de apoyo + pie.
+        seg(hipX, hipY, kneeX, kneeY, sLeg)
+        seg(kneeX, kneeY, ax, ay, 12f * k)
+        seg(ax - 7f, ay, ax + 15f, ay, 11f * k)
+
+        // Torso + cabeza.
+        val lean = lp(-6f, 38f, q) * rad
+        val torso = 52f
+        val shX = hipX + torso * sin(lean)
+        val shY = hipY - torso * cos(lean)
+        seg(hipX, hipY, shX, shY, sBody)
+        val headGap = 24f
+        drawCircle(
+            color = figColor,
+            radius = 15f * k,
+            center = map(shX + headGap * sin(lean), shY - headGap * cos(lean)),
+        )
+
+        // Brazos al frente (balance).
+        val aa = lp(22f, 0f, q) * rad
+        val ua = 34f
+        val fa = 30f
+        val elbX = shX + ua * cos(aa)
+        val elbY = shY + ua * sin(aa)
+        val hndX = elbX + fa * cos(aa - 6f * rad)
+        val hndY = elbY + fa * sin(aa - 6f * rad)
+        seg(shX, shY, elbX, elbY, sArm)
+        seg(elbX, elbY, hndX, hndY, 11f * k)
     }
 }
 
