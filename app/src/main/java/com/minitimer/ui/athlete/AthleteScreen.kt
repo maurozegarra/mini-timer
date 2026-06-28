@@ -49,7 +49,11 @@ import com.minitimer.ui.theme.TEXT_DIM
 @Composable
 fun AthleteScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
     if (vm.draft != null) {
-        WorkoutEditorScreen(vm, accent, t)
+        if (vm.choosingForRound != null) {
+            ChooseExerciseScreen(vm, accent, t)
+        } else {
+            WorkoutEditorScreen(vm, accent, t)
+        }
         return
     }
 

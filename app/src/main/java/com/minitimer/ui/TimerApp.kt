@@ -143,13 +143,15 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
     // El timer cuyo detalle está abierto (si existe en la lista).
     val detail: TimerItem? = vm.detailId?.let { vm.item(it) }
 
-    // Editor de workout abierto (sección Athlete).
+    // Editor de workout / selector de ejercicios abiertos (sección Athlete).
     val athleteEditing = selectedTab == 1 && athleteVm.draft != null
+    val athleteChoosing = selectedTab == 1 && athleteVm.choosingForRound != null
 
     BackHandler(enabled = vm.showSettings || vm.detailId != null || athleteEditing) {
         when {
             vm.showSettings -> vm.showSettings = false
             vm.detailId != null -> vm.detailId = null
+            athleteChoosing -> athleteVm.closeExercisePicker()
             athleteEditing -> athleteVm.closeEditor()
         }
     }
@@ -168,6 +170,7 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                             placeholder = t.noName,
                             onCommit = { vm.renameTimer(detail.id, it) },
                         )
+                        athleteChoosing -> Text(t.chooseExercise, color = Color.White, fontWeight = FontWeight.SemiBold)
                         athleteEditing -> Text(t.createWorkout, color = Color.White, fontWeight = FontWeight.SemiBold)
                         selectedTab == 1 -> Text(
                             t.tabAthlete,
@@ -190,6 +193,7 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                             when {
                                 vm.showSettings -> vm.showSettings = false
                                 vm.detailId != null -> vm.detailId = null
+                                athleteChoosing -> athleteVm.closeExercisePicker()
                                 athleteEditing -> athleteVm.closeEditor()
                             }
                         }) {

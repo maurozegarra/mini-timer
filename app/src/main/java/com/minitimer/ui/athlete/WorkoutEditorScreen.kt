@@ -24,7 +24,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -33,7 +32,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -75,7 +73,6 @@ fun WorkoutEditorScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
 
     var editingExercise by remember { mutableStateOf<Pair<Long, ExerciseItem>?>(null) }
     var editingRest by remember { mutableStateOf<Pair<Long, RestItem>?>(null) }
-    var addExerciseRound by remember { mutableStateOf<Long?>(null) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
@@ -103,7 +100,7 @@ fun WorkoutEditorScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
                         total = draft.rounds.size,
                         onEditExercise = { item -> editingExercise = round.id to item },
                         onEditRest = { item -> editingRest = round.id to item },
-                        onAddExercise = { addExerciseRound = round.id },
+                        onAddExercise = { vm.openExercisePicker(round.id) },
                     )
                 }
             }
@@ -164,16 +161,6 @@ fun WorkoutEditorScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
         )
     }
 
-    addExerciseRound?.let { roundId ->
-        ExerciseNameDialog(
-            t = t,
-            onConfirm = { name ->
-                vm.addExercise(roundId, name)
-                addExerciseRound = null
-            },
-            onDismiss = { addExerciseRound = null },
-        )
-    }
 }
 
 @Composable
@@ -523,27 +510,6 @@ private fun SaveButton(label: String, onClick: () -> Unit) {
             .clickable { onClick() }
             .padding(vertical = 16.dp),
         textAlign = TextAlign.Center,
-    )
-}
-
-@Composable
-private fun ExerciseNameDialog(t: Strings, onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
-    var text by remember { mutableStateOf("") }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(t.exercise) },
-        text = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                singleLine = true,
-                placeholder = { Text(t.exerciseNameHint) },
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = { onConfirm(text) }, enabled = text.isNotBlank()) { Text(t.save) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(t.cancel) } },
     )
 }
 

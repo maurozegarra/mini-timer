@@ -80,6 +80,8 @@ data class Strings(
     val specifyTimeToPosition: String,
     val specifyRestDuration: String,
     val exerciseNameHint: String,
+    val chooseExercise: String,
+    val searchHint: String,
 )
 
 object I18n {
@@ -162,6 +164,8 @@ object I18n {
         specifyTimeToPosition = "Indica el tiempo para posicionarse",
         specifyRestDuration = "Indica la duración del descanso",
         exerciseNameHint = "Nombre del ejercicio",
+        chooseExercise = "Elegir ejercicio",
+        searchHint = "Buscar",
     )
 
     val EN = Strings(
@@ -241,5 +245,7 @@ object I18n {
         specifyTimeToPosition = "Specify time-to-position",
         specifyRestDuration = "Specify rest duration",
         exerciseNameHint = "Exercise name",
+        chooseExercise = "Choose exercise",
+        searchHint = "Search",
     )
 }
