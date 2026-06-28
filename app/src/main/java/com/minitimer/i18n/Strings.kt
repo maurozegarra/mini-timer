@@ -47,6 +47,16 @@ data class Strings(
     val showOverlayDesc: String,
     val showNowBar: String,
     val showNowBarDesc: String,
+    val noName: String,
+    val newTimer: String,
+    val timerName: String,
+    val endedAt: String,
+    val noTimers: String,
+    val noTimersDesc: String,
+    val rename: String,
+    val delete: String,
+    val blockedActive: String,
+    val addTimeTitle: String,
 )
 
 object I18n {
@@ -96,6 +106,16 @@ object I18n {
         showOverlayDesc = "Cápsula/tarjeta flotante sobre otras apps",
         showNowBar = "Mostrar Now Bar",
         showNowBarDesc = "Chip del temporizador en la pantalla de bloqueo",
+        noName = "Sin nombre",
+        newTimer = "Nuevo temporizador",
+        timerName = "Nombre (opcional)",
+        endedAt = "Finalizó el",
+        noTimers = "No hay temporizadores",
+        noTimersDesc = "Pulsa + para crear uno",
+        rename = "Renombrar",
+        delete = "Eliminar",
+        blockedActive = "Hay un temporizador activo. Pausa o cancela el actual primero.",
+        addTimeTitle = "Añadir tiempo",
     )
 
     val EN = Strings(
@@ -142,5 +162,15 @@ object I18n {
         showOverlayDesc = "Floating capsule/card over other apps",
         showNowBar = "Show Now Bar",
         showNowBarDesc = "Timer chip on the lock screen",
+        noName = "No name",
+        newTimer = "New timer",
+        timerName = "Name (optional)",
+        endedAt = "Last finished",
+        noTimers = "No timers",
+        noTimersDesc = "Tap + to create one",
+        rename = "Rename",
+        delete = "Delete",
+        blockedActive = "A timer is already active. Pause or cancel the current one first.",
+        addTimeTitle = "Add time",
     )
 }

@@ -2,10 +2,12 @@ package com.minitimer.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,87 +17,73 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlin.math.PI
-import kotlin.math.acos
-import kotlin.math.atan2
-import kotlin.math.cos
-import kotlin.math.hypot
-import kotlin.math.sin
 import com.minitimer.Phase
 import com.minitimer.TimerViewModel
 import com.minitimer.i18n.I18n
+import com.minitimer.model.TimerItem
 import com.minitimer.ui.theme.BG
 import com.minitimer.ui.theme.DONE_RED
+import com.minitimer.ui.theme.JetBrainsMono
 import com.minitimer.ui.theme.ON_ACCENT
 import com.minitimer.ui.theme.SURFACE
 import com.minitimer.ui.theme.TEXT_DIM
 import com.minitimer.ui.theme.TEXT_FADED
 import com.minitimer.ui.theme.TRACK
-import com.minitimer.ui.theme.JetBrainsMono
-import com.minitimer.util.formatClock
+import com.minitimer.util.formatLastFinished
 import com.minitimer.util.formatRemaining
+import com.minitimer.util.incLabel
 import com.minitimer.util.pad2
+import kotlinx.coroutines.launch
 
 private val KEYS = listOf(
     listOf("1", "2", "3"),
@@ -117,24 +105,24 @@ fun TimerApp(vm: TimerViewModel) {
         onDispose { view.keepScreenOn = false }
     }
 
-    val focusManager = LocalFocusManager.current
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    var showSheet by remember { mutableStateOf(false) }
+    var renameId by remember { mutableStateOf<Long?>(null) }
 
     BackHandler(enabled = vm.showSettings) { vm.showSettings = false }
 
     Scaffold(
         containerColor = BG,
+        snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
-                    if (vm.showSettings) {
-                        Text(
-                            t.settings,
-                            color = Color.White,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    } else {
-                        EditableTimerTitle(vm = vm, accent = accent, placeholder = t.title)
-                    }
+                    Text(
+                        if (vm.showSettings) t.settings else t.title,
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold,
+                    )
                 },
                 navigationIcon = {
                     if (vm.showSettings) {
@@ -148,7 +136,7 @@ fun TimerApp(vm: TimerViewModel) {
                     }
                 },
                 actions = {
-                    if (!vm.showSettings && vm.phase == Phase.SETUP) {
+                    if (!vm.showSettings) {
                         IconButton(onClick = { vm.showSettings = true }) {
                             Icon(
                                 Icons.Filled.Settings,
@@ -163,544 +151,428 @@ fun TimerApp(vm: TimerViewModel) {
                 ),
             )
         },
+        floatingActionButton = {
+            if (!vm.showSettings) {
+                FloatingActionButton(
+                    onClick = { vm.prepareNewTimer(); showSheet = true },
+                    containerColor = accent,
+                    contentColor = ON_ACCENT,
+                    shape = RoundedCornerShape(20.dp),
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = t.newTimer)
+                }
+            }
+        },
     ) { inner ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(inner)
-                .padding(horizontal = 24.dp)
-                // Tocar cualquier zona vacía quita el foco del título editable,
-                // lo que guarda el nombre y cierra el teclado.
-                .pointerInput(Unit) {
-                    detectTapGestures(onTap = { focusManager.clearFocus() })
-                }
-        ) {
-            when {
-                vm.showSettings -> SettingsScreen(vm)
-                vm.phase == Phase.SETUP -> SetupScreen(vm, accent, t)
-                else -> CountdownScreen(vm, accent, t)
+        Box(modifier = Modifier.fillMaxSize().padding(inner)) {
+            if (vm.showSettings) {
+                Box(Modifier.padding(horizontal = 24.dp)) { SettingsScreen(vm) }
+            } else {
+                TimerListScreen(
+                    vm = vm,
+                    accent = accent,
+                    t = t,
+                    onRename = { renameId = it },
+                    onBlocked = { scope.launch { snackbar.showSnackbar(t.blockedActive) } },
+                )
             }
         }
     }
-}
 
-/**
- * Título de la barra superior editable: muestra el nombre del timer (o el
- * placeholder por defecto) y, al tocarlo, se convierte en un campo de texto
- * inline centrado. Confirma con Done o al perder el foco.
- */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun EditableTimerTitle(vm: TimerViewModel, accent: Color, placeholder: String) {
-    var editing by remember { mutableStateOf(false) }
-    var text by remember { mutableStateOf(TextFieldValue(vm.label)) }
-
-    // Sincronizar con el estado externo (p. ej. al cancelar se limpia).
-    LaunchedEffect(vm.label) { if (!editing) text = TextFieldValue(vm.label) }
-
-    if (editing) {
-        val focusRequester = remember { FocusRequester() }
-        // Evita salir de edición por el evento inicial de "sin foco" que llega
-        // antes de que requestFocus() tome efecto: solo se sale si ya hubo foco.
-        var hasFocused by remember { mutableStateOf(false) }
-
-        // Guardar al pulsar el botón Atrás del sistema mientras se edita.
-        BackHandler(enabled = true) {
-            vm.commitLabel(text.text)
-            editing = false
-        }
-        // Guardar al ocultar el teclado (swipe down / botón ocultar IME): el foco
-        // no se pierde solo, así que detectamos la transición visible -> oculto.
-        val imeVisible = WindowInsets.isImeVisible
-        var imeWasVisible by remember { mutableStateOf(false) }
-        LaunchedEffect(imeVisible) {
-            if (imeVisible) {
-                imeWasVisible = true
-            } else if (imeWasVisible) {
-                vm.commitLabel(text.text)
-                editing = false
-            }
-        }
-        BasicTextField(
-            value = text,
-            onValueChange = {
-                text = it.copy(text = it.text.take(40))
-                vm.setDraftLabel(text.text)
-            },
-            singleLine = true,
-            textStyle = TextStyle(
-                color = Color.White,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 20.sp,
-                textAlign = TextAlign.Center,
-            ),
-            cursorBrush = SolidColor(accent),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = {
-                vm.commitLabel(text.text)
-                editing = false
-            }),
-            modifier = Modifier
-                .widthIn(min = 140.dp, max = 240.dp)
-                .focusRequester(focusRequester)
-                .onFocusChanged {
-                    if (it.isFocused) {
-                        hasFocused = true
-                    } else if (hasFocused && editing) {
-                        vm.commitLabel(text.text)
-                        editing = false
-                    }
-                },
-            decorationBox = { inner ->
-                // Contenedor estilo "filled text field" de MD3: superficie
-                // redondeada con un indicador inferior en color de acento.
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
-                        .background(SURFACE)
-                        .drawBehind {
-                            val stroke = 2.dp.toPx()
-                            drawLine(
-                                color = accent,
-                                start = Offset(0f, size.height - stroke / 2),
-                                end = Offset(size.width, size.height - stroke / 2),
-                                strokeWidth = stroke,
-                            )
-                        }
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                ) {
-                    if (text.text.isEmpty()) {
-                        Text(
-                            placeholder,
-                            color = TEXT_FADED,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 20.sp,
-                        )
-                    }
-                    inner()
-                }
-            },
+    if (showSheet) {
+        NewTimerSheet(
+            vm = vm,
+            accent = accent,
+            t = t,
+            onDismiss = { showSheet = false },
+            onBlocked = { scope.launch { snackbar.showSnackbar(t.blockedActive) } },
         )
-        LaunchedEffect(Unit) { focusRequester.requestFocus() }
-    } else {
-        // Affordance MD3: nombre + lápiz tenue, con ripple redondeado al tocar.
-        val hasName = vm.label.isNotBlank()
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .clip(RoundedCornerShape(12.dp))
-                .clickable {
-                    // Cursor al final del texto al volver a editar.
-                    text = TextFieldValue(
-                        text = vm.label,
-                        selection = TextRange(vm.label.length),
-                    )
-                    editing = true
-                }
-                .padding(horizontal = 12.dp, vertical = 6.dp),
+    }
+
+    renameId?.let { id ->
+        RenameDialog(
+            initial = vm.item(id)?.name ?: "",
+            accent = accent,
+            t = t,
+            onConfirm = { vm.renameTimer(id, it); renameId = null },
+            onDismiss = { renameId = null },
+        )
+    }
+}
+
+@Composable
+private fun TimerListScreen(
+    vm: TimerViewModel,
+    accent: Color,
+    t: com.minitimer.i18n.Strings,
+    onRename: (Long) -> Unit,
+    onBlocked: () -> Unit,
+) {
+    if (vm.timers.isEmpty()) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
         ) {
-            Text(
-                text = vm.label.ifBlank { placeholder },
-                color = if (hasName) Color.White else TEXT_DIM,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 20.sp,
+            Text(t.noTimers, color = TEXT_DIM, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(6.dp))
+            Text(t.noTimersDesc, color = TEXT_FADED, fontSize = 14.sp)
+        }
+        return
+    }
+    val active = vm.activeId
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        items(vm.timers, key = { it.id }) { item ->
+            TimerCard(
+                item = item,
+                accent = accent,
+                t = t,
+                blocked = active != null && active != item.id,
+                incSec = vm.settings.addIncrementSec,
+                onToggle = { if (!vm.togglePlay(item.id)) onBlocked() },
+                onReset = { vm.resetTimer(item.id) },
+                onDismiss = { vm.dismissTimer(item.id) },
+                onAddTime = { vm.addTime(item.id) },
+                onStar = { vm.toggleStar(item.id) },
+                onRename = { onRename(item.id) },
+                onDelete = { vm.deleteTimer(item.id) },
             )
+        }
+    }
+}
+
+@Composable
+private fun TimerCard(
+    item: TimerItem,
+    accent: Color,
+    t: com.minitimer.i18n.Strings,
+    blocked: Boolean,
+    incSec: Int,
+    onToggle: () -> Unit,
+    onReset: () -> Unit,
+    onDismiss: () -> Unit,
+    onAddTime: () -> Unit,
+    onStar: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    val done = item.phase == Phase.DONE
+    val running = item.phase == Phase.RUNNING
+    val active = running || item.phase == Phase.PAUSED
+    val timeColor = when {
+        done -> DONE_RED
+        running -> accent
+        else -> Color.White
+    }
+    val borderColor = when {
+        running -> accent
+        done -> DONE_RED
+        else -> Color.Transparent
+    }
+    val progress = if (item.totalMs > 0) {
+        ((item.totalMs - item.remainingMs).toFloat() / item.totalMs).coerceIn(0f, 1f)
+    } else 0f
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(SURFACE)
+            .then(
+                if (borderColor != Color.Transparent)
+                    Modifier.border(1.dp, borderColor, RoundedCornerShape(24.dp))
+                else Modifier
+            )
+            .padding(16.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onStar, modifier = Modifier.size(28.dp)) {
+                Icon(
+                    Icons.Filled.Star,
+                    contentDescription = "Star",
+                    tint = if (item.starred) Color(0xFFFFC24B) else TEXT_FADED,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
             Spacer(Modifier.width(6.dp))
-            Icon(
-                imageVector = Icons.Outlined.Edit,
-                contentDescription = "Edit name",
-                tint = TEXT_DIM,
-                modifier = Modifier.size(16.dp),
-            )
-        }
-    }
-}
-
-@Composable
-private fun SetupScreen(vm: TimerViewModel, accent: Color, t: com.minitimer.i18n.Strings) {
-    val focusManager = LocalFocusManager.current
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Spacer(Modifier.height(16.dp))
-
-        Row(verticalAlignment = Alignment.Bottom) {
-            TimePart(pad2(vm.setH), "h", vm.setH > 0, accent)
-            TimePart(pad2(vm.setM), "m", vm.setM > 0 || vm.setH > 0, accent)
-            TimePart(pad2(vm.setS), "s", true, accent)
-        }
-
-        Spacer(Modifier.height(24.dp))
-
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            items(vm.settings.presets) { sec ->
-                PresetChip(sec, accent) {
-                    focusManager.clearFocus()
-                    vm.startWithSeconds(sec)
-                }
-            }
-        }
-
-        Spacer(Modifier.height(16.dp))
-
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            KEYS.forEach { row ->
-                Row(
-                    modifier = Modifier.widthIn(max = 340.dp).fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceAround,
-                ) {
-                    row.forEach { key -> KeyButton(key) { vm.onKey(key) } }
-                }
-                Spacer(Modifier.height(8.dp))
-            }
-        }
-
-        Spacer(Modifier.height(12.dp))
-
-        val canStart = vm.setH * 3600 + vm.setM * 60 + vm.setS > 0
-        Button(
-            onClick = {
-                focusManager.clearFocus()
-                vm.start()
-            },
-            enabled = canStart,
-            shape = RoundedCornerShape(32.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = accent,
-                contentColor = ON_ACCENT,
-                disabledContainerColor = TRACK,
-                disabledContentColor = TEXT_DIM,
-            ),
-            contentPadding = PaddingValues(horizontal = 48.dp, vertical = 16.dp),
-        ) {
-            Text(t.start, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-        }
-    }
-}
-
-@Composable
-private fun CountdownScreen(vm: TimerViewModel, accent: Color, t: com.minitimer.i18n.Strings) {
-    val isDone = vm.phase == Phase.DONE
-    val progress = if (vm.totalMs > 0) (vm.remainingMs.toFloat() / vm.totalMs).coerceIn(0f, 1f) else 0f
-    val endEpoch = System.currentTimeMillis() + vm.remainingMs
-
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Spacer(Modifier.height(24.dp))
-
-        ProgressRing(progress = if (isDone) 0f else progress, accent = if (isDone) DONE_RED else accent) {
-            if (isDone) {
-                Text(t.timeUp, color = DONE_RED, fontSize = 40.sp, fontWeight = FontWeight.SemiBold)
-            } else {
-                Text(
-                    formatRemaining(vm.remainingMs),
-                    color = Color.White,
-                    fontSize = 52.sp,
-                    fontFamily = JetBrainsMono,
-                    fontWeight = FontWeight.Light,
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    if (vm.phase == Phase.PAUSED) t.paused
-                    else "${t.endsAt} ${formatClock(endEpoch, t.locale)}",
-                    color = TEXT_DIM,
-                    fontSize = 14.sp,
-                )
-            }
-        }
-
-        Spacer(Modifier.height(48.dp))
-
-        Row(
-            modifier = Modifier.widthIn(max = 340.dp).fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            if (isDone) {
-                ControlButton(t.dismiss, Modifier.weight(1f), accent, muted = true) { vm.dismiss() }
-                ControlButton(t.restart, Modifier.weight(1f), accent) { vm.restart() }
-            } else {
-                ControlButton(t.cancel, Modifier.weight(1f), accent, muted = true) { vm.cancel() }
-                if (vm.phase == Phase.RUNNING) {
-                    ControlButton(t.pause, Modifier.weight(1f), accent) { vm.pause() }
-                } else {
-                    ControlButton(t.resume, Modifier.weight(1f), accent) { vm.resume() }
-                }
-            }
-        }
-
-        // Stickman animado (jumping jacks) mientras el timer corre; se congela en
-        // pausa y se oculta al terminar.
-        if (!isDone) {
-            Spacer(Modifier.height(40.dp))
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { onRename() }
+                    .padding(vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                StickmanJumpingJacks(
-                    accent = accent,
-                    running = vm.phase == Phase.RUNNING,
-                    modifier = Modifier.size(130.dp),
+                Text(
+                    item.name.ifBlank { t.noName },
+                    color = when {
+                        running -> accent
+                        item.name.isBlank() -> TEXT_FADED
+                        else -> Color.White
+                    },
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
                 )
-                StickmanPistolSquat(
-                    accent = accent,
-                    running = vm.phase == Phase.RUNNING,
-                    modifier = Modifier.size(130.dp),
+                Spacer(Modifier.width(6.dp))
+                Icon(
+                    Icons.Outlined.Edit,
+                    contentDescription = null,
+                    tint = TEXT_FADED,
+                    modifier = Modifier.size(14.dp),
                 )
+            }
+            var menu by remember { mutableStateOf(false) }
+            Box {
+                IconButton(onClick = { menu = true }) {
+                    Icon(Icons.Filled.MoreVert, contentDescription = "Menu", tint = TEXT_DIM)
+                }
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(
+                        text = { Text(t.rename) },
+                        onClick = { menu = false; onRename() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(t.delete) },
+                        onClick = { menu = false; onDelete() },
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(4.dp))
+
+        Row(verticalAlignment = Alignment.Bottom) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        formatRemaining(item.remainingMs),
+                        color = timeColor,
+                        fontSize = 40.sp,
+                        fontFamily = JetBrainsMono,
+                        fontWeight = FontWeight.Light,
+                    )
+                    if (!done) {
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            incLabel(incSec),
+                            color = accent,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { onAddTime() }
+                                .background(TRACK)
+                                .padding(horizontal = 8.dp, vertical = 3.dp),
+                        )
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                when {
+                    done -> Text(
+                        t.timeUp,
+                        color = DONE_RED,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    active -> Row(verticalAlignment = Alignment.CenterVertically) {
+                        LinearProgressIndicator(
+                            progress = { progress },
+                            color = accent,
+                            trackColor = TRACK,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(2.dp)),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            formatRemaining(item.totalMs - item.remainingMs),
+                            color = accent,
+                            fontSize = 12.sp,
+                            fontFamily = JetBrainsMono,
+                        )
+                    }
+                    item.lastFinished > 0L -> Text(
+                        "${t.endedAt} ${formatLastFinished(item.lastFinished, t.locale)}",
+                        color = TEXT_DIM,
+                        fontSize = 12.sp,
+                    )
+                }
+            }
+            Spacer(Modifier.width(12.dp))
+            if (done) {
+                RoundCtrl(bg = DONE_RED, onClick = onDismiss) {
+                    Icon(Icons.Filled.Check, contentDescription = t.dismiss, tint = Color(0xFF2A0000))
+                }
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    RoundCtrl(bg = TRACK, onClick = onReset) {
+                        Icon(Icons.Filled.Refresh, contentDescription = t.reset, tint = Color.White)
+                    }
+                    RoundCtrl(bg = accent, dim = blocked, onClick = onToggle) {
+                        if (running) PauseIcon(ON_ACCENT)
+                        else Icon(Icons.Filled.PlayArrow, contentDescription = t.start, tint = ON_ACCENT)
+                    }
+                }
             }
         }
     }
 }
 
-/**
- * Stickman haciendo "jumping jacks", al estilo de los iconos de ejercicio de
- * Samsung Health ("My exercises"): figura clara de trazo grueso con extremos
- * redondeados, cabeza sólida y articulaciones (codos/rodillas) sobre un fondo
- * circular con gradiente del color de acento. La animación avanza solo mientras
- * [running] es true (se congela en pausa). Sin dependencias ni assets.
- */
 @Composable
-private fun StickmanJumpingJacks(
-    accent: Color,
-    running: Boolean,
-    modifier: Modifier = Modifier,
+private fun RoundCtrl(
+    bg: Color,
+    dim: Boolean = false,
+    onClick: () -> Unit,
+    content: @Composable () -> Unit,
 ) {
-    var t by remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(running) {
-        if (!running) return@LaunchedEffect
-        var last = 0L
-        while (true) {
-            val now = withFrameNanos { it }
-            if (last != 0L) t += (now - last) / 1_000_000_000f
-            last = now
-        }
-    }
-    // Al pausar, la figura transiciona a la pose de "parado en espera"
-    // (brazos abajo, pies juntos), en lugar de congelarse a mitad del salto.
-    val rest by animateFloatAsState(
-        targetValue = if (running) 0f else 1f,
-        animationSpec = tween(durationMillis = 320),
-        label = "stickRest",
-    )
-    androidx.compose.foundation.Canvas(modifier = modifier) {
-        val w = size.width
-        val h = size.height
-        val cx = w / 2f
-        val rad = PI.toFloat() / 180f
-        fun lp(a: Float, b: Float, f: Float) = a + (b - a) * f
+    Box(
+        modifier = Modifier
+            .size(50.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(bg.copy(alpha = if (dim) 0.4f else 1f))
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center,
+    ) { content() }
+}
 
-        // Una repetición por segundo (theta avanza 2π por segundo).
-        val theta = t * (2f * PI.toFloat())
-        // p oscila 0..1: 0 = brazos arriba / piernas juntas; 1 = brazos abajo /
-        // piernas abiertas. Al reposar se mezcla hacia la pose de pie.
-        val p = (1f - cos(theta)) / 2f
-
-        // Ángulos (grados) medidos desde el eje vertical-abajo.
-        val armUp = 120f
-        val armDown = 14f
-        val bendUp = 45f
-        val legClosed = 6f
-        val legOpen = 34f
-        val legBend = 7f * rad
-        // Pose en reposo (de pie): brazos abajo a los costados, piernas juntas.
-        val armAngle = lp(lp(armUp, armDown, p), armDown, rest) * rad
-        val armBend = lp(lp(bendUp, 0f, p), 0f, rest) * rad
-        val legAngle = lp(lp(legClosed, legOpen, p), legClosed, rest) * rad
-        // Salto a mitad del movimiento (máximo en p=0.5), anulado en reposo.
-        val hop = -h * 0.08f * sin(p * PI.toFloat()) * (1f - rest)
-
-        fun pt(x: Float, y: Float) = Offset(x, y + hop)
-
-        // Figura del color de acento, trazo grueso redondeado.
-        val figColor = accent
-        val strokeBody = h * 0.075f
-        val strokeArm = h * 0.06f
-        val strokeLeg = h * 0.065f
-
-        val headR = h * 0.085f
-        val headCY = h * 0.22f
-        val torsoTop = h * 0.30f
-        val shoulderY = h * 0.33f
-        val hipY = h * 0.59f
-        val upperArm = h * 0.15f
-        val foreArm = h * 0.135f
-        val thigh = h * 0.16f
-        val shin = h * 0.15f
-
-        // Extremidad de dos segmentos que rota alrededor de [origin]; [side] = -1
-        // izquierda, +1 derecha; [angle]/[bend] en radianes desde la vertical.
-        fun limb(origin: Offset, side: Float, angle: Float, bend: Float, upper: Float, lower: Float, stroke: Float) {
-            val jx = origin.x + side * upper * sin(angle)
-            val jy = origin.y + upper * cos(angle)
-            val ex = jx + side * lower * sin(angle + bend)
-            val ey = jy + lower * cos(angle + bend)
-            drawLine(figColor, origin, Offset(jx, jy), strokeWidth = stroke, cap = StrokeCap.Round)
-            drawLine(figColor, Offset(jx, jy), Offset(ex, ey), strokeWidth = stroke, cap = StrokeCap.Round)
-        }
-
-        // Cabeza sólida + columna.
-        drawCircle(color = figColor, radius = headR, center = pt(cx, headCY))
-        drawLine(figColor, pt(cx, torsoTop), pt(cx, hipY), strokeWidth = strokeBody, cap = StrokeCap.Round)
-
-        // Piernas (cadera -> rodilla -> pie), se abren en V.
-        val hip = pt(cx, hipY)
-        limb(hip, -1f, legAngle, legBend, thigh, shin, strokeLeg)
-        limb(hip, +1f, legAngle, legBend, thigh, shin, strokeLeg)
-
-        // Brazos (hombro -> codo -> mano), suben en V con codos flexionados.
-        val shoulder = pt(cx, shoulderY)
-        limb(shoulder, -1f, armAngle, armBend, upperArm, foreArm, strokeArm)
-        limb(shoulder, +1f, armAngle, armBend, upperArm, foreArm, strokeArm)
+@Composable
+private fun PauseIcon(color: Color) {
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Box(Modifier.size(width = 5.dp, height = 18.dp).clip(RoundedCornerShape(2.dp)).background(color))
+        Box(Modifier.size(width = 5.dp, height = 18.dp).clip(RoundedCornerShape(2.dp)).background(color))
     }
 }
 
-/**
- * Stickman de perfil haciendo "pistol squats" (sentadilla a una pierna): de pie
- * sobre una pierna con la otra extendida al frente, baja flexionando la pierna
- * de apoyo (cinemática inversa, pie plantado) y sube. Brazos al frente para
- * balance. Avanza solo mientras [running] es true (se endereza al pausar).
- */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun StickmanPistolSquat(
+private fun NewTimerSheet(
+    vm: TimerViewModel,
     accent: Color,
-    running: Boolean,
-    modifier: Modifier = Modifier,
+    t: com.minitimer.i18n.Strings,
+    onDismiss: () -> Unit,
+    onBlocked: () -> Unit,
 ) {
-    var t by remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(running) {
-        if (!running) return@LaunchedEffect
-        var last = 0L
-        while (true) {
-            val now = withFrameNanos { it }
-            if (last != 0L) t += (now - last) / 1_000_000_000f
-            last = now
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = SURFACE,
+        sheetState = sheetState,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(t.newTimer, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(12.dp))
+            OutlinedTextField(
+                value = vm.draftName,
+                onValueChange = { vm.updateDraftName(it) },
+                placeholder = { Text(t.timerName, color = TEXT_FADED) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = TRACK,
+                    unfocusedContainerColor = TRACK,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    cursorColor = accent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                ),
+                shape = RoundedCornerShape(12.dp),
+            )
+            Spacer(Modifier.height(16.dp))
+            Row(verticalAlignment = Alignment.Bottom) {
+                TimePart(pad2(vm.setH), "h", vm.setH > 0, accent)
+                TimePart(pad2(vm.setM), "m", vm.setM > 0 || vm.setH > 0, accent)
+                TimePart(pad2(vm.setS), "s", true, accent)
+            }
+            Spacer(Modifier.height(16.dp))
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                KEYS.forEach { row ->
+                    Row(
+                        modifier = Modifier.widthIn(max = 340.dp).fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceAround,
+                    ) {
+                        row.forEach { key -> KeyButton(key) { vm.onKey(key) } }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            val canStart = vm.setH * 3600 + vm.setM * 60 + vm.setS > 0
+            Button(
+                onClick = {
+                    val started = vm.confirmNewTimer()
+                    onDismiss()
+                    if (!started) onBlocked()
+                },
+                enabled = canStart,
+                shape = RoundedCornerShape(28.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = accent,
+                    contentColor = ON_ACCENT,
+                    disabledContainerColor = TRACK,
+                    disabledContentColor = TEXT_DIM,
+                ),
+                contentPadding = PaddingValues(horizontal = 48.dp, vertical = 14.dp),
+            ) {
+                Text(t.start, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            }
         }
-    }
-    val rest by animateFloatAsState(
-        targetValue = if (running) 0f else 1f,
-        animationSpec = tween(durationMillis = 320),
-        label = "pistolRest",
-    )
-    androidx.compose.foundation.Canvas(modifier = modifier) {
-        val w = size.width
-        val h = size.height
-        // Cinemática en unidades del viewBox 200x220; se mapea al lienzo.
-        val k = h / 220f
-        val cx = w / 2f
-        fun map(x: Float, y: Float) = Offset(cx + (x - 100f) * k, y * k)
-        val rad = PI.toFloat() / 180f
-        fun lp(a: Float, b: Float, f: Float) = a + (b - a) * f
-
-        // 0.6 repeticiones por segundo; al reposar tiende a q=0 (de pie).
-        val theta = t * (2f * PI.toFloat()) * 0.6f
-        val q = ((1f - cos(theta)) / 2f) * (1f - rest)
-
-        // Parámetros de la pose (profundidad 165, inclinación 38°).
-        val ax = 96f
-        val ay = 190f
-        val hipX = lp(96f, 72f, q)
-        val hipY = lp(100f, 165f, q)
-        // Pierna de apoyo: IK de dos segmentos, rodilla hacia adelante.
-        val l1 = 46f
-        val l2 = 46f
-        val dx = ax - hipX
-        val dy = ay - hipY
-        val d = hypot(dx, dy).coerceAtMost(l1 + l2 - 0.01f)
-        val a1 = atan2(dy, dx)
-        val cosA = ((l1 * l1 + d * d - l2 * l2) / (2f * l1 * d)).coerceIn(-1f, 1f)
-        val ang = acos(cosA)
-        val k1x = hipX + l1 * cos(a1 - ang)
-        val k1y = hipY + l1 * sin(a1 - ang)
-        val k2x = hipX + l1 * cos(a1 + ang)
-        val k2y = hipY + l1 * sin(a1 + ang)
-        val kneeX = if (k1x > k2x) k1x else k2x
-        val kneeY = if (k1x > k2x) k1y else k2y
-
-        val figColor = accent
-        val sBody = 15f * k
-        val sArm = 12f * k
-        val sLeg = 13f * k
-        fun seg(ax1: Float, ay1: Float, bx: Float, by: Float, stroke: Float) {
-            drawLine(figColor, map(ax1, ay1), map(bx, by), strokeWidth = stroke, cap = StrokeCap.Round)
-        }
-
-        // Pierna libre extendida al frente (se dibuja detrás).
-        val angF = lp(32f, -6f, q) * rad
-        val ft = 44f
-        val fs = 42f
-        val kFx = hipX + ft * cos(angF)
-        val kFy = hipY + ft * sin(angF)
-        val fFx = kFx + fs * cos(angF - 4f * rad)
-        val fFy = kFy + fs * sin(angF - 4f * rad)
-        seg(hipX, hipY, kFx, kFy, 12f * k)
-        seg(kFx, kFy, fFx, fFy, 11f * k)
-
-        // Pierna de apoyo + pie.
-        seg(hipX, hipY, kneeX, kneeY, sLeg)
-        seg(kneeX, kneeY, ax, ay, 12f * k)
-        seg(ax - 7f, ay, ax + 15f, ay, 11f * k)
-
-        // Torso + cabeza.
-        val lean = lp(-6f, 38f, q) * rad
-        val torso = 52f
-        val shX = hipX + torso * sin(lean)
-        val shY = hipY - torso * cos(lean)
-        seg(hipX, hipY, shX, shY, sBody)
-        val headGap = 24f
-        drawCircle(
-            color = figColor,
-            radius = 15f * k,
-            center = map(shX + headGap * sin(lean), shY - headGap * cos(lean)),
-        )
-
-        // Brazos al frente (balance).
-        val aa = lp(22f, 0f, q) * rad
-        val ua = 34f
-        val fa = 30f
-        val elbX = shX + ua * cos(aa)
-        val elbY = shY + ua * sin(aa)
-        val hndX = elbX + fa * cos(aa - 6f * rad)
-        val hndY = elbY + fa * sin(aa - 6f * rad)
-        seg(shX, shY, elbX, elbY, sArm)
-        seg(elbX, elbY, hndX, hndY, 11f * k)
     }
 }
 
 @Composable
-private fun ProgressRing(progress: Float, accent: Color, content: @Composable () -> Unit) {
-    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(300.dp)) {
-        androidx.compose.foundation.Canvas(modifier = Modifier.size(300.dp)) {
-            val stroke = 14.dp.toPx()
-            val diameter = size.minDimension - stroke
-            val topLeft = Offset((size.width - diameter) / 2f, (size.height - diameter) / 2f)
-            val arcSize = Size(diameter, diameter)
-            drawArc(
-                color = TRACK,
-                startAngle = 0f,
-                sweepAngle = 360f,
-                useCenter = false,
-                topLeft = topLeft,
-                size = arcSize,
-                style = Stroke(width = stroke),
+private fun RenameDialog(
+    initial: String,
+    accent: Color,
+    t: com.minitimer.i18n.Strings,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var text by remember { mutableStateOf(initial) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = SURFACE,
+        title = { Text(t.rename, color = Color.White, fontWeight = FontWeight.SemiBold) },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it.take(40) },
+                singleLine = true,
+                placeholder = { Text(t.timerName, color = TEXT_FADED) },
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = TRACK,
+                    unfocusedContainerColor = TRACK,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    cursorColor = accent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                ),
+                shape = RoundedCornerShape(12.dp),
             )
-            drawArc(
-                color = accent,
-                startAngle = -90f,
-                sweepAngle = 360f * progress,
-                useCenter = false,
-                topLeft = topLeft,
-                size = arcSize,
-                style = Stroke(width = stroke, cap = StrokeCap.Round),
-            )
-        }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) { content() }
-    }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(text) }) {
+                Text(t.select, color = accent, fontWeight = FontWeight.SemiBold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(t.cancel, color = TEXT_DIM)
+            }
+        },
+    )
 }
 
 @Composable
@@ -724,26 +596,6 @@ private fun TimePart(value: String, unit: String, active: Boolean, accent: Color
 }
 
 @Composable
-private fun PresetChip(sec: Int, accent: Color, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(20.dp))
-            .background(SURFACE)
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            formatRemaining(sec * 1000L),
-            color = accent,
-            fontSize = 15.sp,
-            fontFamily = JetBrainsMono,
-            fontWeight = FontWeight.SemiBold,
-        )
-    }
-}
-
-@Composable
 private fun KeyButton(key: String, onClick: () -> Unit) {
     Box(
         modifier = Modifier
@@ -762,39 +614,3 @@ private fun KeyButton(key: String, onClick: () -> Unit) {
     }
 }
 
-@Composable
-fun ControlButton(
-    label: String,
-    modifier: Modifier = Modifier,
-    accent: Color,
-    muted: Boolean = false,
-    onClick: () -> Unit,
-) {
-    if (muted) {
-        FilledTonalButton(
-            onClick = onClick,
-            modifier = modifier,
-            shape = RoundedCornerShape(32.dp),
-            colors = ButtonDefaults.filledTonalButtonColors(
-                containerColor = SURFACE,
-                contentColor = Color.White,
-            ),
-            contentPadding = PaddingValues(vertical = 16.dp),
-        ) {
-            Text(label, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-        }
-    } else {
-        Button(
-            onClick = onClick,
-            modifier = modifier,
-            shape = RoundedCornerShape(32.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = accent,
-                contentColor = ON_ACCENT,
-            ),
-            contentPadding = PaddingValues(vertical = 16.dp),
-        ) {
-            Text(label, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-        }
-    }
-}

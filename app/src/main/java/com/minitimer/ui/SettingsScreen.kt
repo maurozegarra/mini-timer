@@ -69,6 +69,7 @@ import androidx.compose.ui.unit.sp
 import com.minitimer.TimerViewModel
 import com.minitimer.i18n.I18n
 import com.minitimer.model.ACCENT_COLORS
+import com.minitimer.model.ADD_INCREMENT_OPTIONS
 import com.minitimer.model.AUTO_DISMISS_OPTIONS
 import com.minitimer.model.HEADSET_ONLY
 import com.minitimer.model.SPEAKER_AND_HEADSET
@@ -81,6 +82,7 @@ import com.minitimer.ui.theme.TEXT_DIM
 import com.minitimer.ui.theme.TEXT_FADED
 import com.minitimer.ui.theme.TRACK
 import com.minitimer.util.formatRemaining
+import com.minitimer.util.incLabel
 import kotlin.math.roundToInt
 
 @OptIn(
@@ -202,6 +204,15 @@ fun SettingsScreen(vm: TimerViewModel) {
                 AUTO_DISMISS_OPTIONS.forEach { v ->
                     Chip(if (v == 0) t.off else "${v}s", s.autoDismiss == v, accent) {
                         vm.setAutoDismiss(v)
+                    }
+                }
+            }
+            GroupDivider()
+            ItemLabel(t.addTimeTitle)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                ADD_INCREMENT_OPTIONS.forEach { v ->
+                    Chip(incLabel(v), s.addIncrementSec == v, accent) {
+                        vm.setAddIncrement(v)
                     }
                 }
             }

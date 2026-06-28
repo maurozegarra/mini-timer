@@ -35,6 +35,19 @@ fun formatDurationShort(ms: Long): String {
     return if (parts.isEmpty()) "0 s" else parts.joinToString(" ")
 }
 
+/** Fecha + hora de la última finalización, respetando el locale. */
+fun formatLastFinished(epochMillis: Long, locale: Locale): String {
+    val dt = Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault())
+    val date = dt.toLocalDate()
+        .format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale))
+    val time = dt.toLocalTime()
+        .format(DateTimeFormatter.ofLocalizedTime(FormatStyle.MEDIUM).withLocale(locale))
+    return "$date $time"
+}
+
+/** Etiqueta corta del incremento "+tiempo": "+15s", "+1m", "+5m". */
+fun incLabel(sec: Int): String = if (sec >= 60) "+${sec / 60}m" else "+${sec}s"
+
 /** Hora de finalización con segundos, respetando el locale (12/24h). */
 fun formatClock(epochMillis: Long, locale: Locale): String {
     val time = Instant.ofEpochMilli(epochMillis)
