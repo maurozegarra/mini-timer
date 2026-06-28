@@ -402,7 +402,7 @@ private fun TimerCard(
             } else {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     RoundCtrl(bg = TRACK, onClick = onReset) {
-                        Icon(Icons.Filled.Refresh, contentDescription = t.reset, tint = Color.White)
+                        Icon(Icons.Filled.Refresh, contentDescription = t.cancel, tint = Color.White)
                     }
                     RoundCtrl(bg = accent, dim = blocked, onClick = onToggle) {
                         if (running) PauseIcon(ON_ACCENT)
@@ -611,7 +611,7 @@ private fun TimerDetailBody(
                         if (!vm.restartTimer(item.id)) onBlocked()
                     }
                 } else {
-                    ControlButton(t.reset, Modifier.weight(1f), accent, muted = true) { vm.resetTimer(item.id) }
+                    ControlButton(t.cancel, Modifier.weight(1f), accent, muted = true) { vm.resetTimer(item.id) }
                     if (phase == Phase.RUNNING) {
                         ControlButton(t.pause, Modifier.weight(1f), accent) { vm.pauseTimer(item.id) }
                     } else {
