@@ -3,14 +3,14 @@ package com.minitimer.ui.athlete
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -23,7 +23,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -228,7 +227,7 @@ private fun RoundBlock(
                         }
                     },
                     dragModifier = Modifier.pointerInput(round.id) {
-                        detectDragGestures(
+                        detectDragGesturesAfterLongPress(
                             onDragStart = { draggingId = item.id; dragOffset = 0f },
                             onDragEnd = { draggingId = null; dragOffset = 0f },
                             onDragCancel = { draggingId = null; dragOffset = 0f },
@@ -236,9 +235,9 @@ private fun RoundBlock(
                                 change.consume()
                                 dragOffset += amount.y
                                 val items = vm.draft?.rounds?.firstOrNull { it.id == round.id }?.items
-                                    ?: return@detectDragGestures
+                                    ?: return@detectDragGesturesAfterLongPress
                                 val cur = items.indexOfFirst { it.id == draggingId }
-                                if (cur < 0) return@detectDragGestures
+                                if (cur < 0) return@detectDragGesturesAfterLongPress
                                 if (dragOffset > rowPx / 2 && cur < items.size - 1) {
                                     vm.moveItem(round.id, cur, cur + 1)
                                     dragOffset -= rowPx
@@ -309,29 +308,25 @@ private fun ItemCard(
             .graphicsLayer { translationY = dragOffset }
             .clip(RoundedCornerShape(12.dp))
             .background(if (dragging) SURFACE else TRACK)
-            .padding(start = 12.dp),
+            // Mantener presionado para reordenar; tap para editar.
+            .then(dragModifier)
+            .pointerInput(item.id) {
+                detectTapGestures(onTap = { onClick() })
+            }
+            .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Área de contenido: tocar aquí edita el item.
-        Row(
+        // Placeholder (animación futura del ejercicio).
+        Box(
             modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
-                .clickable { onClick() },
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            // Placeholder (animación futura del ejercicio).
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(BG),
-            )
-            Spacer(Modifier.width(12.dp))
-            Column {
-                Text(title, color = Color.White, fontWeight = FontWeight.Medium)
-                Text(subtitle, color = TEXT_DIM, fontSize = 13.sp)
-            }
+                .size(44.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(BG),
+        )
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, color = Color.White, fontWeight = FontWeight.Medium)
+            Text(subtitle, color = TEXT_DIM, fontSize = 13.sp)
         }
         var menu by remember { mutableStateOf(false) }
         Box {
@@ -352,21 +347,6 @@ private fun ItemCard(
                     onClick = { menu = false; vm.duplicateItem(roundId, item.id) },
                 )
             }
-        }
-        // Handle de arrastre: mantener presionado y arrastrar para reordenar.
-        Box(
-            modifier = Modifier
-                .fillMaxHeight()
-                .then(dragModifier)
-                .padding(horizontal = 12.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                Icons.Filled.DragHandle,
-                contentDescription = null,
-                tint = TEXT_DIM,
-                modifier = Modifier.size(24.dp),
-            )
         }
     }
 }
