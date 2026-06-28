@@ -18,14 +18,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,8 +48,10 @@ import com.minitimer.ui.theme.TEXT_DIM
  */
 @Composable
 fun AthleteScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
-    var createOpen by remember { mutableStateOf(false) }
-    var renaming by remember { mutableStateOf<Workout?>(null) }
+    if (vm.draft != null) {
+        WorkoutEditorScreen(vm, accent, t)
+        return
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -95,7 +94,7 @@ fun AthleteScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
                     WorkoutCard(
                         workout = w,
                         t = t,
-                        onEdit = { renaming = w },
+                        onEdit = { vm.startEditWorkout(w.id) },
                         onDelete = { vm.deleteWorkout(w.id) },
                         onDuplicate = { vm.duplicateWorkout(w.id) },
                     )
@@ -113,38 +112,8 @@ fun AthleteScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
                 .padding(bottom = 20.dp)
                 .clip(RoundedCornerShape(28.dp))
                 .background(Color.White)
-                .clickable { createOpen = true }
+                .clickable { vm.startNewWorkout() }
                 .padding(horizontal = 28.dp, vertical = 14.dp),
-        )
-    }
-
-    if (createOpen) {
-        NameDialog(
-            title = t.createWorkout,
-            initial = "",
-            hint = t.workoutNameHint,
-            confirmLabel = t.save,
-            cancelLabel = t.cancel,
-            onConfirm = { name ->
-                vm.createWorkout(name)
-                createOpen = false
-            },
-            onDismiss = { createOpen = false },
-        )
-    }
-
-    renaming?.let { w ->
-        NameDialog(
-            title = t.rename,
-            initial = w.name,
-            hint = t.workoutNameHint,
-            confirmLabel = t.save,
-            cancelLabel = t.cancel,
-            onConfirm = { name ->
-                vm.renameWorkout(w.id, name)
-                renaming = null
-            },
-            onDismiss = { renaming = null },
         )
     }
 }
@@ -195,36 +164,3 @@ private fun WorkoutCard(
     }
 }
 
-@Composable
-private fun NameDialog(
-    title: String,
-    initial: String,
-    hint: String,
-    confirmLabel: String,
-    cancelLabel: String,
-    onConfirm: (String) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    var text by remember { mutableStateOf(initial) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                singleLine = true,
-                placeholder = { Text(hint) },
-            )
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { onConfirm(text) },
-                enabled = text.isNotBlank(),
-            ) { Text(confirmLabel) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(cancelLabel) }
-        },
-    )
-}
