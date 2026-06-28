@@ -44,7 +44,7 @@ private const val RING_OFFSET_LIMIT = 100
  * 0% -> -[VOLUME_DB_RANGE] dB. El oído es logarítmico, así que mapear el ajuste
  * lineal a dB hace que los porcentajes bajos suenen realmente bajos.
  */
-private const val VOLUME_DB_RANGE = 40f
+private const val VOLUME_DB_RANGE = 48f
 
 /**
  * Salidas de audífonos capaces de reproducir MEDIA, por orden de preferencia.
