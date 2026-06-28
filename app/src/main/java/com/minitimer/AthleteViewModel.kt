@@ -6,7 +6,9 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
+import com.minitimer.data.ExerciseCatalog
 import com.minitimer.data.WorkoutStore
+import com.minitimer.model.ExerciseDef
 import com.minitimer.model.ExerciseItem
 import com.minitimer.model.ExerciseMode
 import com.minitimer.model.RestItem
@@ -28,8 +30,12 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
 
     private var nextId = 1L
 
+    /** Ejercicios creados por el usuario (persistidos). */
+    val customExercises = mutableStateListOf<ExerciseDef>()
+
     init {
         workouts.addAll(store.loadWorkouts())
+        customExercises.addAll(store.loadCustomExercises())
         nextId = (allIds().maxOrNull() ?: 0L) + 1
     }
 
@@ -81,6 +87,38 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
 
     fun closeEditor() {
         draft = null
+        choosingForRound = null
+    }
+
+    // ---------- Selector de ejercicios ----------
+
+    /** Round al que se le agregará el ejercicio elegido; null = selector cerrado. */
+    var choosingForRound by mutableStateOf<Long?>(null)
+        private set
+
+    fun openExercisePicker(roundId: Long) {
+        choosingForRound = roundId
+    }
+
+    fun closeExercisePicker() {
+        choosingForRound = null
+    }
+
+    /** Catálogo base (según idioma) + ejercicios propios, ordenado por nombre. */
+    fun catalog(lang: String): List<ExerciseDef> =
+        (ExerciseCatalog.base(lang) + customExercises).sortedBy { it.name.lowercase() }
+
+    fun addCustomExercise(name: String): ExerciseDef {
+        val def = ExerciseDef(id = "custom_${newId()}", name = name.trim(), custom = true)
+        customExercises.add(def)
+        store.saveCustomExercises(customExercises.toList())
+        return def
+    }
+
+    fun pickExercise(def: ExerciseDef) {
+        val roundId = choosingForRound ?: return
+        addExercise(roundId, def.id, def.name)
+        choosingForRound = null
     }
 
     fun saveDraft() {
@@ -125,8 +163,8 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Inserta un ejercicio al inicio del round. */
-    fun addExercise(roundId: Long, name: String) = updateRound(roundId) { r ->
-        r.copy(items = listOf(ExerciseItem(id = newId(), exerciseId = "", name = name.trim())) + r.items)
+    fun addExercise(roundId: Long, exerciseId: String, name: String) = updateRound(roundId) { r ->
+        r.copy(items = listOf(ExerciseItem(id = newId(), exerciseId = exerciseId, name = name.trim())) + r.items)
     }
 
     /** Inserta un descanso al inicio del round. */
