@@ -15,6 +15,7 @@ import com.minitimer.PlayerBus
 import com.minitimer.PlayerCommand
 import com.minitimer.PlayerSnapshot
 import com.minitimer.R
+import com.minitimer.data.BackupManager
 import com.minitimer.data.SettingsStore
 import com.minitimer.data.WorkoutStore
 import com.minitimer.i18n.I18n
@@ -57,6 +58,7 @@ class WorkoutPlayerService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        BackupManager.init(this)
         ensureChannel()
         startForegroundCompat(buildNotification())
         if (restore()) {

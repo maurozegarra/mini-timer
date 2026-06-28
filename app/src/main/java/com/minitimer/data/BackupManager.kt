@@ -6,6 +6,9 @@ import android.net.Uri
 import android.provider.DocumentsContract
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledFuture
+import java.util.concurrent.TimeUnit
 
 /**
  * Respaldo y restauración de TODOS los datos persistentes de la app a una
@@ -31,6 +34,55 @@ object BackupManager {
 
     private const val BACKUP_PREFS = "mini_timer"
     private const val KEY_FOLDER_URI = "backup_folder_uri"
+
+    /** Retardo para agrupar ráfagas de cambios y no escribir en exceso. */
+    private const val DEBOUNCE_MS = 2500L
+
+    private val scheduler = Executors.newSingleThreadScheduledExecutor { r ->
+        Thread(r, "backup-scheduler").apply { isDaemon = true }
+    }
+    private var pending: ScheduledFuture<*>? = null
+    private var listenersRegistered = false
+    // Referencias fuertes para evitar que las SharedPreferences descarten los
+    // listeners (los guardan en un WeakHashMap).
+    private val listeners = mutableListOf<SharedPreferences.OnSharedPreferenceChangeListener>()
+    private val watchedPrefs = mutableListOf<SharedPreferences>()
+
+    // ---------- Auto-backup en cada cambio (debounced) ----------
+
+    /**
+     * Observa cambios en las prefs persistentes para respaldar automáticamente
+     * tras cada cambio de datos (con debounce). Idempotente: registrar una vez.
+     */
+    fun init(context: Context) {
+        if (listenersRegistered) return
+        listenersRegistered = true
+        val app = context.applicationContext
+        PREF_FILES.forEach { name ->
+            val p = app.getSharedPreferences(name, Context.MODE_PRIVATE)
+            val l = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+                // La propia referencia a la carpeta no debe disparar respaldo.
+                if (key == KEY_FOLDER_URI) return@OnSharedPreferenceChangeListener
+                scheduleBackup(app)
+            }
+            p.registerOnSharedPreferenceChangeListener(l)
+            listeners.add(l)
+            watchedPrefs.add(p)
+        }
+    }
+
+    /** Programa (o reprograma) un respaldo en background tras [DEBOUNCE_MS]. */
+    @Synchronized
+    fun scheduleBackup(context: Context) {
+        if (!hasFolder(context)) return
+        val app = context.applicationContext
+        pending?.cancel(false)
+        pending = scheduler.schedule(
+            { writeBackup(app) },
+            DEBOUNCE_MS,
+            TimeUnit.MILLISECONDS,
+        )
+    }
 
     // ---------- Carpeta elegida ----------
 
