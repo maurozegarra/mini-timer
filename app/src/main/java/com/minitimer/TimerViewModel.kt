@@ -598,6 +598,22 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * Reproduce el tono de alarma actual al volumen configurado, para oír el
+     * nivel mientras se ajusta "Timer alarm volume". Si el volumen es 0, calla.
+     */
+    fun previewCurrentAlarmVolume() {
+        if (settings.alarmVolume <= 0f) {
+            stopPreview()
+            return
+        }
+        val uri = settings.alarmSoundUri
+            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)?.toString()
+            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)?.toString()
+            ?: return
+        previewSound(uri)
+    }
+
     fun stopPreview() {
         try {
             previewPlayer?.stop()

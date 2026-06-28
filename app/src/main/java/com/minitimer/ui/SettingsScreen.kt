@@ -246,7 +246,10 @@ fun SettingsScreen(vm: TimerViewModel) {
                     modifier = Modifier.weight(1f),
                 )
                 FilledTonalIconButton(
-                    onClick = { vm.setAlarmVolume(((volPct - 5).coerceAtLeast(0)) / 100f) },
+                    onClick = {
+                        vm.setAlarmVolume(((volPct - 5).coerceAtLeast(0)) / 100f)
+                        vm.previewCurrentAlarmVolume()
+                    },
                     enabled = volPct > 0,
                     colors = IconButtonDefaults.filledTonalIconButtonColors(
                         containerColor = TRACK,
@@ -264,7 +267,10 @@ fun SettingsScreen(vm: TimerViewModel) {
                     modifier = Modifier.width(64.dp),
                 )
                 FilledTonalIconButton(
-                    onClick = { vm.setAlarmVolume(((volPct + 5).coerceAtMost(100)) / 100f) },
+                    onClick = {
+                        vm.setAlarmVolume(((volPct + 5).coerceAtMost(100)) / 100f)
+                        vm.previewCurrentAlarmVolume()
+                    },
                     enabled = volPct < 100,
                     colors = IconButtonDefaults.filledTonalIconButtonColors(
                         containerColor = accent,
