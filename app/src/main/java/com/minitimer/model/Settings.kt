@@ -57,7 +57,7 @@ val ACCENT_COLORS: List<Long> = listOf(
     0xFF4A90D6,
     0xFF3DDC84,
     0xFFA06CFF,
-    0xFFFF9F43,
+    0xFF9E9E9E,
     0xFFFF69B4,
     0xFFFF5252,
 )
