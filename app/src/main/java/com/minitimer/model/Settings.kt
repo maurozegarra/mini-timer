@@ -22,7 +22,7 @@ data class Settings(
     /** Índice del patrón de vibración en [VIBRATION_PATTERNS]. */
     val vibrationPattern: Int = 0,
     /** Volumen de la alarma, 0f..1f (relativo al volumen del stream). */
-    val alarmVolume: Float = 1f,
+    val alarmVolume: Float = 0.25f,
     /** Mostrar el anillo de progreso sobre la cámara (overlay). */
     val showRing: Boolean = false,
     /** Mostrar la cápsula/tarjeta flotante (overlay). */
