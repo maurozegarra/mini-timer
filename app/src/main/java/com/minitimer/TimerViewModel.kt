@@ -371,8 +371,12 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
                 play(ctx, uri, mediaUsage = false, device = speaker)
             }
         } else {
-            // Sin audífonos: alarma por el altavoz.
-            play(ctx, uri, mediaUsage = false, device = null)
+            // Sin audífonos: reproducir por el altavoz como MEDIA (no ALARM) para
+            // que el volumen efectivo dependa del MISMO stream que la vista previa
+            // de ajustes. Con USAGE_ALARM el sonido salía por el stream de alarma,
+            // que puede estar a 0 en el teléfono (típico en Samsung), dejando la
+            // alarma muda aunque la vista previa (MEDIA) se oyera bien.
+            play(ctx, uri, mediaUsage = true, device = null)
         }
     }
 
