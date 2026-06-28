@@ -60,6 +60,9 @@ data class Strings(
     val hours: String,
     val minutes: String,
     val seconds: String,
+    val tabAthlete: String,
+    val tabWater: String,
+    val comingSoon: String,
 )
 
 object I18n {
@@ -122,6 +125,9 @@ object I18n {
         hours = "Horas",
         minutes = "Minutos",
         seconds = "Segundos",
+        tabAthlete = "Atleta",
+        tabWater = "Agua",
+        comingSoon = "Próximamente",
     )
 
     val EN = Strings(
@@ -181,5 +187,8 @@ object I18n {
         hours = "Hours",
         minutes = "Minutes",
         seconds = "Seconds",
+        tabAthlete = "Athlete",
+        tabWater = "Water",
+        comingSoon = "Coming soon",
     )
 }
