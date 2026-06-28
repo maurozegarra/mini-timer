@@ -38,5 +38,14 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Countdown timer Live Update notification" />
         </service>
+
+        <service
+            android:name=".notify.WorkoutPlayerService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Workout routine player with step countdown" />
+        </service>
     </application>
 </manifest>

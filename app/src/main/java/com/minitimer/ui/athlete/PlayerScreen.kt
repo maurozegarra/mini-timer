@@ -112,17 +112,21 @@ private fun SummaryRow(step: PlayerStep, t: Strings) {
 
 @Composable
 private fun RunningView(vm: AthleteViewModel, accent: Color, t: Strings) {
-    val step = vm.currentStep ?: return
-    val title = stepTitle(step, t)
+    val kind = vm.playerStepKind
+    val title = when (kind) {
+        StepKind.PREP -> t.getReady
+        StepKind.REST -> t.rest
+        else -> vm.playerStepTitle.ifBlank { t.exercise }
+    }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        if (step.totalRounds > 1) {
+        if (vm.playerTotalRounds > 1) {
             Text(
-                "${t.round} ${step.roundIndex + 1}/${step.totalRounds}",
+                "${t.round} ${vm.playerRoundIndex + 1}/${vm.playerTotalRounds}",
                 color = TEXT_DIM,
                 fontSize = 15.sp,
             )
@@ -137,9 +141,9 @@ private fun RunningView(vm: AthleteViewModel, accent: Color, t: Strings) {
         )
         Spacer(Modifier.height(36.dp))
 
-        if (step.kind == StepKind.REPS) {
+        if (kind == StepKind.REPS) {
             Text(
-                "${step.reps}x",
+                "${vm.playerReps}x",
                 color = accent,
                 fontSize = 72.sp,
                 fontWeight = FontWeight.Bold,
@@ -199,12 +203,6 @@ private fun PillButton(label: String, filled: Boolean, onClick: () -> Unit) {
             .clickable { onClick() }
             .padding(horizontal = 32.dp, vertical = 14.dp),
     )
-}
-
-private fun stepTitle(step: PlayerStep, t: Strings): String = when (step.kind) {
-    StepKind.PREP -> t.getReady
-    StepKind.REST -> t.rest
-    else -> step.title.ifBlank { t.exercise }
 }
 
 private fun stepLabel(step: PlayerStep, t: Strings): String = when (step.kind) {
