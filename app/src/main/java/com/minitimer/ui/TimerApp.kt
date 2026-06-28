@@ -23,6 +23,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Edit
@@ -183,6 +186,7 @@ fun TimerApp(vm: TimerViewModel) {
  * placeholder por defecto) y, al tocarlo, se convierte en un campo de texto
  * inline centrado. Confirma con Done o al perder el foco.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun EditableTimerTitle(vm: TimerViewModel, accent: Color, placeholder: String) {
     var editing by remember { mutableStateOf(false) }
@@ -196,9 +200,30 @@ private fun EditableTimerTitle(vm: TimerViewModel, accent: Color, placeholder: S
         // Evita salir de edición por el evento inicial de "sin foco" que llega
         // antes de que requestFocus() tome efecto: solo se sale si ya hubo foco.
         var hasFocused by remember { mutableStateOf(false) }
+
+        // Guardar al pulsar el botón Atrás del sistema mientras se edita.
+        BackHandler(enabled = true) {
+            vm.commitLabel(text.text)
+            editing = false
+        }
+        // Guardar al ocultar el teclado (swipe down / botón ocultar IME): el foco
+        // no se pierde solo, así que detectamos la transición visible -> oculto.
+        val imeVisible = WindowInsets.isImeVisible
+        var imeWasVisible by remember { mutableStateOf(false) }
+        LaunchedEffect(imeVisible) {
+            if (imeVisible) {
+                imeWasVisible = true
+            } else if (imeWasVisible) {
+                vm.commitLabel(text.text)
+                editing = false
+            }
+        }
         BasicTextField(
             value = text,
-            onValueChange = { text = it.copy(text = it.text.take(40)) },
+            onValueChange = {
+                text = it.copy(text = it.text.take(40))
+                vm.setDraftLabel(text.text)
+            },
             singleLine = true,
             textStyle = TextStyle(
                 color = Color.White,
@@ -291,6 +316,7 @@ private fun EditableTimerTitle(vm: TimerViewModel, accent: Color, placeholder: S
 
 @Composable
 private fun SetupScreen(vm: TimerViewModel, accent: Color, t: com.minitimer.i18n.Strings) {
+    val focusManager = LocalFocusManager.current
     Column(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -310,7 +336,10 @@ private fun SetupScreen(vm: TimerViewModel, accent: Color, t: com.minitimer.i18n
             modifier = Modifier.fillMaxWidth(),
         ) {
             items(vm.settings.presets) { sec ->
-                PresetChip(sec, accent) { vm.startWithSeconds(sec) }
+                PresetChip(sec, accent) {
+                    focusManager.clearFocus()
+                    vm.startWithSeconds(sec)
+                }
             }
         }
 
@@ -332,7 +361,10 @@ private fun SetupScreen(vm: TimerViewModel, accent: Color, t: com.minitimer.i18n
 
         val canStart = vm.setH * 3600 + vm.setM * 60 + vm.setS > 0
         Button(
-            onClick = { vm.start() },
+            onClick = {
+                focusManager.clearFocus()
+                vm.start()
+            },
             enabled = canStart,
             shape = RoundedCornerShape(32.dp),
             colors = ButtonDefaults.buttonColors(

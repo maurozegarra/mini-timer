@@ -103,6 +103,13 @@ class SettingsStore(context: Context) {
 
     fun loadLastDuration(): Int = prefs.getInt(KEY_LAST_DURATION, 0)
 
+    /** Último nombre usado, para pre-rellenarlo en el siguiente timer. */
+    fun saveLastLabel(name: String) {
+        prefs.edit().putString(KEY_LAST_LABEL, name).apply()
+    }
+
+    fun loadLastLabel(): String = prefs.getString(KEY_LAST_LABEL, "") ?: ""
+
     /** Si ya se pidió (una vez) el permiso de overlay "Mostrar sobre otras apps". */
     fun overlayAsked(): Boolean = prefs.getBoolean(KEY_OVERLAY_ASKED, false)
 
@@ -147,6 +154,7 @@ class SettingsStore(context: Context) {
         const val KEY_T_TOTAL = "timer_total"
         const val KEY_T_LABEL = "timer_label"
         const val KEY_LAST_DURATION = "last_duration"
+        const val KEY_LAST_LABEL = "last_label"
         const val KEY_OVERLAY_ASKED = "overlay_asked"
         const val KEY_RING_OFF_X = "ring_off_x"
         const val KEY_RING_OFF_Y = "ring_off_y"

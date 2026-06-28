@@ -92,9 +92,12 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         publishOverlayPrefs()
         ensureDefaultAlarmSound()
         if (!restoreTimerState()) {
-            // Sin timer activo: pre-rellenar con la última duración seleccionada.
+            // Sin timer activo: pre-rellenar con la última duración y el último
+            // nombre usados.
             val last = store.loadLastDuration()
             if (last > 0) digits = secondsToDigits(last)
+            label = store.loadLastLabel()
+            TimerBus.label.value = label
         }
         // Comandos desde los botones del Now Bar (Pausa/Reanudar/Cancelar).
         viewModelScope.launch {
@@ -212,6 +215,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     fun startWithSeconds(sec: Int) {
         if (sec <= 0) return
         store.saveLastDuration(sec)
+        if (label.isNotBlank()) store.saveLastLabel(label)
         val ms = sec * 1000L
         endAt = System.currentTimeMillis() + ms
         totalMs = ms
@@ -244,7 +248,6 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         autoDismissJob?.cancel()
         store.clearTimerState()
         prefillLastDuration()
-        label = ""
         setPhaseAndBus(Phase.SETUP)
         LiveTimerService.stop(getApplication())
     }
@@ -261,22 +264,30 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         autoDismissJob?.cancel()
         store.clearTimerState()
         prefillLastDuration()
-        label = ""
         setPhaseAndBus(Phase.SETUP)
         LiveTimerService.stop(getApplication())
+    }
+
+    /** Refleja el texto en edición en vivo (sin persistir), para que acciones
+     *  como Start tomen el nombre actual aunque no se haya confirmado aún. */
+    fun setDraftLabel(value: String) {
+        label = value.take(40)
+        TimerBus.label.value = label
     }
 
     /** Fija el nombre del timer (recortado a 40 caracteres). */
     fun commitLabel(value: String) {
         label = value.take(40)
         TimerBus.label.value = label
+        if (label.isNotBlank()) store.saveLastLabel(label)
         if (phase != Phase.SETUP) saveTimerState()
     }
 
-    /** Deja el teclado con la última duración usada lista para reutilizarse. */
+    /** Deja el teclado con la última duración usada y restaura el último nombre. */
     private fun prefillLastDuration() {
         val last = store.loadLastDuration()
         digits = if (last > 0) secondsToDigits(last) else ""
+        label = store.loadLastLabel()
     }
 
     private fun startTicking() {
