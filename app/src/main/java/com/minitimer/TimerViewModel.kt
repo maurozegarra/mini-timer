@@ -78,6 +78,9 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var showSettings by mutableStateOf(false)
 
+    /** Id del timer cuya pantalla de detalle está abierta; null si ninguna. */
+    var detailId by mutableStateOf<Long?>(null)
+
     /** Lista de temporizadores (multi-timer). */
     val timers = mutableStateListOf<TimerItem>()
 
@@ -227,6 +230,26 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---------- Nuevo timer (teclado) ----------
     fun updateDraftName(value: String) { draftName = value.take(40) }
+
+    /** Fija la duración del borrador (rueda H/M/S) en la hoja "Nuevo". */
+    fun setDraftTime(h: Int, m: Int, s: Int) {
+        val sec = h * 3600 + m * 60 + s
+        digits = if (sec > 0) secondsToDigits(sec) else ""
+    }
+
+    /** Reajusta el total de un timer DETENIDO (IDLE) desde el detalle. */
+    fun setTimerTotal(id: Long, sec: Int) {
+        val it = item(id) ?: return
+        if (it.phase != Phase.IDLE) return
+        val ms = (sec * 1000L).coerceAtLeast(0)
+        setItem(id) { c -> c.copy(totalMs = ms, remainingMs = ms) }
+    }
+
+    /** Descarta y vuelve a iniciar un timer (botón Reiniciar del detalle/done). */
+    fun restartTimer(id: Long): Boolean {
+        resetTimer(id)
+        return startTimer(id)
+    }
 
     /** Prepara la hoja "Nuevo": rellena con la última duración/nombre usados. */
     fun prepareNewTimer() {

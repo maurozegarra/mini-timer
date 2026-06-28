@@ -57,6 +57,9 @@ data class Strings(
     val delete: String,
     val blockedActive: String,
     val addTimeTitle: String,
+    val hours: String,
+    val minutes: String,
+    val seconds: String,
 )
 
 object I18n {
@@ -116,6 +119,9 @@ object I18n {
         delete = "Eliminar",
         blockedActive = "Hay un temporizador activo. Pausa o cancela el actual primero.",
         addTimeTitle = "Añadir tiempo",
+        hours = "Horas",
+        minutes = "Minutos",
+        seconds = "Segundos",
     )
 
     val EN = Strings(
@@ -172,5 +178,8 @@ object I18n {
         delete = "Delete",
         blockedActive = "A timer is already active. Pause or cancel the current one first.",
         addTimeTitle = "Add time",
+        hours = "Hours",
+        minutes = "Minutes",
+        seconds = "Seconds",
     )
 }

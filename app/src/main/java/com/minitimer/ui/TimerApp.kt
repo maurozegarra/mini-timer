@@ -1,9 +1,12 @@
 package com.minitimer.ui
 
+import android.view.HapticFeedbackConstants
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -30,7 +34,6 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -47,24 +50,34 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.minitimer.Phase
@@ -79,18 +92,15 @@ import com.minitimer.ui.theme.SURFACE
 import com.minitimer.ui.theme.TEXT_DIM
 import com.minitimer.ui.theme.TEXT_FADED
 import com.minitimer.ui.theme.TRACK
+import com.minitimer.util.formatClock
 import com.minitimer.util.formatLastFinished
 import com.minitimer.util.formatRemaining
 import com.minitimer.util.incLabel
 import com.minitimer.util.pad2
+import kotlin.math.abs
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
-
-private val KEYS = listOf(
-    listOf("1", "2", "3"),
-    listOf("4", "5", "6"),
-    listOf("7", "8", "9"),
-    listOf("00", "0", "del"),
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -108,9 +118,14 @@ fun TimerApp(vm: TimerViewModel) {
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var showSheet by remember { mutableStateOf(false) }
-    var renameId by remember { mutableStateOf<Long?>(null) }
+    val onBlocked = { scope.launch { snackbar.showSnackbar(t.blockedActive) }; Unit }
 
-    BackHandler(enabled = vm.showSettings) { vm.showSettings = false }
+    // El timer cuyo detalle está abierto (si existe en la lista).
+    val detail: TimerItem? = vm.detailId?.let { vm.item(it) }
+
+    BackHandler(enabled = vm.showSettings || vm.detailId != null) {
+        if (vm.showSettings) vm.showSettings = false else vm.detailId = null
+    }
 
     Scaffold(
         containerColor = BG,
@@ -118,15 +133,22 @@ fun TimerApp(vm: TimerViewModel) {
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
-                    Text(
-                        if (vm.showSettings) t.settings else t.title,
-                        color = Color.White,
-                        fontWeight = FontWeight.SemiBold,
-                    )
+                    when {
+                        vm.showSettings -> Text(t.settings, color = Color.White, fontWeight = FontWeight.SemiBold)
+                        detail != null -> EditableTitle(
+                            name = detail.name,
+                            accent = accent,
+                            placeholder = t.noName,
+                            onCommit = { vm.renameTimer(detail.id, it) },
+                        )
+                        else -> Text(t.title, color = Color.White, fontWeight = FontWeight.SemiBold)
+                    }
                 },
                 navigationIcon = {
-                    if (vm.showSettings) {
-                        IconButton(onClick = { vm.showSettings = false }) {
+                    if (vm.showSettings || vm.detailId != null) {
+                        IconButton(onClick = {
+                            if (vm.showSettings) vm.showSettings = false else vm.detailId = null
+                        }) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Back",
@@ -136,13 +158,24 @@ fun TimerApp(vm: TimerViewModel) {
                     }
                 },
                 actions = {
-                    if (!vm.showSettings) {
-                        IconButton(onClick = { vm.showSettings = true }) {
-                            Icon(
-                                Icons.Filled.Settings,
-                                contentDescription = "Settings",
-                                tint = TEXT_DIM,
-                            )
+                    when {
+                        vm.showSettings -> {}
+                        detail != null -> {
+                            var menu by remember { mutableStateOf(false) }
+                            Box {
+                                IconButton(onClick = { menu = true }) {
+                                    Icon(Icons.Filled.MoreVert, contentDescription = "Menu", tint = TEXT_DIM)
+                                }
+                                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                                    DropdownMenuItem(
+                                        text = { Text(t.delete) },
+                                        onClick = { menu = false; vm.deleteTimer(detail.id); vm.detailId = null },
+                                    )
+                                }
+                            }
+                        }
+                        else -> IconButton(onClick = { vm.showSettings = true }) {
+                            Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = TEXT_DIM)
                         }
                     }
                 },
@@ -152,7 +185,7 @@ fun TimerApp(vm: TimerViewModel) {
             )
         },
         floatingActionButton = {
-            if (!vm.showSettings) {
+            if (!vm.showSettings && vm.detailId == null) {
                 FloatingActionButton(
                     onClick = { vm.prepareNewTimer(); showSheet = true },
                     containerColor = accent,
@@ -165,15 +198,15 @@ fun TimerApp(vm: TimerViewModel) {
         },
     ) { inner ->
         Box(modifier = Modifier.fillMaxSize().padding(inner)) {
-            if (vm.showSettings) {
-                Box(Modifier.padding(horizontal = 24.dp)) { SettingsScreen(vm) }
-            } else {
-                TimerListScreen(
+            when {
+                vm.showSettings -> Box(Modifier.padding(horizontal = 24.dp)) { SettingsScreen(vm) }
+                detail != null -> TimerDetailBody(vm, detail, accent, t, onBlocked)
+                else -> TimerListScreen(
                     vm = vm,
                     accent = accent,
                     t = t,
-                    onRename = { renameId = it },
-                    onBlocked = { scope.launch { snackbar.showSnackbar(t.blockedActive) } },
+                    onOpen = { vm.detailId = it },
+                    onBlocked = onBlocked,
                 )
             }
         }
@@ -185,17 +218,7 @@ fun TimerApp(vm: TimerViewModel) {
             accent = accent,
             t = t,
             onDismiss = { showSheet = false },
-            onBlocked = { scope.launch { snackbar.showSnackbar(t.blockedActive) } },
-        )
-    }
-
-    renameId?.let { id ->
-        RenameDialog(
-            initial = vm.item(id)?.name ?: "",
-            accent = accent,
-            t = t,
-            onConfirm = { vm.renameTimer(id, it); renameId = null },
-            onDismiss = { renameId = null },
+            onBlocked = onBlocked,
         )
     }
 }
@@ -205,7 +228,7 @@ private fun TimerListScreen(
     vm: TimerViewModel,
     accent: Color,
     t: com.minitimer.i18n.Strings,
-    onRename: (Long) -> Unit,
+    onOpen: (Long) -> Unit,
     onBlocked: () -> Unit,
 ) {
     if (vm.timers.isEmpty()) {
@@ -233,13 +256,12 @@ private fun TimerListScreen(
                 t = t,
                 blocked = active != null && active != item.id,
                 incSec = vm.settings.addIncrementSec,
+                onOpen = { onOpen(item.id) },
                 onToggle = { if (!vm.togglePlay(item.id)) onBlocked() },
                 onReset = { vm.resetTimer(item.id) },
                 onDismiss = { vm.dismissTimer(item.id) },
                 onAddTime = { vm.addTime(item.id) },
                 onStar = { vm.toggleStar(item.id) },
-                onRename = { onRename(item.id) },
-                onDelete = { vm.deleteTimer(item.id) },
             )
         }
     }
@@ -252,13 +274,12 @@ private fun TimerCard(
     t: com.minitimer.i18n.Strings,
     blocked: Boolean,
     incSec: Int,
+    onOpen: () -> Unit,
     onToggle: () -> Unit,
     onReset: () -> Unit,
     onDismiss: () -> Unit,
     onAddTime: () -> Unit,
     onStar: () -> Unit,
-    onRename: () -> Unit,
-    onDelete: () -> Unit,
 ) {
     val done = item.phase == Phase.DONE
     val running = item.phase == Phase.RUNNING
@@ -287,6 +308,7 @@ private fun TimerCard(
                     Modifier.border(1.dp, borderColor, RoundedCornerShape(24.dp))
                 else Modifier
             )
+            .clickable { onOpen() }
             .padding(16.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -298,49 +320,18 @@ private fun TimerCard(
                     modifier = Modifier.size(20.dp),
                 )
             }
-            Spacer(Modifier.width(6.dp))
-            Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable { onRename() }
-                    .padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    item.name.ifBlank { t.noName },
-                    color = when {
-                        running -> accent
-                        item.name.isBlank() -> TEXT_FADED
-                        else -> Color.White
-                    },
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                )
-                Spacer(Modifier.width(6.dp))
-                Icon(
-                    Icons.Outlined.Edit,
-                    contentDescription = null,
-                    tint = TEXT_FADED,
-                    modifier = Modifier.size(14.dp),
-                )
-            }
-            var menu by remember { mutableStateOf(false) }
-            Box {
-                IconButton(onClick = { menu = true }) {
-                    Icon(Icons.Filled.MoreVert, contentDescription = "Menu", tint = TEXT_DIM)
-                }
-                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                    DropdownMenuItem(
-                        text = { Text(t.rename) },
-                        onClick = { menu = false; onRename() },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(t.delete) },
-                        onClick = { menu = false; onDelete() },
-                    )
-                }
-            }
+            Spacer(Modifier.width(8.dp))
+            Text(
+                item.name.ifBlank { t.noName },
+                color = when {
+                    running -> accent
+                    item.name.isBlank() -> TEXT_FADED
+                    else -> Color.White
+                },
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.weight(1f),
+            )
         }
 
         Spacer(Modifier.height(4.dp))
@@ -490,24 +481,15 @@ private fun NewTimerSheet(
                 shape = RoundedCornerShape(12.dp),
             )
             Spacer(Modifier.height(16.dp))
-            Row(verticalAlignment = Alignment.Bottom) {
-                TimePart(pad2(vm.setH), "h", vm.setH > 0, accent)
-                TimePart(pad2(vm.setM), "m", vm.setM > 0 || vm.setH > 0, accent)
-                TimePart(pad2(vm.setS), "s", true, accent)
-            }
-            Spacer(Modifier.height(16.dp))
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                KEYS.forEach { row ->
-                    Row(
-                        modifier = Modifier.widthIn(max = 340.dp).fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceAround,
-                    ) {
-                        row.forEach { key -> KeyButton(key) { vm.onKey(key) } }
-                    }
-                    Spacer(Modifier.height(8.dp))
-                }
-            }
-            Spacer(Modifier.height(8.dp))
+            WheelTimePicker(
+                h = vm.setH,
+                m = vm.setM,
+                s = vm.setS,
+                accent = accent,
+                t = t,
+                onChange = { h, m, s -> vm.setDraftTime(h, m, s) },
+            )
+            Spacer(Modifier.height(20.dp))
             val canStart = vm.setH * 3600 + vm.setM * 60 + vm.setS > 0
             Button(
                 onClick = {
@@ -531,86 +513,340 @@ private fun NewTimerSheet(
     }
 }
 
+// ---------- Pantalla de detalle ----------
 @Composable
-private fun RenameDialog(
-    initial: String,
+private fun TimerDetailBody(
+    vm: TimerViewModel,
+    item: TimerItem,
     accent: Color,
     t: com.minitimer.i18n.Strings,
-    onConfirm: (String) -> Unit,
-    onDismiss: () -> Unit,
+    onBlocked: () -> Unit,
 ) {
-    var text by remember { mutableStateOf(initial) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = SURFACE,
-        title = { Text(t.rename, color = Color.White, fontWeight = FontWeight.SemiBold) },
-        text = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it.take(40) },
-                singleLine = true,
-                placeholder = { Text(t.timerName, color = TEXT_FADED) },
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = TRACK,
-                    unfocusedContainerColor = TRACK,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    cursorColor = accent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                ),
-                shape = RoundedCornerShape(12.dp),
+    val phase = item.phase
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp)
+            .padding(bottom = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        if (phase == Phase.IDLE) {
+            var h by remember(item.id) { mutableStateOf((item.totalMs / 3_600_000L).toInt()) }
+            var m by remember(item.id) { mutableStateOf(((item.totalMs % 3_600_000L) / 60_000L).toInt()) }
+            var s by remember(item.id) { mutableStateOf(((item.totalMs % 60_000L) / 1000L).toInt()) }
+            Spacer(Modifier.weight(1f))
+            WheelTimePicker(
+                h = h,
+                m = m,
+                s = s,
+                accent = accent,
+                t = t,
+                onChange = { a, b, c ->
+                    h = a; m = b; s = c
+                    vm.setTimerTotal(item.id, a * 3600 + b * 60 + c)
+                },
             )
-        },
-        confirmButton = {
-            TextButton(onClick = { onConfirm(text) }) {
-                Text(t.select, color = accent, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.weight(1f))
+            Button(
+                onClick = { if (!vm.startTimer(item.id)) onBlocked() },
+                enabled = h * 3600 + m * 60 + s > 0,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(30.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = accent,
+                    contentColor = ON_ACCENT,
+                    disabledContainerColor = SURFACE,
+                    disabledContentColor = TEXT_DIM,
+                ),
+                contentPadding = PaddingValues(vertical = 18.dp),
+            ) { Text(t.start, fontSize = 18.sp, fontWeight = FontWeight.Bold) }
+        } else {
+            val isDone = phase == Phase.DONE
+            val progress = if (item.totalMs > 0) {
+                (item.remainingMs.toFloat() / item.totalMs).coerceIn(0f, 1f)
+            } else 0f
+            Spacer(Modifier.weight(1f))
+            ProgressRing(progress = if (isDone) 0f else progress, accent = if (isDone) DONE_RED else accent) {
+                if (isDone) {
+                    Text(t.timeUp, color = DONE_RED, fontSize = 40.sp, fontWeight = FontWeight.SemiBold)
+                } else {
+                    Text(
+                        formatRemaining(item.remainingMs),
+                        color = if (phase == Phase.RUNNING) accent else Color.White,
+                        fontSize = 52.sp,
+                        fontFamily = JetBrainsMono,
+                        fontWeight = FontWeight.Light,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        if (phase == Phase.PAUSED) t.paused
+                        else "${t.endsAt} ${formatClock(item.endAt, t.locale)}",
+                        color = TEXT_DIM,
+                        fontSize = 14.sp,
+                    )
+                }
             }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(t.cancel, color = TEXT_DIM)
+            if (!isDone) {
+                Spacer(Modifier.height(18.dp))
+                Text(
+                    incLabel(vm.settings.addIncrementSec),
+                    color = accent,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable { vm.addTime(item.id) }
+                        .background(accent.copy(alpha = 0.16f))
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                )
             }
-        },
-    )
-}
-
-@Composable
-private fun TimePart(value: String, unit: String, active: Boolean, accent: Color) {
-    Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(horizontal = 6.dp)) {
-        Text(
-            value,
-            color = if (active) Color.White else TEXT_FADED,
-            fontSize = 56.sp,
-            fontFamily = JetBrainsMono,
-            fontWeight = FontWeight.Light,
-        )
-        Text(
-            unit,
-            color = if (active) accent else TEXT_FADED,
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.padding(start = 2.dp, bottom = 10.dp),
-        )
+            Spacer(Modifier.weight(1f))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                if (isDone) {
+                    ControlButton(t.dismiss, Modifier.weight(1f), accent, muted = true) { vm.dismissTimer(item.id) }
+                    ControlButton(t.restart, Modifier.weight(1f), accent, done = true) {
+                        if (!vm.restartTimer(item.id)) onBlocked()
+                    }
+                } else {
+                    ControlButton(t.reset, Modifier.weight(1f), accent, muted = true) { vm.resetTimer(item.id) }
+                    if (phase == Phase.RUNNING) {
+                        ControlButton(t.pause, Modifier.weight(1f), accent) { vm.pauseTimer(item.id) }
+                    } else {
+                        ControlButton(t.resume, Modifier.weight(1f), accent) {
+                            if (!vm.startTimer(item.id)) onBlocked()
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
 @Composable
-private fun KeyButton(key: String, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .width(96.dp)
-            .height(64.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .clickable { onClick() },
-        contentAlignment = Alignment.Center,
+private fun ControlButton(
+    label: String,
+    modifier: Modifier = Modifier,
+    accent: Color,
+    muted: Boolean = false,
+    done: Boolean = false,
+    onClick: () -> Unit,
+) {
+    val container = when {
+        done -> DONE_RED
+        muted -> SURFACE
+        else -> accent
+    }
+    val contentColor = when {
+        done -> Color(0xFF2A0000)
+        muted -> Color.White
+        else -> ON_ACCENT
+    }
+    Button(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(30.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = container, contentColor = contentColor),
+        contentPadding = PaddingValues(vertical = 16.dp),
     ) {
-        Text(
-            if (key == "del") "\u232B" else key,
-            color = Color.White,
-            fontSize = 30.sp,
-            textAlign = TextAlign.Center,
+        Text(label, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+private fun ProgressRing(progress: Float, accent: Color, content: @Composable () -> Unit) {
+    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(280.dp)) {
+        Canvas(modifier = Modifier.size(280.dp)) {
+            val stroke = 14.dp.toPx()
+            val d = size.minDimension - stroke
+            val tl = Offset((size.width - d) / 2f, (size.height - d) / 2f)
+            val arc = Size(d, d)
+            drawArc(
+                color = TRACK,
+                startAngle = 0f,
+                sweepAngle = 360f,
+                useCenter = false,
+                topLeft = tl,
+                size = arc,
+                style = Stroke(width = stroke),
+            )
+            drawArc(
+                color = accent,
+                startAngle = -90f,
+                sweepAngle = 360f * progress,
+                useCenter = false,
+                topLeft = tl,
+                size = arc,
+                style = Stroke(width = stroke, cap = StrokeCap.Round),
+            )
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) { content() }
+    }
+}
+
+// ---------- Título editable (inline) ----------
+@Composable
+private fun EditableTitle(
+    name: String,
+    accent: Color,
+    placeholder: String,
+    onCommit: (String) -> Unit,
+) {
+    var editing by remember { mutableStateOf(false) }
+    var text by remember { mutableStateOf(name) }
+    if (editing) {
+        val focus = remember { FocusRequester() }
+        OutlinedTextField(
+            value = text,
+            onValueChange = { text = it.take(40) },
+            singleLine = true,
+            placeholder = { Text(placeholder, color = TEXT_FADED) },
+            textStyle = androidx.compose.ui.text.TextStyle(
+                fontSize = 18.sp,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            ),
+            modifier = Modifier.widthIn(max = 240.dp).focusRequester(focus),
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = TRACK,
+                unfocusedContainerColor = TRACK,
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White,
+                cursorColor = accent,
+                focusedIndicatorColor = accent,
+                unfocusedIndicatorColor = Color.Transparent,
+            ),
+            shape = RoundedCornerShape(12.dp),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { onCommit(text); editing = false }),
         )
+        LaunchedEffect(Unit) { focus.requestFocus() }
+    } else {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .clip(RoundedCornerShape(12.dp))
+                .clickable { text = name; editing = true }
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+        ) {
+            Text(
+                name.ifBlank { placeholder },
+                color = if (name.isBlank()) TEXT_DIM else Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.width(6.dp))
+            Icon(Icons.Outlined.Edit, contentDescription = "Edit name", tint = TEXT_DIM, modifier = Modifier.size(16.dp))
+        }
+    }
+}
+
+// ---------- Selector tipo rueda (Hours/Minutes/Seconds) ----------
+private val WHEEL_COL_W = 72.dp
+private val WHEEL_ITEM_H = 56.dp
+
+@Composable
+private fun WheelTimePicker(
+    h: Int,
+    m: Int,
+    s: Int,
+    accent: Color,
+    t: com.minitimer.i18n.Strings,
+    onChange: (Int, Int, Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(horizontalArrangement = Arrangement.Center) {
+            WheelLabel(t.hours)
+            Spacer(Modifier.width(16.dp))
+            WheelLabel(t.minutes)
+            Spacer(Modifier.width(16.dp))
+            WheelLabel(t.seconds)
+        }
+        Spacer(Modifier.height(4.dp))
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.height(WHEEL_ITEM_H * 3)) {
+            // Banda de selección (cápsula) detrás de los números.
+            Box(
+                modifier = Modifier
+                    .width(WHEEL_COL_W * 3 + 32.dp)
+                    .height(WHEEL_ITEM_H)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(accent.copy(alpha = 0.14f))
+                    .border(1.dp, accent.copy(alpha = 0.35f), RoundedCornerShape(20.dp)),
+            )
+            Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                WheelColumn(range = 100, value = h) { onChange(it, m, s) }
+                WheelColon()
+                WheelColumn(range = 60, value = m) { onChange(h, it, s) }
+                WheelColon()
+                WheelColumn(range = 60, value = s) { onChange(h, m, it) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WheelLabel(text: String) {
+    Box(modifier = Modifier.width(WHEEL_COL_W), contentAlignment = Alignment.Center) {
+        Text(text, color = TEXT_DIM, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+    }
+}
+
+@Composable
+private fun WheelColon() {
+    Box(modifier = Modifier.width(16.dp), contentAlignment = Alignment.Center) {
+        Text(":", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+private fun WheelColumn(range: Int, value: Int, onValue: (Int) -> Unit) {
+    val view = LocalView.current
+    val blocks = 2000
+    val start = range * (blocks / 2) + value
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = start - 1)
+    val fling = rememberSnapFlingBehavior(lazyListState = listState)
+    val center by remember {
+        derivedStateOf {
+            val li = listState.layoutInfo
+            val visible = li.visibleItemsInfo
+            if (visible.isEmpty()) start
+            else {
+                val vc = (li.viewportStartOffset + li.viewportEndOffset) / 2
+                visible.minByOrNull { abs((it.offset + it.size / 2) - vc) }!!.index
+            }
+        }
+    }
+    LaunchedEffect(listState) {
+        snapshotFlow { center }
+            .drop(1)
+            .distinctUntilChanged()
+            .collect { idx ->
+                view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                onValue(idx % range)
+            }
+    }
+    LazyColumn(
+        state = listState,
+        flingBehavior = fling,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.width(WHEEL_COL_W).height(WHEEL_ITEM_H * 3),
+    ) {
+        items(range * blocks) { index ->
+            val selected = index == center
+            Box(modifier = Modifier.width(WHEEL_COL_W).height(WHEEL_ITEM_H), contentAlignment = Alignment.Center) {
+                Text(
+                    pad2(index % range),
+                    color = if (selected) Color.White else TEXT_FADED,
+                    fontSize = if (selected) 40.sp else 24.sp,
+                    fontFamily = JetBrainsMono,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Light,
+                )
+            }
+        }
     }
 }
 
