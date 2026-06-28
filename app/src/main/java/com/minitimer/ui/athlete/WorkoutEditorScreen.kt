@@ -3,7 +3,7 @@ package com.minitimer.ui.athlete
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -228,7 +228,7 @@ private fun RoundBlock(
                         }
                     },
                     dragModifier = Modifier.pointerInput(round.id) {
-                        detectDragGesturesAfterLongPress(
+                        detectDragGestures(
                             onDragStart = { draggingId = item.id; dragOffset = 0f },
                             onDragEnd = { draggingId = null; dragOffset = 0f },
                             onDragCancel = { draggingId = null; dragOffset = 0f },
@@ -236,9 +236,9 @@ private fun RoundBlock(
                                 change.consume()
                                 dragOffset += amount.y
                                 val items = vm.draft?.rounds?.firstOrNull { it.id == round.id }?.items
-                                    ?: return@detectDragGesturesAfterLongPress
+                                    ?: return@detectDragGestures
                                 val cur = items.indexOfFirst { it.id == draggingId }
-                                if (cur < 0) return@detectDragGesturesAfterLongPress
+                                if (cur < 0) return@detectDragGestures
                                 if (dragOffset > rowPx / 2 && cur < items.size - 1) {
                                     vm.moveItem(round.id, cur, cur + 1)
                                     dragOffset -= rowPx
