@@ -88,6 +88,17 @@ data class Strings(
     val doneLabel: String,
     val nextLabel: String,
     val close: String,
+    val groupBackup: String,
+    val backupFolder: String,
+    val backupAutoDesc: String,
+    val backupNotSet: String,
+    val lastBackup: String,
+    val never: String,
+    val restore: String,
+    val restoreTitle: String,
+    val restoreMessage: String,
+    val restored: String,
+    val backupSaved: String,
 )
 
 object I18n {
@@ -178,6 +189,17 @@ object I18n {
         doneLabel = "Hecho",
         nextLabel = "Siguiente",
         close = "Cerrar",
+        groupBackup = "Respaldo",
+        backupFolder = "Carpeta de respaldo",
+        backupAutoDesc = "Se guarda automáticamente al salir de la app. Tras reinstalar, elige la misma carpeta para restaurar.",
+        backupNotSet = "No configurada",
+        lastBackup = "Último respaldo",
+        never = "Nunca",
+        restore = "Restaurar",
+        restoreTitle = "Restaurar respaldo",
+        restoreMessage = "Se reemplazarán los datos actuales (timers, workouts e historial) por los del respaldo. ¿Continuar?",
+        restored = "Datos restaurados",
+        backupSaved = "Respaldo guardado",
     )
 
     val EN = Strings(
@@ -265,5 +287,16 @@ object I18n {
         doneLabel = "Done",
         nextLabel = "Next",
         close = "Close",
+        groupBackup = "Backup",
+        backupFolder = "Backup folder",
+        backupAutoDesc = "Saved automatically when you leave the app. After reinstalling, pick the same folder to restore.",
+        backupNotSet = "Not set",
+        lastBackup = "Last backup",
+        never = "Never",
+        restore = "Restore",
+        restoreTitle = "Restore backup",
+        restoreMessage = "Your current data (timers, workouts and history) will be replaced with the backup. Continue?",
+        restored = "Data restored",
+        backupSaved = "Backup saved",
     )
 }

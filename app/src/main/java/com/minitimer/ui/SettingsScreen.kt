@@ -66,8 +66,17 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
+import com.minitimer.AthleteViewModel
 import com.minitimer.TimerViewModel
+import com.minitimer.data.BackupManager
 import com.minitimer.i18n.I18n
+import java.text.DateFormat
+import java.util.Date
 import com.minitimer.model.ACCENT_COLORS
 import com.minitimer.model.ADD_INCREMENT_OPTIONS
 import com.minitimer.model.AUTO_DISMISS_OPTIONS
@@ -90,12 +99,41 @@ import kotlin.math.roundToInt
     ExperimentalMaterial3Api::class,
 )
 @Composable
-fun SettingsScreen(vm: TimerViewModel) {
+fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
     val s = vm.settings
     val t = I18n.get(s.language)
     val accent = Color(s.accent)
     var presetInput by remember { mutableStateOf("") }
     var showSoundDialog by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+    var folderName by remember { mutableStateOf(BackupManager.folderName(context)) }
+    var lastBackupAt by remember { mutableStateOf<Long?>(null) }
+    var showRestoreDialog by remember { mutableStateOf(false) }
+
+    val folderPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree(),
+    ) { uri ->
+        if (uri != null) {
+            val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            runCatching { context.contentResolver.takePersistableUriPermission(uri, flags) }
+            BackupManager.setFolder(context, uri)
+            folderName = BackupManager.folderName(context)
+            val existing = BackupManager.backupExportedAt(context)
+            if (existing != null) {
+                lastBackupAt = existing
+                showRestoreDialog = true
+            } else {
+                BackupManager.writeBackup(context)
+                lastBackupAt = BackupManager.backupExportedAt(context)
+            }
+        }
+    }
+
+    LaunchedEffect(folderName) {
+        if (folderName != null) lastBackupAt = BackupManager.backupExportedAt(context)
+    }
 
     Column(
         modifier = Modifier
@@ -400,6 +438,71 @@ fun SettingsScreen(vm: TimerViewModel) {
             }
         }
 
+        // ===== Respaldo =====
+        SettingsGroup(t.groupBackup, accent) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(TRACK)
+                    .clickable { folderPicker.launch(null) }
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        t.backupFolder,
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Text(
+                        folderName ?: t.backupNotSet,
+                        color = TEXT_DIM,
+                        fontSize = 13.sp,
+                    )
+                }
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = TEXT_DIM,
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(t.backupAutoDesc, color = TEXT_DIM, fontSize = 13.sp)
+            GroupDivider()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        t.lastBackup,
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        lastBackupAt?.let {
+                            DateFormat.getDateTimeInstance(
+                                DateFormat.MEDIUM, DateFormat.SHORT, t.locale,
+                            ).format(Date(it))
+                        } ?: t.never,
+                        color = TEXT_DIM,
+                        fontSize = 13.sp,
+                    )
+                }
+                TextButton(
+                    onClick = { showRestoreDialog = true },
+                    enabled = folderName != null && lastBackupAt != null,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.textButtonColors(contentColor = accent),
+                ) {
+                    Text(t.restore, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+
         Spacer(Modifier.height(28.dp))
         TextButton(
             onClick = { vm.resetSettings() },
@@ -422,6 +525,33 @@ fun SettingsScreen(vm: TimerViewModel) {
             cancelLabel = t.cancel,
             defaultLabel = t.defaultSound,
             onDismiss = { showSoundDialog = false },
+        )
+    }
+
+    if (showRestoreDialog) {
+        AlertDialog(
+            onDismissRequest = { showRestoreDialog = false },
+            containerColor = SURFACE,
+            title = { Text(t.restoreTitle, color = Color.White, fontWeight = FontWeight.SemiBold) },
+            text = { Text(t.restoreMessage, color = TEXT_DIM) },
+            confirmButton = {
+                TextButton(onClick = {
+                    val json = BackupManager.readBackup(context)
+                    if (json != null && BackupManager.restoreFromJson(context, json)) {
+                        vm.reload()
+                        athleteVm.reload()
+                    }
+                    lastBackupAt = BackupManager.backupExportedAt(context)
+                    showRestoreDialog = false
+                }) {
+                    Text(t.restore, color = accent, fontWeight = FontWeight.SemiBold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRestoreDialog = false }) {
+                    Text(t.cancel, color = TEXT_DIM)
+                }
+            },
         )
     }
 }

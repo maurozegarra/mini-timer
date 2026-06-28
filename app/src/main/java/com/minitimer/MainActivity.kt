@@ -12,6 +12,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.minitimer.data.BackupManager
 import com.minitimer.data.SettingsStore
 import com.minitimer.ui.TimerApp
 import com.minitimer.ui.theme.MiniTimerTheme
@@ -44,6 +45,11 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         TimerBus.appForeground.value = false
+        // Respaldo automático a la carpeta elegida al pasar a segundo plano.
+        if (BackupManager.hasFolder(this)) {
+            val ctx = applicationContext
+            Thread { BackupManager.writeBackup(ctx) }.start()
+        }
     }
 
     private fun ensureNotificationPermission() {

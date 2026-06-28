@@ -122,6 +122,21 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Recarga ajustes y timers desde el store (tras restaurar un respaldo). */
+    fun reload() {
+        tickJob?.cancel()
+        autoDismissJob?.cancel()
+        stopAlarm()
+        settings = store.load()
+        ringOffsetX = store.loadRingOffset().first
+        ringOffsetY = store.loadRingOffset().second
+        TimerBus.accent.value = settings.accent
+        publishOverlayPrefs()
+        restore()
+        val last = store.loadLastDuration()
+        digits = if (last > 0) secondsToDigits(last) else ""
+    }
+
     /** En el primer arranque selecciona "Beep" como tono por defecto si existe. */
     private fun ensureDefaultAlarmSound() {
         if (settings.alarmSoundUri != null) return
