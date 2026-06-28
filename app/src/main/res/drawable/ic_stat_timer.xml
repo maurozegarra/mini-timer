@@ -5,10 +5,18 @@
     android:viewportWidth="24"
     android:viewportHeight="24"
     android:tint="#FFFFFFFF">
+    <!-- Tapas superior e inferior -->
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M15,1 H9 V3 H15 Z" />
+        android:pathData="M4,2 L20,2 L20,4 L4,4 Z" />
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M12,6 C7.58,6 4,9.58 4,14 C4,18.42 7.58,22 12,22 C16.42,22 20,18.42 20,14 C20,12.21 19.41,10.56 18.42,9.23 L19.78,7.87 C19.35,7.36 18.89,6.89 18.36,6.46 L17,7.82 C15.68,6.68 13.92,6 12,6 Z M13,15 L11,15 L11,9 L13,9 Z" />
+        android:pathData="M4,20 L20,20 L20,22 L4,22 Z" />
+    <!-- Reloj de arena (dos triángulos formando la X) -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M6,4 L18,4 L12,11.5 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,12.5 L18,20 L6,20 Z" />
 </vector>
