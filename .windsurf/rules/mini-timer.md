@@ -17,6 +17,10 @@ description: Convenciones de comportamiento para el proyecto mini-timer
 - Volumen INDEPENDIENTE del equipo: subir el stream de alarma al máximo durante la reproducción (preview y alarma) y restaurarlo al terminar; el nivel fino lo da `perceptualVolume` sobre `MediaPlayer.setVolume`. Así 100% = máximo real del hardware, sin depender del volumen configurado en el equipo.
 - Reproducir con `USAGE_ALARM` para que suene aunque el equipo esté en silencio o en No molestar.
 - Mientras suena, pedir foco de audio `AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK` (baja la música de fondo) y abandonarlo al terminar para que la música recupere su volumen.
+- Curva de volumen (cómo ajustarla más adelante):
+  - El ajuste 0..1 (`Settings.alarmVolume`) se mapea a una ganancia perceptual en dB con `perceptualVolume` (en `TimerViewModel`): 100% -> 0 dB (máximo); 0% -> -`VOLUME_DB_RANGE` dB (silencio). El oído es logarítmico, por eso se usa dB.
+  - `VOLUME_DB_RANGE` (constante en `TimerViewModel`) controla cuánto atenúan los porcentajes bajos: subirlo = niveles bajos MÁS silenciosos; bajarlo = MÁS altos. El 100% no cambia con este valor. Valor actual: 48f.
+  - Default del volumen: `Settings.alarmVolume` (actual 0.25 = 25%). Cambiar el default solo afecta instalaciones limpias.
 
 # Versionado
 - El versionado sube +1 por cada APK generado (no por commit).
