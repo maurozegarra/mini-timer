@@ -70,6 +70,16 @@ data class Strings(
     val duplicate: String,
     val workoutNameHint: String,
     val save: String,
+    val round: String,
+    val exercise: String,
+    val rest: String,
+    val saveWorkout: String,
+    val specifyRepsDuration: String,
+    val repsUnit: String,
+    val secUnit: String,
+    val specifyTimeToPosition: String,
+    val specifyRestDuration: String,
+    val exerciseNameHint: String,
 )
 
 object I18n {
@@ -142,6 +152,16 @@ object I18n {
         duplicate = "Duplicar",
         workoutNameHint = "Dale un nombre a tu workout",
         save = "Guardar",
+        round = "Round",
+        exercise = "Ejercicio",
+        rest = "Descanso",
+        saveWorkout = "Guardar workout",
+        specifyRepsDuration = "Indica reps o duración del ejercicio",
+        repsUnit = "reps",
+        secUnit = "seg",
+        specifyTimeToPosition = "Indica el tiempo para posicionarse",
+        specifyRestDuration = "Indica la duración del descanso",
+        exerciseNameHint = "Nombre del ejercicio",
     )
 
     val EN = Strings(
@@ -211,5 +231,15 @@ object I18n {
         duplicate = "Duplicate",
         workoutNameHint = "Give your workout a name",
         save = "Save",
+        round = "Round",
+        exercise = "Exercise",
+        rest = "Rest",
+        saveWorkout = "Save Workout",
+        specifyRepsDuration = "Specify exercise reps or duration",
+        repsUnit = "reps",
+        secUnit = "sec",
+        specifyTimeToPosition = "Specify time-to-position",
+        specifyRestDuration = "Specify rest duration",
+        exerciseNameHint = "Exercise name",
     )
 }

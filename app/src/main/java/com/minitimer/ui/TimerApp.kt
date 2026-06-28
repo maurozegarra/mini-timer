@@ -143,8 +143,15 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
     // El timer cuyo detalle está abierto (si existe en la lista).
     val detail: TimerItem? = vm.detailId?.let { vm.item(it) }
 
-    BackHandler(enabled = vm.showSettings || vm.detailId != null) {
-        if (vm.showSettings) vm.showSettings = false else vm.detailId = null
+    // Editor de workout abierto (sección Athlete).
+    val athleteEditing = selectedTab == 1 && athleteVm.draft != null
+
+    BackHandler(enabled = vm.showSettings || vm.detailId != null || athleteEditing) {
+        when {
+            vm.showSettings -> vm.showSettings = false
+            vm.detailId != null -> vm.detailId = null
+            athleteEditing -> athleteVm.closeEditor()
+        }
     }
 
     Scaffold(
@@ -161,6 +168,7 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                             placeholder = t.noName,
                             onCommit = { vm.renameTimer(detail.id, it) },
                         )
+                        athleteEditing -> Text(t.createWorkout, color = Color.White, fontWeight = FontWeight.SemiBold)
                         selectedTab == 1 -> Text(
                             t.tabAthlete,
                             color = Color.White,
@@ -177,9 +185,13 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                     }
                 },
                 navigationIcon = {
-                    if (vm.showSettings || vm.detailId != null) {
+                    if (vm.showSettings || vm.detailId != null || athleteEditing) {
                         IconButton(onClick = {
-                            if (vm.showSettings) vm.showSettings = false else vm.detailId = null
+                            when {
+                                vm.showSettings -> vm.showSettings = false
+                                vm.detailId != null -> vm.detailId = null
+                                athleteEditing -> athleteVm.closeEditor()
+                            }
                         }) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
@@ -192,6 +204,7 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                 actions = {
                     when {
                         vm.showSettings -> {}
+                        athleteEditing -> {}
                         detail != null -> {
                             var menu by remember { mutableStateOf(false) }
                             Box {
@@ -229,7 +242,7 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
             }
         },
         bottomBar = {
-            if (!vm.showSettings && vm.detailId == null) {
+            if (!vm.showSettings && vm.detailId == null && !athleteEditing) {
                 BottomNavBar(
                     selected = selectedTab,
                     accent = accent,
