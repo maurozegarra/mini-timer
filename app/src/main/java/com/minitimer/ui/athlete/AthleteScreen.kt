@@ -48,6 +48,10 @@ import com.minitimer.ui.theme.TEXT_DIM
  */
 @Composable
 fun AthleteScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
+    if (vm.playerWorkoutId != null) {
+        PlayerScreen(vm, accent, t)
+        return
+    }
     if (vm.draft != null) {
         if (vm.choosingForRound != null) {
             ChooseExerciseScreen(vm, accent, t)
@@ -98,6 +102,7 @@ fun AthleteScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
                     WorkoutCard(
                         workout = w,
                         t = t,
+                        onOpen = { vm.openPlayer(w.id) },
                         onEdit = { vm.startEditWorkout(w.id) },
                         onDelete = { vm.deleteWorkout(w.id) },
                         onDuplicate = { vm.duplicateWorkout(w.id) },
@@ -126,6 +131,7 @@ fun AthleteScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
 private fun WorkoutCard(
     workout: Workout,
     t: Strings,
+    onOpen: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onDuplicate: () -> Unit,
@@ -136,6 +142,7 @@ private fun WorkoutCard(
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(SURFACE)
+            .clickable { onOpen() }
             .padding(start = 20.dp, end = 8.dp, top = 18.dp, bottom = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

@@ -82,6 +82,12 @@ data class Strings(
     val exerciseNameHint: String,
     val chooseExercise: String,
     val searchHint: String,
+    val getReady: String,
+    val summary: String,
+    val workoutComplete: String,
+    val doneLabel: String,
+    val nextLabel: String,
+    val close: String,
 )
 
 object I18n {
@@ -166,6 +172,12 @@ object I18n {
         exerciseNameHint = "Nombre del ejercicio",
         chooseExercise = "Elegir ejercicio",
         searchHint = "Buscar",
+        getReady = "Prepárate",
+        summary = "Resumen",
+        workoutComplete = "¡Workout completado!",
+        doneLabel = "Hecho",
+        nextLabel = "Siguiente",
+        close = "Cerrar",
     )
 
     val EN = Strings(
@@ -247,5 +259,11 @@ object I18n {
         exerciseNameHint = "Exercise name",
         chooseExercise = "Choose exercise",
         searchHint = "Search",
+        getReady = "Get ready",
+        summary = "Summary",
+        workoutComplete = "Workout complete!",
+        doneLabel = "Done",
+        nextLabel = "Next",
+        close = "Close",
     )
 }
