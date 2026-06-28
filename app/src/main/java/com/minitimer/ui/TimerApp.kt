@@ -45,6 +45,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -76,11 +79,13 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.minitimer.Phase
+import com.minitimer.R
 import com.minitimer.TimerViewModel
 import com.minitimer.i18n.I18n
 import com.minitimer.model.TimerItem
@@ -118,6 +123,7 @@ fun TimerApp(vm: TimerViewModel) {
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var showSheet by remember { mutableStateOf(false) }
+    var selectedTab by remember { mutableStateOf(0) }
     val onBlocked = { scope.launch { snackbar.showSnackbar(t.blockedActive) }; Unit }
 
     // El timer cuyo detalle está abierto (si existe en la lista).
@@ -141,7 +147,14 @@ fun TimerApp(vm: TimerViewModel) {
                             placeholder = t.noName,
                             onCommit = { vm.renameTimer(detail.id, it) },
                         )
-                        else -> Text(t.title, color = Color.White, fontWeight = FontWeight.SemiBold)
+                        else -> {
+                            val tabTitle = when (selectedTab) {
+                                1 -> t.tabAthlete
+                                2 -> t.tabWater
+                                else -> t.title
+                            }
+                            Text(tabTitle, color = Color.White, fontWeight = FontWeight.SemiBold)
+                        }
                     }
                 },
                 navigationIcon = {
@@ -185,7 +198,7 @@ fun TimerApp(vm: TimerViewModel) {
             )
         },
         floatingActionButton = {
-            if (!vm.showSettings && vm.detailId == null) {
+            if (!vm.showSettings && vm.detailId == null && selectedTab == 0) {
                 FloatingActionButton(
                     onClick = { vm.prepareNewTimer(); showSheet = true },
                     containerColor = accent,
@@ -196,17 +209,32 @@ fun TimerApp(vm: TimerViewModel) {
                 }
             }
         },
+        bottomBar = {
+            if (!vm.showSettings && vm.detailId == null) {
+                BottomNavBar(
+                    selected = selectedTab,
+                    accent = accent,
+                    t = t,
+                    onSelect = { selectedTab = it },
+                )
+            }
+        },
     ) { inner ->
         Box(modifier = Modifier.fillMaxSize().padding(inner)) {
             when {
                 vm.showSettings -> Box(Modifier.padding(horizontal = 24.dp)) { SettingsScreen(vm) }
                 detail != null -> TimerDetailBody(vm, detail, accent, t, onBlocked)
-                else -> TimerListScreen(
+                selectedTab == 0 -> TimerListScreen(
                     vm = vm,
                     accent = accent,
                     t = t,
                     onOpen = { vm.detailId = it },
                     onBlocked = onBlocked,
+                )
+                else -> ComingSoonScreen(
+                    icon = if (selectedTab == 1) R.drawable.ic_tab_athlete else R.drawable.ic_tab_water,
+                    title = if (selectedTab == 1) t.tabAthlete else t.tabWater,
+                    subtitle = t.comingSoon,
                 )
             }
         }
@@ -220,6 +248,64 @@ fun TimerApp(vm: TimerViewModel) {
             onDismiss = { showSheet = false },
             onBlocked = onBlocked,
         )
+    }
+}
+
+// ---------- Barra de navegación inferior (Material 3) ----------
+@Composable
+private fun BottomNavBar(
+    selected: Int,
+    accent: Color,
+    t: com.minitimer.i18n.Strings,
+    onSelect: (Int) -> Unit,
+) {
+    val items = listOf(
+        Triple(R.drawable.ic_tab_timer, t.title, 0),
+        Triple(R.drawable.ic_tab_athlete, t.tabAthlete, 1),
+        Triple(R.drawable.ic_tab_water, t.tabWater, 2),
+    )
+    NavigationBar(containerColor = SURFACE, tonalElevation = 0.dp) {
+        items.forEach { (iconRes, label, index) ->
+            NavigationBarItem(
+                selected = selected == index,
+                onClick = { onSelect(index) },
+                icon = {
+                    Icon(
+                        painter = painterResource(iconRes),
+                        contentDescription = label,
+                        modifier = Modifier.size(24.dp),
+                    )
+                },
+                label = { Text(label, fontSize = 12.sp) },
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = ON_ACCENT,
+                    selectedTextColor = accent,
+                    indicatorColor = accent,
+                    unselectedIconColor = TEXT_DIM,
+                    unselectedTextColor = TEXT_DIM,
+                ),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ComingSoonScreen(icon: Int, title: String, subtitle: String) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(
+            painter = painterResource(icon),
+            contentDescription = title,
+            tint = TEXT_FADED,
+            modifier = Modifier.size(72.dp),
+        )
+        Spacer(Modifier.height(16.dp))
+        Text(title, color = TEXT_DIM, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.height(6.dp))
+        Text(subtitle, color = TEXT_FADED, fontSize = 14.sp)
     }
 }
 
