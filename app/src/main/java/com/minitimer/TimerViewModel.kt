@@ -6,7 +6,6 @@ import android.media.AudioAttributes
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.media.MediaPlayer
-import android.media.Ringtone
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
@@ -17,6 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
+import kotlin.math.pow
 import androidx.lifecycle.viewModelScope
 import com.minitimer.data.SettingsStore
 import com.minitimer.model.SPEAKER_AND_HEADSET
@@ -37,6 +37,13 @@ data class AlarmSound(val name: String, val uri: String)
 
 /** Límite (en dp) del ajuste fino del anillo en cada eje. */
 private const val RING_OFFSET_LIMIT = 100
+
+/**
+ * Rango (en dB) de la curva perceptual de volumen de la alarma: 100% -> 0 dB,
+ * 0% -> -[VOLUME_DB_RANGE] dB. El oído es logarítmico, así que mapear el ajuste
+ * lineal a dB hace que los porcentajes bajos suenen realmente bajos.
+ */
+private const val VOLUME_DB_RANGE = 40f
 
 /**
  * Salidas de audífonos capaces de reproducir MEDIA, por orden de preferencia.
@@ -369,6 +376,17 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * Convierte el ajuste de volumen lineal (0..1) a una ganancia perceptual
+     * usando una curva en dB ([VOLUME_DB_RANGE]). 0% -> silencio; 100% -> 0 dB.
+     */
+    private fun perceptualVolume(setting: Float): Float {
+        val x = setting.coerceIn(0f, 1f)
+        if (x <= 0f) return 0f
+        val db = (x - 1f) * VOLUME_DB_RANGE
+        return 10.0.pow(db / 20.0).toFloat().coerceIn(0f, 1f)
+    }
+
     /** Primer audífono capaz de reproducir media (excluye Bluetooth SCO). */
     private fun findMediaHeadset(outputs: Array<AudioDeviceInfo>): AudioDeviceInfo? {
         for (type in MEDIA_HEADSET_TYPES) {
@@ -403,7 +421,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
             )
             mp.setDataSource(ctx, uri)
             mp.isLooping = true
-            val vol = settings.alarmVolume.coerceIn(0f, 1f)
+            val vol = perceptualVolume(settings.alarmVolume)
             mp.setVolume(vol, vol)
             if (device != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 mp.setPreferredDevice(device)
@@ -533,7 +551,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // ---------- Selector de sonido con previsualización ----------
-    private var previewRingtone: Ringtone? = null
+    private var previewPlayer: MediaPlayer? = null
 
     /** Lista de tonos de alarma disponibles en el dispositivo. */
     fun loadAlarmSounds(): List<AlarmSound> {
@@ -559,28 +577,34 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         stopPreview()
         val ctx = getApplication<Application>()
         try {
-            val rt = RingtoneManager.getRingtone(ctx, Uri.parse(uriStr)) ?: return
-            // USAGE_MEDIA (no USAGE_ALARM) para que el preview se enrute a
-            // Bluetooth A2DP / LE Audio igual que la reproducción de la alarma.
-            rt.audioAttributes = AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_MEDIA)
-                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                .build()
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                rt.volume = settings.alarmVolume.coerceIn(0f, 1f)
-            }
-            previewRingtone = rt
-            rt.play()
+            // Usamos MediaPlayer.setVolume (escalar fiable) en vez de
+            // Ringtone.volume, que varios equipos (p. ej. Samsung) ignoran y
+            // reproducían el preview al volumen del stream de alarma. USAGE_MEDIA
+            // para enrutar a Bluetooth A2DP / LE Audio igual que la alarma.
+            val mp = MediaPlayer()
+            mp.setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build(),
+            )
+            mp.setDataSource(ctx, Uri.parse(uriStr))
+            val vol = perceptualVolume(settings.alarmVolume)
+            mp.setVolume(vol, vol)
+            mp.setOnPreparedListener { it.start() }
+            mp.prepareAsync()
+            previewPlayer = mp
         } catch (_: Exception) {
         }
     }
 
     fun stopPreview() {
         try {
-            previewRingtone?.stop()
+            previewPlayer?.stop()
+            previewPlayer?.release()
         } catch (_: Exception) {
         }
-        previewRingtone = null
+        previewPlayer = null
     }
 
     override fun onCleared() {
