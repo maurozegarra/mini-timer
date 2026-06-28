@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -30,6 +31,7 @@ import com.minitimer.i18n.Strings
 import com.minitimer.model.PlayerStep
 import com.minitimer.model.StepKind
 import com.minitimer.ui.theme.JetBrainsMono
+import com.minitimer.ui.theme.Kanit
 import com.minitimer.ui.theme.ON_ACCENT
 import com.minitimer.ui.theme.SURFACE
 import com.minitimer.ui.theme.TEXT_DIM
@@ -57,7 +59,9 @@ private fun PreviewView(vm: AthleteViewModel, accent: Color, t: Strings) {
                 Text(
                     t.summary,
                     color = Color.White,
-                    fontSize = 22.sp,
+                    fontFamily = Kanit,
+                    fontStyle = FontStyle.Italic,
+                    fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(vertical = 8.dp),
                 )
@@ -180,7 +184,9 @@ private fun FinishedView(vm: AthleteViewModel, accent: Color, t: Strings) {
         Text(
             t.workoutComplete,
             color = Color.White,
-            fontSize = 26.sp,
+            fontFamily = Kanit,
+            fontStyle = FontStyle.Italic,
+            fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
         )
