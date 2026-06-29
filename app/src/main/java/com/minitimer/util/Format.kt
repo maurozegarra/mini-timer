@@ -41,7 +41,7 @@ fun formatDurationShort(ms: Long): String {
  * Última finalización con formato relativo:
  * - Hoy: solo la hora ("6:35:01 PM").
  * - Ayer: "Ayer 6:35:01 PM".
- * - Antes: "Hace X días 28 jun 2026" (sin hora).
+ * - Antes: "Hace X días 28 jun 2026 6:35:01 PM".
  */
 fun formatLastFinished(
     epochMillis: Long,
@@ -60,7 +60,7 @@ fun formatLastFinished(
         else -> {
             val date = dt.toLocalDate()
                 .format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale))
-            "${String.format(locale, daysAgoTemplate, days)} $date"
+            "${String.format(locale, daysAgoTemplate, days)} $date $time"
         }
     }
 }
