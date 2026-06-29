@@ -7,13 +7,18 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -78,6 +83,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -85,6 +91,9 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -93,6 +102,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.minitimer.AthleteViewModel
@@ -419,24 +429,58 @@ private fun TimerListScreen(
         return
     }
     val active = vm.activeId
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+    val density = LocalDensity.current
+    val spacingPx = with(density) { 14.dp.toPx() }
+    var draggingId by remember { mutableStateOf<Long?>(null) }
+    var dragOffset by remember { mutableStateOf(0f) }
+    var rowHeightPx by remember { mutableStateOf(0f) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        items(vm.timers, key = { it.id }) { item ->
+        vm.timers.forEach { item ->
+            val dragging = item.id == draggingId
             TimerCard(
                 item = item,
                 accent = accent,
                 t = t,
                 blocked = active != null && active != item.id,
                 incSec = vm.settings.addIncrementSec,
+                dragging = dragging,
+                dragOffset = if (dragging) dragOffset else 0f,
+                onHeight = { h -> if (rowHeightPx == 0f) rowHeightPx = h.toFloat() },
                 onOpen = { onOpen(item.id) },
                 onToggle = { if (!vm.togglePlay(item.id)) onBlocked() },
                 onReset = { vm.resetTimer(item.id) },
                 onDismiss = { vm.dismissTimer(item.id) },
                 onAddTime = { vm.addTime(item.id) },
                 onStar = { vm.toggleStar(item.id) },
+                dragModifier = Modifier.pointerInput(item.id) {
+                    detectDragGesturesAfterLongPress(
+                        onDragStart = { draggingId = item.id; dragOffset = 0f },
+                        onDragEnd = { draggingId = null; dragOffset = 0f },
+                        onDragCancel = { draggingId = null; dragOffset = 0f },
+                        onDrag = { change, amount ->
+                            change.consume()
+                            dragOffset += amount.y
+                            val step = rowHeightPx + spacingPx
+                            if (step <= 0f) return@detectDragGesturesAfterLongPress
+                            val cur = vm.timers.indexOfFirst { it.id == draggingId }
+                            if (cur < 0) return@detectDragGesturesAfterLongPress
+                            if (dragOffset > step / 2 && cur < vm.timers.size - 1) {
+                                vm.moveTimer(cur, cur + 1)
+                                dragOffset -= step
+                            } else if (dragOffset < -step / 2 && cur > 0) {
+                                vm.moveTimer(cur, cur - 1)
+                                dragOffset += step
+                            }
+                        },
+                    )
+                },
             )
         }
     }
@@ -449,12 +493,16 @@ private fun TimerCard(
     t: com.minitimer.i18n.Strings,
     blocked: Boolean,
     incSec: Int,
+    dragging: Boolean,
+    dragOffset: Float,
+    onHeight: (Int) -> Unit,
     onOpen: () -> Unit,
     onToggle: () -> Unit,
     onReset: () -> Unit,
     onDismiss: () -> Unit,
     onAddTime: () -> Unit,
     onStar: () -> Unit,
+    dragModifier: Modifier,
 ) {
     val done = item.phase == Phase.DONE
     val running = item.phase == Phase.RUNNING
@@ -473,47 +521,80 @@ private fun TimerCard(
         ((item.totalMs - item.remainingMs).toFloat() / item.totalMs).coerceIn(0f, 1f)
     } else 0f
 
-    Column(
+    // Texto contextual (una sola línea, a la derecha del nombre).
+    val captionText: String? = when {
+        done -> t.timeUp
+        running -> "${t.endsAt} ${formatClock(item.endAt, t.locale)}"
+        item.phase == Phase.PAUSED -> t.paused
+        item.lastFinished > 0L ->
+            formatLastFinished(item.lastFinished, t.locale, t.yesterday, t.daysAgo)
+        else -> null
+    }
+    val captionColor = if (done) DONE_RED else TEXT_DIM
+
+    Box(
         modifier = Modifier
             .fillMaxWidth()
+            .onSizeChanged { onHeight(it.height) }
+            .graphicsLayer {
+                translationY = dragOffset
+                if (dragging) { scaleX = 1.03f; scaleY = 1.03f }
+            }
             .clip(RoundedCornerShape(24.dp))
-            .background(SURFACE)
+            .background(if (dragging) TRACK else SURFACE)
             .then(
                 if (borderColor != Color.Transparent)
                     Modifier.border(1.dp, borderColor, RoundedCornerShape(24.dp))
                 else Modifier
             )
-            .clickable { onOpen() }
-            .padding(16.dp),
+            .then(dragModifier)
+            .pointerInput(item.id) { detectTapGestures(onTap = { onOpen() }) },
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onStar, modifier = Modifier.size(28.dp)) {
-                Icon(
-                    Icons.Filled.Star,
-                    contentDescription = "Star",
-                    tint = if (item.starred) Color(0xFFFFC24B) else TEXT_FADED,
-                    modifier = Modifier.size(20.dp),
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onStar, modifier = Modifier.size(28.dp)) {
+                    Icon(
+                        Icons.Filled.Star,
+                        contentDescription = "Star",
+                        tint = if (item.starred) Color(0xFFFFC24B) else TEXT_FADED,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    item.name.ifBlank { t.noName },
+                    color = when {
+                        running -> accent
+                        item.name.isBlank() -> TEXT_FADED
+                        else -> Color.White
+                    },
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
                 )
+                if (captionText != null) {
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        captionText,
+                        color = captionColor,
+                        fontSize = 12.sp,
+                        fontWeight = if (done) FontWeight.Medium else FontWeight.Normal,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.widthIn(max = 180.dp),
+                    )
+                }
             }
-            Spacer(Modifier.width(8.dp))
-            Text(
-                item.name.ifBlank { t.noName },
-                color = when {
-                    running -> accent
-                    item.name.isBlank() -> TEXT_FADED
-                    else -> Color.White
-                },
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.weight(1f),
-            )
-        }
 
-        Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(6.dp))
 
-        Row(verticalAlignment = Alignment.Bottom) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Text(
                         formatRemaining(item.remainingMs),
                         color = timeColor,
@@ -536,54 +617,42 @@ private fun TimerCard(
                         )
                     }
                 }
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.width(12.dp))
                 when {
-                    done -> Text(
-                        t.timeUp,
-                        color = DONE_RED,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                    )
-                    active -> Row(verticalAlignment = Alignment.CenterVertically) {
-                        LinearProgressIndicator(
-                            progress = { progress },
-                            color = accent,
-                            trackColor = TRACK,
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(4.dp)
-                                .clip(RoundedCornerShape(2.dp)),
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            formatRemaining(item.totalMs - item.remainingMs),
-                            color = accent,
-                            fontSize = 12.sp,
-                            fontFamily = JetBrainsMono,
-                        )
+                    done -> RoundCtrl(bg = DONE_RED, onClick = onDismiss) {
+                        Icon(Icons.Filled.Check, contentDescription = t.dismiss, tint = Color(0xFF2A0000))
                     }
-                    item.lastFinished > 0L -> Text(
-                        formatLastFinished(item.lastFinished, t.locale, t.yesterday, t.daysAgo),
-                        color = TEXT_DIM,
-                        fontSize = 12.sp,
-                    )
+                    active -> Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        RoundCtrl(bg = TRACK, onClick = onReset) {
+                            Icon(Icons.Filled.Refresh, contentDescription = t.cancel, tint = Color.White)
+                        }
+                        RoundCtrl(bg = accent, dim = blocked, onClick = onToggle) {
+                            if (running) PauseIcon(ON_ACCENT)
+                            else Icon(Icons.Filled.PlayArrow, contentDescription = t.resume, tint = ON_ACCENT)
+                        }
+                    }
+                    else -> RoundCtrl(bg = accent, dim = blocked, onClick = onToggle) {
+                        Icon(Icons.Filled.PlayArrow, contentDescription = t.start, tint = ON_ACCENT)
+                    }
                 }
             }
-            Spacer(Modifier.width(12.dp))
-            if (done) {
-                RoundCtrl(bg = DONE_RED, onClick = onDismiss) {
-                    Icon(Icons.Filled.Check, contentDescription = t.dismiss, tint = Color(0xFF2A0000))
-                }
-            } else {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    RoundCtrl(bg = TRACK, onClick = onReset) {
-                        Icon(Icons.Filled.Refresh, contentDescription = t.cancel, tint = Color.White)
-                    }
-                    RoundCtrl(bg = accent, dim = blocked, onClick = onToggle) {
-                        if (running) PauseIcon(ON_ACCENT)
-                        else Icon(Icons.Filled.PlayArrow, contentDescription = t.start, tint = ON_ACCENT)
-                    }
-                }
+        }
+
+        // Progreso como línea fina pegada al borde inferior (no agrega altura).
+        if (active) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .background(TRACK),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(progress)
+                        .fillMaxHeight()
+                        .background(accent),
+                )
             }
         }
     }

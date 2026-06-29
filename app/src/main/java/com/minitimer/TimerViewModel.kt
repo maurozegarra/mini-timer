@@ -384,6 +384,14 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
 
     fun toggleStar(id: Long) = setItem(id) { it.copy(starred = !it.starred) }
 
+    /** Reordena la lista de timers (arrastre manual) y persiste el nuevo orden. */
+    fun moveTimer(from: Int, to: Int) {
+        if (from == to) return
+        if (from !in timers.indices || to !in timers.indices) return
+        timers.add(to, timers.removeAt(from))
+        persist()
+    }
+
     fun renameTimer(id: Long, name: String) {
         setItem(id) { it.copy(name = name.take(40)) }
         if (activeId == id) publishActive()
