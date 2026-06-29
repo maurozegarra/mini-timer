@@ -1,14 +1,17 @@
 package com.minitimer.data
 
 import android.content.Context
+import com.minitimer.model.ConfirmMode
+import com.minitimer.model.DisplayMode
+import com.minitimer.model.Exercise
 import com.minitimer.model.ExerciseDef
-import com.minitimer.model.ExerciseItem
-import com.minitimer.model.ExerciseMode
-import com.minitimer.model.RestItem
-import com.minitimer.model.Round
 import com.minitimer.model.SessionLog
+import com.minitimer.model.StageConfig
+import com.minitimer.model.WeightType
+import com.minitimer.model.WorkMode
+import com.minitimer.model.Training
+import com.minitimer.model.WorkSet
 import com.minitimer.model.Workout
-import com.minitimer.model.WorkoutItem
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -21,96 +24,138 @@ class WorkoutStore(context: Context) {
     private val prefs = context.applicationContext
         .getSharedPreferences("athlete", Context.MODE_PRIVATE)
 
-    // ---------- Workouts ----------
+    // ---------- Trainings ----------
 
-    fun saveWorkouts(items: List<Workout>) {
+    fun saveTrainings(items: List<Training>) {
         val arr = JSONArray()
-        items.forEach { w -> arr.put(workoutToJson(w)) }
-        prefs.edit().putString(KEY_WORKOUTS, arr.toString()).apply()
+        items.forEach { tr -> arr.put(trainingToJson(tr)) }
+        prefs.edit().putString(KEY_TRAININGS, arr.toString()).apply()
     }
 
-    fun loadWorkouts(): List<Workout> {
-        val raw = prefs.getString(KEY_WORKOUTS, null) ?: return emptyList()
+    fun loadTrainings(): List<Training> {
+        val raw = prefs.getString(KEY_TRAININGS, null) ?: return emptyList()
         return try {
             val arr = JSONArray(raw)
-            (0 until arr.length()).map { workoutFromJson(arr.getJSONObject(it)) }
+            (0 until arr.length()).map { trainingFromJson(arr.getJSONObject(it)) }
         } catch (_: Exception) {
             emptyList()
         }
     }
 
-    private fun workoutToJson(w: Workout): JSONObject {
-        val rounds = JSONArray()
-        w.rounds.forEach { r ->
-            val itemsArr = JSONArray()
-            r.items.forEach { itemsArr.put(itemToJson(it)) }
-            rounds.put(JSONObject().put("id", r.id).put("items", itemsArr))
-        }
+    private fun trainingToJson(tr: Training): JSONObject {
+        val workouts = JSONArray()
+        tr.workouts.forEach { workouts.put(workoutToJson(it)) }
         return JSONObject()
-            .put("id", w.id)
-            .put("name", w.name)
-            .put("createdAt", w.createdAt)
-            .put("updatedAt", w.updatedAt)
-            .put("rounds", rounds)
+            .put("id", tr.id)
+            .put("name", tr.name)
+            .put("createdAt", tr.createdAt)
+            .put("updatedAt", tr.updatedAt)
+            .put("workouts", workouts)
     }
 
-    private fun workoutFromJson(o: JSONObject): Workout {
-        val rounds = mutableListOf<Round>()
-        val ra = o.optJSONArray("rounds")
-        if (ra != null) {
-            for (i in 0 until ra.length()) {
-                val ro = ra.getJSONObject(i)
-                val items = mutableListOf<WorkoutItem>()
-                val ia = ro.optJSONArray("items")
-                if (ia != null) {
-                    for (j in 0 until ia.length()) {
-                        itemFromJson(ia.getJSONObject(j))?.let { items.add(it) }
-                    }
-                }
-                rounds.add(Round(id = ro.getLong("id"), items = items))
-            }
+    private fun trainingFromJson(o: JSONObject): Training {
+        val workouts = mutableListOf<Workout>()
+        o.optJSONArray("workouts")?.let { wa ->
+            for (i in 0 until wa.length()) workouts.add(workoutFromJson(wa.getJSONObject(i)))
         }
-        return Workout(
+        return Training(
             id = o.getLong("id"),
             name = o.optString("name", ""),
-            rounds = rounds,
+            workouts = workouts,
             createdAt = o.optLong("createdAt", 0L),
             updatedAt = o.optLong("updatedAt", 0L),
         )
     }
 
-    private fun itemToJson(item: WorkoutItem): JSONObject = when (item) {
-        is ExerciseItem -> JSONObject()
-            .put("type", "exercise")
-            .put("id", item.id)
-            .put("exerciseId", item.exerciseId)
-            .put("name", item.name)
-            .put("mode", item.mode.name)
-            .put("reps", item.reps)
-            .put("durationSec", item.durationSec)
-            .put("timeToPositionSec", item.timeToPositionSec)
-        is RestItem -> JSONObject()
-            .put("type", "rest")
-            .put("id", item.id)
-            .put("durationSec", item.durationSec)
+    private fun workoutToJson(w: Workout): JSONObject {
+        val exercises = JSONArray()
+        w.exercises.forEach { exercises.put(exerciseToJson(it)) }
+        return JSONObject()
+            .put("id", w.id)
+            .put("name", w.name)
+            .put("exercises", exercises)
     }
 
-    private fun itemFromJson(o: JSONObject): WorkoutItem? = when (o.optString("type")) {
-        "exercise" -> ExerciseItem(
+    private fun workoutFromJson(o: JSONObject): Workout {
+        val exercises = mutableListOf<Exercise>()
+        o.optJSONArray("exercises")?.let { ea ->
+            for (i in 0 until ea.length()) exercises.add(exerciseFromJson(ea.getJSONObject(i)))
+        }
+        return Workout(
+            id = o.getLong("id"),
+            name = o.optString("name", ""),
+            exercises = exercises,
+        )
+    }
+
+    private fun exerciseToJson(e: Exercise): JSONObject {
+        val sets = JSONArray()
+        e.setList.forEach { sets.put(JSONObject().put("reps", it.reps).put("weight", it.weight)) }
+        return JSONObject()
+            .put("id", e.id)
+            .put("exerciseId", e.exerciseId)
+            .put("name", e.name)
+            .put("prepareSec", e.prepareSec)
+            .put("sets", e.sets)
+            .put("workMode", e.workMode.name)
+            .put("workValue", e.workValue)
+            .put("restSec", e.restSec)
+            .put("restSkipOnLastSet", e.restSkipOnLastSet)
+            .put("cooldownSec", e.cooldownSec)
+            .put("weightType", e.weightType.name)
+            .put("barWeight", e.barWeight)
+            .put("setList", sets)
+            .put("prepareCfg", stageToJson(e.prepareCfg))
+            .put("workCfg", stageToJson(e.workCfg))
+            .put("restCfg", stageToJson(e.restCfg))
+            .put("cooldownCfg", stageToJson(e.cooldownCfg))
+    }
+
+    private fun exerciseFromJson(o: JSONObject): Exercise {
+        val setList = mutableListOf<WorkSet>()
+        o.optJSONArray("setList")?.let { sa ->
+            for (i in 0 until sa.length()) {
+                val s = sa.getJSONObject(i)
+                setList.add(WorkSet(reps = s.optInt("reps", 12), weight = s.optDouble("weight", 0.0)))
+            }
+        }
+        return Exercise(
             id = o.getLong("id"),
             exerciseId = o.optString("exerciseId", ""),
             name = o.optString("name", ""),
-            mode = runCatching { ExerciseMode.valueOf(o.optString("mode")) }
-                .getOrDefault(ExerciseMode.REPS),
-            reps = o.optInt("reps", 10),
-            durationSec = o.optInt("durationSec", 0),
-            timeToPositionSec = o.optInt("timeToPositionSec", 0),
+            prepareSec = o.optInt("prepareSec", 10),
+            sets = o.optInt("sets", 3),
+            workMode = runCatching { WorkMode.valueOf(o.optString("workMode")) }.getOrDefault(WorkMode.TIME),
+            workValue = o.optInt("workValue", 40),
+            restSec = o.optInt("restSec", 20),
+            restSkipOnLastSet = o.optBoolean("restSkipOnLastSet", true),
+            cooldownSec = o.optInt("cooldownSec", 0),
+            weightType = runCatching { WeightType.valueOf(o.optString("weightType")) }.getOrDefault(WeightType.NONE),
+            barWeight = o.optDouble("barWeight", 20.0),
+            setList = setList,
+            prepareCfg = stageFromJson(o.optJSONObject("prepareCfg"), StageConfig.COLOR_PREPARE, 3),
+            workCfg = stageFromJson(o.optJSONObject("workCfg"), StageConfig.COLOR_WORK, 0),
+            restCfg = stageFromJson(o.optJSONObject("restCfg"), StageConfig.COLOR_REST, 3),
+            cooldownCfg = stageFromJson(o.optJSONObject("cooldownCfg"), StageConfig.COLOR_COOLDOWN, 0),
         )
-        "rest" -> RestItem(
-            id = o.getLong("id"),
-            durationSec = o.optInt("durationSec", 30),
+    }
+
+    private fun stageToJson(c: StageConfig): JSONObject = JSONObject()
+        .put("color", c.color)
+        .put("display", c.display.name)
+        .put("alarm", c.alarm)
+        .put("finalCount", c.finalCount)
+        .put("confirm", c.confirm.name)
+
+    private fun stageFromJson(o: JSONObject?, defColor: Long, defFinal: Int): StageConfig {
+        if (o == null) return StageConfig(color = defColor, finalCount = defFinal)
+        return StageConfig(
+            color = o.optLong("color", defColor),
+            display = runCatching { DisplayMode.valueOf(o.optString("display")) }.getOrDefault(DisplayMode.COUNTDOWN),
+            alarm = o.optBoolean("alarm", true),
+            finalCount = o.optInt("finalCount", defFinal),
+            confirm = runCatching { ConfirmMode.valueOf(o.optString("confirm")) }.getOrDefault(ConfirmMode.AUTO),
         )
-        else -> null
     }
 
     // ---------- Ejercicios propios (creados por el usuario) ----------
@@ -144,8 +189,8 @@ class WorkoutStore(context: Context) {
             arr.put(
                 JSONObject()
                     .put("id", s.id)
-                    .put("workoutId", s.workoutId)
-                    .put("workoutName", s.workoutName)
+                    .put("trainingId", s.trainingId)
+                    .put("trainingName", s.trainingName)
                     .put("completedAt", s.completedAt),
             )
         }
@@ -160,8 +205,8 @@ class WorkoutStore(context: Context) {
                 val o = arr.getJSONObject(it)
                 SessionLog(
                     id = o.getLong("id"),
-                    workoutId = o.optLong("workoutId", 0L),
-                    workoutName = o.optString("workoutName", ""),
+                    trainingId = o.optLong("trainingId", 0L),
+                    trainingName = o.optString("trainingName", ""),
                     completedAt = o.optLong("completedAt", 0L),
                 )
             }
@@ -171,7 +216,7 @@ class WorkoutStore(context: Context) {
     }
 
     private companion object {
-        const val KEY_WORKOUTS = "workouts_json"
+        const val KEY_TRAININGS = "trainings_json"
         const val KEY_CUSTOM_EXERCISES = "custom_exercises_json"
         const val KEY_SESSIONS = "sessions_json"
     }

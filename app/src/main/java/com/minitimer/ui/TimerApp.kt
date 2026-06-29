@@ -154,10 +154,12 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
     val detail: TimerItem? = vm.detailId?.let { vm.item(it) }
 
     // Editor / selector / player abiertos (sección Athlete).
-    val athleteEditing = selectedTab == 1 && athleteVm.draft != null
-    val athleteChoosing = selectedTab == 1 && athleteVm.choosingForRound != null
-    val athletePlaying = selectedTab == 1 && athleteVm.playerWorkoutId != null
-    val athleteFull = athleteEditing || athletePlaying
+    val athleteTraining = selectedTab == 1 && athleteVm.draft != null
+    val athleteChoosing = selectedTab == 1 && athleteVm.choosingExercise
+    val athleteExercise = selectedTab == 1 && athleteVm.editingExerciseId != null
+    val athleteWorkout = selectedTab == 1 && athleteVm.editingWorkoutId != null
+    val athletePlaying = selectedTab == 1 && athleteVm.playerTrainingId != null
+    val athleteFull = athleteTraining || athletePlaying
 
     BackHandler(enabled = vm.showSettings || vm.detailId != null || athleteFull) {
         when {
@@ -165,7 +167,9 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
             vm.detailId != null -> vm.detailId = null
             athletePlaying -> athleteVm.closePlayer()
             athleteChoosing -> athleteVm.closeExercisePicker()
-            athleteEditing -> athleteVm.closeEditor()
+            athleteExercise -> athleteVm.closeExerciseEditor()
+            athleteWorkout -> athleteVm.closeWorkoutEditor()
+            athleteTraining -> athleteVm.closeTrainingEditor()
         }
     }
 
@@ -185,7 +189,9 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                         )
                         athletePlaying -> Text(athleteVm.playerName, color = Color.White, fontFamily = Kanit, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic, fontSize = 20.sp)
                         athleteChoosing -> Text(t.chooseExercise, color = Color.White, fontFamily = Kanit, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic, fontSize = 20.sp)
-                        athleteEditing -> Text(t.createWorkout, color = Color.White, fontFamily = Kanit, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic, fontSize = 20.sp)
+                        athleteExercise -> Text(athleteVm.editingExercise()?.name?.ifBlank { t.exercise } ?: t.exercise, color = Color.White, fontFamily = Kanit, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic, fontSize = 20.sp)
+                        athleteWorkout -> Text(athleteVm.editingWorkout()?.name?.ifBlank { t.workout } ?: t.workout, color = Color.White, fontFamily = Kanit, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic, fontSize = 20.sp)
+                        athleteTraining -> Text(t.createTraining, color = Color.White, fontFamily = Kanit, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic, fontSize = 20.sp)
                         selectedTab == 1 -> Text(
                             t.tabAthlete,
                             color = Color.White,
@@ -209,7 +215,9 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                                 vm.detailId != null -> vm.detailId = null
                                 athletePlaying -> athleteVm.closePlayer()
                                 athleteChoosing -> athleteVm.closeExercisePicker()
-                                athleteEditing -> athleteVm.closeEditor()
+                                athleteExercise -> athleteVm.closeExerciseEditor()
+                                athleteWorkout -> athleteVm.closeWorkoutEditor()
+                                athleteTraining -> athleteVm.closeTrainingEditor()
                             }
                         }) {
                             Icon(

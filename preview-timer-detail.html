@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mini Timer · Mockup pantalla de detalle + rueda</title>
+<style>
+  :root{
+    --bg:#000000; --surface:#1C1E1F; --track:#2A2D2F;
+    --dim:#9AA0A3; --faded:#5A5D5F; --accent:#4AC0D6; --on-accent:#001316;
+    --done:#FF5252; --star:#FFC24B;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:"Segoe UI",Roboto,system-ui,sans-serif;}
+  body{background:#0a0a0a;color:#fff;padding:28px;}
+  h1{font-size:20px;font-weight:700;margin-bottom:4px;}
+  .sub{color:var(--dim);font-size:13px;margin-bottom:24px;}
+  .grid{display:flex;flex-wrap:wrap;gap:26px;align-items:flex-start;}
+  .col-title{font-size:13px;color:var(--dim);margin:0 0 10px 6px;font-weight:600;}
+  .phone{
+    width:300px;height:628px;border-radius:40px;
+    border:1px solid #222;overflow:hidden;position:relative;
+    box-shadow:0 12px 40px rgba(0,0,0,.6);display:flex;flex-direction:column;
+    /* One UI: fondo con tinte sutil del wallpaper (color dinamico simulado) */
+    background:radial-gradient(120% 80% at 50% 0%,#10171a 0%,#000 60%);
+  }
+  /* One UI: cabecera ALTA, contenido empujado hacia abajo (alcance a una mano) */
+  .topbar{display:flex;align-items:center;gap:6px;padding:18px 12px 6px;}
+  .icon-btn{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;}
+  .icon-btn svg{width:22px;height:22px;}
+  .title-edit{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;}
+  .title-edit .name{font-size:20px;font-weight:700;}
+  .title-edit svg{width:15px;height:15px;color:var(--dim);}
+  .underline{border-bottom:2px solid var(--accent);padding:6px 16px 8px;border-radius:14px 14px 0 0;background:rgba(255,255,255,.06);}
+  .headline{width:100%;color:#fff;font-size:30px;font-weight:700;padding:6px 4px 2px;}
+  .headline small{display:block;color:var(--dim);font-size:14px;font-weight:500;margin-top:2px;}
+  .body{flex:1;display:flex;flex-direction:column;align-items:center;padding:6px 22px 26px;}
+
+  /* Wheel picker (One UI: banda de seleccion en capsula) */
+  .wheel-labels{display:flex;width:100%;justify-content:space-between;padding:10px 4px 2px;}
+  .wheel-labels span{flex:1;text-align:center;color:var(--dim);font-size:14px;font-weight:500;}
+  .wheel{position:relative;width:100%;display:flex;align-items:center;justify-content:center;gap:2px;margin-top:6px;}
+  .wheel .band{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:84px;
+    border-radius:22px;background:rgba(74,192,214,.14);box-shadow:inset 0 0 0 1px rgba(74,192,214,.35);}
+  /* mascaras de desvanecido arriba/abajo, tipico de las ruedas One UI */
+  .wheel .fade{position:absolute;left:0;right:0;height:62px;z-index:2;pointer-events:none;}
+  .wheel .fade.top{top:0;background:linear-gradient(180deg,#05090b,rgba(5,9,11,0));}
+  .wheel .fade.bot{bottom:0;background:linear-gradient(0deg,#05090b,rgba(5,9,11,0));}
+  .col{flex:1;display:flex;flex-direction:column;align-items:center;z-index:1;}
+  .col .v{font-size:32px;font-weight:300;color:var(--faded);line-height:1.6;}
+  .col .v.sel{font-size:52px;font-weight:700;color:#fff;}
+  .colon{font-size:44px;font-weight:700;color:#fff;align-self:center;z-index:1;padding-bottom:2px;}
+  .haptic{margin-top:8px;color:var(--faded);font-size:11px;}
+
+  /* Ring */
+  .ring-wrap{margin-top:30px;display:flex;flex-direction:column;align-items:center;}
+  .time{font-size:50px;font-weight:300;font-family:"Consolas",monospace;letter-spacing:1px;}
+  .time.run{color:var(--accent);}
+  .time.done{color:var(--done);font-size:40px;font-weight:600;}
+  .meta{color:var(--dim);font-size:13px;margin-top:8px;}
+  .chip-add{margin-top:14px;display:inline-block;background:rgba(74,192,214,.16);color:var(--accent);
+    font-size:13px;font-weight:600;padding:7px 16px;border-radius:999px;}
+
+  /* Controls (One UI: capsulas anchas, accion primaria abajo) */
+  .controls{display:flex;gap:14px;width:100%;margin-top:auto;}
+  .btn{flex:1;border:none;border-radius:999px;padding:18px;font-size:17px;font-weight:700;cursor:default;}
+  .btn.primary{background:var(--accent);color:var(--on-accent);}
+  .btn.muted{background:rgba(255,255,255,.08);color:#fff;}
+  .btn.done{background:var(--done);color:#2A0000;}
+  .btn.full{width:100%;}
+
+  /* Bottom sheet translucido (One UI glass) */
+  .sheet-scrim{position:absolute;inset:0;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);}
+  .sheet{position:absolute;left:0;right:0;bottom:0;
+    background:rgba(28,30,31,.72);backdrop-filter:blur(22px) saturate(140%);
+    border-top:1px solid rgba(255,255,255,.08);
+    border-radius:30px 30px 0 0;padding:14px 20px 24px;display:flex;flex-direction:column;align-items:center;}
+  .grabber{width:36px;height:4px;border-radius:2px;background:rgba(255,255,255,.3);margin-bottom:14px;}
+  .sheet h3{font-size:17px;font-weight:700;margin-bottom:14px;}
+  .field{width:100%;background:rgba(255,255,255,.06);border-radius:16px;padding:15px 16px;color:var(--dim);font-size:15px;margin-bottom:6px;}
+  .note{font-size:12px;color:var(--faded);margin-top:18px;line-height:1.5;}
+  .legend{margin-top:22px;color:var(--dim);font-size:13px;max-width:980px;line-height:1.7;}
+  .legend b{color:#fff;}
+  .legend code{background:#1c1e1f;padding:1px 6px;border-radius:5px;color:var(--accent);}
+</style>
+</head>
+<body>
+  <h1>Mini Timer · Pantalla de detalle (estilo anterior) + selector tipo rueda</h1>
+  <div class="sub">Mockup MD3 oscuro. Acento teal para distinguir de "terminado" (rojo). Stickman ocultos por ahora.</div>
+
+  <div class="grid">
+
+    <!-- 1. DETALLE IDLE con rueda -->
+    <div>
+      <div class="col-title">1 · Detalle · DETENIDO (rueda para fijar/reajustar total)</div>
+      <div class="phone">
+        <div class="topbar">
+          <div class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></div>
+          <div class="title-edit">
+            <span class="name underline">Lavar arroz</span>
+          </div>
+          <div class="icon-btn"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></div>
+        </div>
+        <div class="body">
+          <div class="wheel-labels"><span>Hours</span><span>Minutes</span><span>Seconds</span></div>
+          <div class="wheel">
+            <div class="fade top"></div>
+            <div class="band"></div>
+            <div class="col"><div class="v">99</div><div class="v sel">00</div><div class="v">01</div></div>
+            <div class="colon">:</div>
+            <div class="col"><div class="v">09</div><div class="v sel">10</div><div class="v">11</div></div>
+            <div class="colon">:</div>
+            <div class="col"><div class="v">04</div><div class="v sel">05</div><div class="v">06</div></div>
+            <div class="fade bot"></div>
+          </div>
+          <div class="haptic">snap por item + haptic tick</div>
+          <div class="controls">
+            <button class="btn primary full">Iniciar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. DETALLE RUNNING -->
+    <div>
+      <div class="col-title">2 · Detalle · CORRIENDO (anillo + termina a las)</div>
+      <div class="phone">
+        <div class="topbar">
+          <div class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></div>
+          <div class="title-edit"><span class="name">Lavar arroz</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+          </div>
+          <div class="icon-btn"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></div>
+        </div>
+        <div class="body">
+          <div class="ring-wrap">
+            <svg width="220" height="220" viewBox="0 0 220 220">
+              <circle cx="110" cy="110" r="98" fill="none" stroke="#2A2D2F" stroke-width="13"/>
+              <circle cx="110" cy="110" r="98" fill="none" stroke="#4AC0D6" stroke-width="13" stroke-linecap="round"
+                stroke-dasharray="615" stroke-dashoffset="200" transform="rotate(-90 110 110)"/>
+              <text x="110" y="104" text-anchor="middle" fill="#4AC0D6" font-size="40" font-family="Consolas,monospace" font-weight="300">06:42</text>
+              <text x="110" y="132" text-anchor="middle" fill="#9AA0A3" font-size="13">termina 12:25</text>
+            </svg>
+            <div class="chip-add">+30s</div>
+          </div>
+          <div class="controls">
+            <button class="btn muted">Reiniciar</button>
+            <button class="btn primary">Pausar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. DETALLE PAUSED -->
+    <div>
+      <div class="col-title">3 · Detalle · PAUSADO</div>
+      <div class="phone">
+        <div class="topbar">
+          <div class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></div>
+          <div class="title-edit"><span class="name">Lavar arroz</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+          </div>
+          <div class="icon-btn"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></div>
+        </div>
+        <div class="body">
+          <div class="ring-wrap">
+            <svg width="220" height="220" viewBox="0 0 220 220">
+              <circle cx="110" cy="110" r="98" fill="none" stroke="#2A2D2F" stroke-width="13"/>
+              <circle cx="110" cy="110" r="98" fill="none" stroke="#4AC0D6" stroke-width="13" stroke-linecap="round"
+                stroke-dasharray="615" stroke-dashoffset="200" transform="rotate(-90 110 110)"/>
+              <text x="110" y="104" text-anchor="middle" fill="#ffffff" font-size="40" font-family="Consolas,monospace" font-weight="300">06:42</text>
+              <text x="110" y="132" text-anchor="middle" fill="#9AA0A3" font-size="13">Pausado</text>
+            </svg>
+            <div class="chip-add">+30s</div>
+          </div>
+          <div class="controls">
+            <button class="btn muted">Reiniciar</button>
+            <button class="btn primary">Reanudar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. DETALLE DONE -->
+    <div>
+      <div class="col-title">4 · Detalle · TERMINADO</div>
+      <div class="phone">
+        <div class="topbar">
+          <div class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></div>
+          <div class="title-edit"><span class="name">Lavar arroz</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+          </div>
+          <div class="icon-btn"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></div>
+        </div>
+        <div class="body">
+          <div class="ring-wrap">
+            <svg width="220" height="220" viewBox="0 0 220 220">
+              <circle cx="110" cy="110" r="98" fill="none" stroke="#2A2D2F" stroke-width="13"/>
+              <text x="110" y="122" text-anchor="middle" fill="#FF5252" font-size="34" font-weight="700">¡Tiempo!</text>
+            </svg>
+          </div>
+          <div class="controls">
+            <button class="btn muted">Descartar</button>
+            <button class="btn done">Reiniciar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. HOJA NUEVO con rueda -->
+    <div>
+      <div class="col-title">5 · Hoja "Nuevo timer" con rueda</div>
+      <div class="phone">
+        <div style="filter:brightness(.5);flex:1;">
+          <div class="topbar"><div style="flex:1"></div><div class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.6-2-3.4-2.3 1a7 7 0 0 0-1.7-1l-.3-2.4h-4l-.3 2.4a7 7 0 0 0-1.7 1l-2.3-1-2 3.4 2 1.6a7 7 0 0 0 0 2l-2 1.6 2 3.4 2.3-1a7 7 0 0 0 1.7 1l.3 2.4h4l.3-2.4a7 7 0 0 0 1.7-1l2.3 1 2-3.4-2-1.6a7 7 0 0 0 .1-1z"/></svg></div></div>
+        </div>
+        <div class="sheet-scrim"></div>
+        <div class="sheet">
+          <div class="grabber"></div>
+          <h3>Nuevo timer</h3>
+          <div class="field">Nombre (opcional)</div>
+          <div class="wheel-labels"><span>Hours</span><span>Minutes</span><span>Seconds</span></div>
+          <div class="wheel">
+            <div class="band"></div>
+            <div class="col"><div class="v">99</div><div class="v sel">00</div><div class="v">01</div></div>
+            <div class="colon">:</div>
+            <div class="col"><div class="v">09</div><div class="v sel">10</div><div class="v">11</div></div>
+            <div class="colon">:</div>
+            <div class="col"><div class="v">04</div><div class="v sel">05</div><div class="v">06</div></div>
+          </div>
+          <div class="haptic">snap por item + haptic tick</div>
+          <button class="btn primary full" style="margin-top:18px;">Iniciar</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="legend">
+    <b>Toques One UI incorporados:</b><br/>
+    · <b>Controles cápsula</b> (pill) anchos, con la <b>acción primaria abajo</b> (alcance a una mano) y <b>cabecera alta</b>.<br/>
+    · <b>Rueda</b> con <b>banda de selección en cápsula</b>, máscaras de desvanecido arriba/abajo, <b>snap por ítem</b> y <b>haptic tick</b> (runtime).<br/>
+    · <b>Bottom sheet translúcido (glass/blur)</b> — blur real solo en API 31+, con <i>fallback</i> sólido en versiones viejas.<br/>
+    · <b>Color dinámico</b> (Material You) como acento opcional en API 31+; en &lt;31 usa tu paleta.<br/>
+    · <b>Motion fluido</b> con springs en transiciones y al iniciar/pausar.<br/><br/>
+    <b>Notas del flujo:</b><br/>
+    · <b>Abrir detalle:</b> tap en cualquier parte de la tarjeta. El <b>nombre se edita solo aquí</b> (título con lápiz; al tocarlo aparece el campo con subrayado de acento).<br/>
+    · <b>Rueda (Hours/Minutes/Seconds):</b> centro resaltado, vecinos atenuados, <code>:</code> entre columnas. Reemplaza el teclado en <b>Nuevo</b> y en el <b>detalle</b>.<br/>
+    · <b>Reajustar total con la rueda:</b> solo cuando el timer está <b>DETENIDO (IDLE)</b>. En CORRIENDO/PAUSADO/TERMINADO se muestra el anillo.<br/>
+    · <b>Bloqueo:</b> "Iniciar" / "Reanudar" / "Reiniciar" respetan "uno activo a la vez" (snackbar si hay otro corriendo).<br/>
+    · <b>+tiempo</b> (chip) suma el incremento configurado; es distinto de reajustar el total.
+  </div>
+</body>
+</html>
