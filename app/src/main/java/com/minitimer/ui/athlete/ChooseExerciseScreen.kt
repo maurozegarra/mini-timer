@@ -10,9 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -22,6 +20,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -34,102 +33,92 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.minitimer.AthleteViewModel
 import com.minitimer.i18n.Strings
 import com.minitimer.model.ExerciseDef
-import com.minitimer.ui.theme.BG
+import com.minitimer.ui.theme.SURFACE
 import com.minitimer.ui.theme.TEXT_DIM
+import com.minitimer.ui.theme.TEXT_FADED
 import com.minitimer.ui.theme.TRACK
 
-/** Selector de ejercicios (catálogo base + propios) con buscador. */
 @Composable
 fun ChooseExerciseScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
-    val lang = t.locale.language
     var query by remember { mutableStateOf("") }
+    val all = remember { vm.catalog() }
+    val q = query.trim().lowercase()
+    val filtered = if (q.isEmpty()) all else all.filter { it.name.lowercase().contains(q) }
+    val exactMatch = all.any { it.name.equals(query.trim(), ignoreCase = true) }
 
-    val all = vm.catalog(lang)
-    val filtered = if (query.isBlank()) all
-    else all.filter { it.name.contains(query.trim(), ignoreCase = true) }
-    val showCreate = query.isNotBlank() && filtered.none { it.name.equals(query.trim(), ignoreCase = true) }
-
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize().padding(16.dp)) {
         OutlinedTextField(
             value = query,
             onValueChange = { query = it },
-            singleLine = true,
+            placeholder = { Text(t.searchHint, color = TEXT_FADED) },
             leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = TEXT_DIM) },
-            placeholder = { Text(t.searchHint, color = TEXT_DIM) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = accent,
+                unfocusedBorderColor = TRACK,
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White,
+                cursorColor = accent,
+            ),
         )
+
+        Spacer(Modifier.width(12.dp))
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(top = 12.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            if (showCreate) {
-                item(key = "create") {
-                    CreateRow(label = "${t.add} \"${query.trim()}\"") {
-                        val def = vm.addCustomExercise(query)
+            if (query.isNotBlank() && !exactMatch) {
+                item {
+                    CreateCustomRow(name = query.trim(), accent = accent, t = t) {
+                        val def = vm.addCustomExercise(query.trim())
                         vm.pickExercise(def)
                     }
                 }
             }
             items(filtered, key = { it.id }) { def ->
-                ExerciseRow(def = def) { vm.pickExercise(def) }
+                ExercisePickRow(def = def) { vm.pickExercise(def) }
             }
         }
     }
 }
 
 @Composable
-private fun ExerciseRow(def: ExerciseDef, onClick: () -> Unit) {
+private fun ExercisePickRow(def: ExerciseDef, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(72.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(TRACK)
-            .clickable { onClick() }
-            .padding(horizontal = 12.dp),
+            .clip(RoundedCornerShape(14.dp))
+            .background(SURFACE)
+            .clickable(onClick = onClick)
+            .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Placeholder (animación futura del ejercicio).
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(BG),
-        )
-        Spacer(Modifier.width(14.dp))
-        Text(def.name, color = Color.White, fontWeight = FontWeight.Medium)
+        ExerciseGlyph(name = def.name, color = 0xFF2E9E5BL, sizeDp = 38)
+        Spacer(Modifier.width(12.dp))
+        Text(def.name, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
     }
 }
 
 @Composable
-private fun CreateRow(label: String, onClick: () -> Unit) {
+private fun CreateCustomRow(name: String, accent: Color, t: Strings, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(72.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(TRACK)
-            .clickable { onClick() }
-            .padding(horizontal = 12.dp),
+            .clip(RoundedCornerShape(14.dp))
+            .background(SURFACE)
+            .clickable(onClick = onClick)
+            .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(BG),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(Icons.Filled.Add, contentDescription = null, tint = Color.White)
-        }
-        Spacer(Modifier.width(14.dp))
-        Text(label, color = Color.White, fontWeight = FontWeight.Medium)
+        Icon(Icons.Filled.Add, contentDescription = null, tint = accent)
+        Spacer(Modifier.width(12.dp))
+        Text("${t.add} \"$name\"", color = accent, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
     }
 }

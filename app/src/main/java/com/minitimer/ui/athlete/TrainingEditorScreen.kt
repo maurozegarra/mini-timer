@@ -7,15 +7,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -38,16 +37,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.minitimer.AthleteViewModel
 import com.minitimer.i18n.Strings
-import com.minitimer.model.Exercise
-import com.minitimer.model.WorkMode
+import com.minitimer.model.Workout
 import com.minitimer.ui.theme.SURFACE
 import com.minitimer.ui.theme.TEXT_DIM
 import com.minitimer.ui.theme.TEXT_FADED
 import com.minitimer.ui.theme.TRACK
 
 @Composable
-fun WorkoutEditorScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
-    val workout = vm.editingWorkout() ?: return
+fun TrainingEditorScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
+    val draft = vm.draft ?: return
 
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
@@ -57,9 +55,9 @@ fun WorkoutEditorScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
         ) {
             item {
                 OutlinedTextField(
-                    value = workout.name,
-                    onValueChange = { vm.setWorkoutName(it) },
-                    placeholder = { Text(t.workoutNameHint, color = TEXT_FADED) },
+                    value = draft.name,
+                    onValueChange = { vm.setTrainingName(it) },
+                    placeholder = { Text(t.trainingNameHint, color = TEXT_FADED) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -72,41 +70,37 @@ fun WorkoutEditorScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
                 )
             }
 
-            items(workout.exercises, key = { it.id }) { ex ->
-                ExerciseRow(
-                    exercise = ex,
+            items(draft.workouts, key = { it.id }) { w ->
+                WorkoutRow(
+                    workout = w,
                     t = t,
-                    onOpen = { vm.openExercise(ex.id) },
-                    onDuplicate = { vm.openExercise(ex.id).also { vm.duplicateExercise(ex.id) } },
-                    onDelete = { vm.deleteExercise(ex.id) },
+                    onOpen = { vm.openWorkout(w.id) },
+                    onDuplicate = { vm.duplicateWorkout(w.id) },
+                    onDelete = { vm.deleteWorkout(w.id) },
                 )
             }
 
             item {
-                AddButton(label = t.addExercise, accent = accent, onClick = { vm.openExercisePicker() })
+                AddButton(label = t.addWorkout, accent = accent, onClick = { vm.addWorkout() })
             }
         }
 
         PrimaryButton(
-            label = t.save,
+            label = t.saveTraining,
             accent = accent,
+            enabled = vm.canSaveTraining,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .padding(16.dp),
-            onClick = { vm.closeWorkoutEditor() },
+            onClick = { vm.saveTraining() },
         )
     }
 }
 
-private fun workSummary(ex: Exercise, t: Strings): String {
-    val work = if (ex.workMode == WorkMode.TIME) fmtSec(ex.workValue) else "${ex.workValue} ${t.repsUnit}"
-    return "${ex.sets} × $work"
-}
-
 @Composable
-private fun ExerciseRow(
-    exercise: Exercise,
+private fun WorkoutRow(
+    workout: Workout,
     t: Strings,
     onOpen: () -> Unit,
     onDuplicate: () -> Unit,
@@ -119,19 +113,17 @@ private fun ExerciseRow(
             .clip(RoundedCornerShape(16.dp))
             .background(SURFACE)
             .clickable(onClick = onOpen)
-            .padding(12.dp),
+            .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ExerciseGlyph(name = exercise.name, color = exercise.workCfg.color)
-        Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(
-                exercise.name.ifBlank { t.exercise },
+                workout.name.ifBlank { t.workout },
                 color = Color.White,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 16.sp,
             )
-            Text(workSummary(exercise, t), color = TEXT_DIM, fontSize = 13.sp)
+            Text("${workout.exercises.size} ${t.exercise}", color = TEXT_DIM, fontSize = 13.sp)
         }
         Box {
             IconButton(onClick = { menu = true }) {
@@ -142,5 +134,6 @@ private fun ExerciseRow(
                 DropdownMenuItem(text = { Text(t.delete) }, onClick = { menu = false; onDelete() })
             }
         }
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = TEXT_DIM)
     }
 }

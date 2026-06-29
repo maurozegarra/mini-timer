@@ -3,158 +3,71 @@ package com.minitimer
 import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.minitimer.data.ExerciseCatalog
+import com.minitimer.data.SettingsStore
 import com.minitimer.data.WorkoutStore
+import com.minitimer.model.ConfirmMode
+import com.minitimer.model.DisplayMode
+import com.minitimer.model.Exercise
 import com.minitimer.model.ExerciseDef
-import com.minitimer.model.ExerciseItem
-import com.minitimer.model.ExerciseMode
 import com.minitimer.model.PlayerStep
-import com.minitimer.model.RestItem
-import com.minitimer.model.Round
 import com.minitimer.model.SessionLog
 import com.minitimer.model.StepKind
+import com.minitimer.model.Training
+import com.minitimer.model.WeightType
+import com.minitimer.model.WorkMode
+import com.minitimer.model.WorkSet
 import com.minitimer.model.Workout
-import com.minitimer.model.WorkoutItem
+import com.minitimer.model.isWeighted
+import com.minitimer.model.setAt
+import com.minitimer.model.weightTotal
 import com.minitimer.notify.WorkoutPlayerService
 import kotlinx.coroutines.launch
 
 /**
- * Lógica de la sección "Athlete" (Your workouts). Mantiene la lista de workouts
- * y sus operaciones CRUD, persistidas con [WorkoutStore]. La navegación interna
- * (editor, player) se hará por estado en fases siguientes.
+ * Estado y lógica de la sección Athlete (jerarquía Training > Workout > Exercise).
+ * Mantiene la lista de trainings persistida y un "draft" en edición que contiene
+ * todo el árbol (workouts → exercises) hasta que se guarda.
  */
 class AthleteViewModel(app: Application) : AndroidViewModel(app) {
 
     private val store = WorkoutStore(app)
 
-    /** Lista de workouts; el más reciente queda al inicio. */
-    val workouts = mutableStateListOf<Workout>()
+    val trainings = mutableStateListOf<Training>()
+    private val customExercises = mutableStateListOf<ExerciseDef>()
+    private var nextId = System.currentTimeMillis()
 
-    private var nextId = 1L
-
-    /** Ejercicios creados por el usuario (persistidos). */
-    val customExercises = mutableStateListOf<ExerciseDef>()
-
-    /** Historial de sesiones completadas (el más reciente al inicio). */
-    val sessions = mutableStateListOf<SessionLog>()
+    private fun newId(): Long = nextId++
 
     init {
-        workouts.addAll(store.loadWorkouts())
+        trainings.addAll(store.loadTrainings())
         customExercises.addAll(store.loadCustomExercises())
-        sessions.addAll(store.loadSessions())
-        nextId = (allIds().maxOrNull() ?: 0L) + 1
         observePlayer()
     }
 
-    /** Recarga todo desde el store (tras restaurar un respaldo). */
+    private fun persist() = store.saveTrainings(trainings.toList())
+
+    /** Recarga desde almacenamiento (tras restaurar un backup). */
     fun reload() {
-        workouts.clear()
-        workouts.addAll(store.loadWorkouts())
+        trainings.clear()
+        trainings.addAll(store.loadTrainings())
         customExercises.clear()
         customExercises.addAll(store.loadCustomExercises())
-        sessions.clear()
-        sessions.addAll(store.loadSessions())
-        nextId = (allIds().maxOrNull() ?: 0L) + 1
     }
 
-    /** Refleja el estado publicado por el servicio del player en la UI. */
-    private fun observePlayer() {
-        viewModelScope.launch {
-            PlayerBus.state.collect { snap ->
-                if (snap == null) return@collect
-                playerWorkoutId = snap.workoutId
-                playerName = snap.name
-                playerStarted = true
-                playerIndex = snap.index
-                playerTotalSteps = snap.totalSteps
-                playerRemainingMs = snap.remainingMs
-                playerRunning = snap.running
-                playerStepKind = snap.stepKind
-                playerStepTitle = snap.stepTitle
-                playerRoundIndex = snap.roundIndex
-                playerTotalRounds = snap.totalRounds
-                playerReps = snap.reps
-                if (snap.finished && !playerFinished) {
-                    sessions.clear()
-                    sessions.addAll(store.loadSessions())
-                }
-                playerFinished = snap.finished
-            }
-        }
+    private fun lang(): String = SettingsStore(getApplication()).load().language
+
+    // ---------- Catálogo de ejercicios ----------
+
+    fun catalog(): List<ExerciseDef> {
+        val l = lang()
+        return (customExercises.toList() + ExerciseCatalog.base(l)).sortedBy { it.name.lowercase() }
     }
-
-    private fun allIds(): List<Long> = buildList {
-        workouts.forEach { w ->
-            add(w.id)
-            w.rounds.forEach { r ->
-                add(r.id)
-                r.items.forEach { add(it.id) }
-            }
-        }
-    }
-
-    /** Genera un id único para cualquier entidad (workout/round/item). */
-    fun newId(): Long = nextId++
-
-    private fun persist() = store.saveWorkouts(workouts.toList())
-
-    // ---------- Editor (draft) ----------
-
-    /** Workout en edición; null = se muestra la lista. */
-    var draft by mutableStateOf<Workout?>(null)
-        private set
-
-    private var draftIsNew = false
-
-    /** Se puede guardar si tiene nombre y al menos un item en algún round. */
-    val draftValid: Boolean
-        get() = draft?.let { d ->
-            d.name.isNotBlank() && d.rounds.any { it.items.isNotEmpty() }
-        } ?: false
-
-    fun startNewWorkout() {
-        val now = System.currentTimeMillis()
-        draft = Workout(
-            id = newId(),
-            name = "",
-            rounds = listOf(Round(id = newId())),
-            createdAt = now,
-            updatedAt = now,
-        )
-        draftIsNew = true
-    }
-
-    fun startEditWorkout(id: Long) {
-        draft = workouts.firstOrNull { it.id == id } ?: return
-        draftIsNew = false
-    }
-
-    fun closeEditor() {
-        draft = null
-        choosingForRound = null
-    }
-
-    // ---------- Selector de ejercicios ----------
-
-    /** Round al que se le agregará el ejercicio elegido; null = selector cerrado. */
-    var choosingForRound by mutableStateOf<Long?>(null)
-        private set
-
-    fun openExercisePicker(roundId: Long) {
-        choosingForRound = roundId
-    }
-
-    fun closeExercisePicker() {
-        choosingForRound = null
-    }
-
-    /** Catálogo base (según idioma) + ejercicios propios, ordenado por nombre. */
-    fun catalog(lang: String): List<ExerciseDef> =
-        (ExerciseCatalog.base(lang) + customExercises).sortedBy { it.name.lowercase() }
 
     fun addCustomExercise(name: String): ExerciseDef {
         val def = ExerciseDef(id = "custom_${newId()}", name = name.trim(), custom = true)
@@ -163,165 +76,315 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
         return def
     }
 
-    fun pickExercise(def: ExerciseDef) {
-        val roundId = choosingForRound ?: return
-        addExercise(roundId, def.id, def.name)
-        choosingForRound = null
-    }
+    // ---------- Navegación / drafts ----------
 
-    fun saveDraft() {
-        val d = draft ?: return
-        if (d.name.isBlank()) return
-        val updated = d.copy(updatedAt = System.currentTimeMillis())
-        val idx = workouts.indexOfFirst { it.id == d.id }
-        if (idx >= 0) workouts[idx] = updated else workouts.add(0, updated)
-        persist()
-        draft = null
-    }
+    /** Training en edición; null = lista de trainings. */
+    var draft by mutableStateOf<Training?>(null)
+        private set
 
-    private fun updateDraft(transform: (Workout) -> Workout) {
+    /** Workout abierto dentro del draft (editor de workout). */
+    var editingWorkoutId by mutableStateOf<Long?>(null)
+        private set
+
+    /** Ejercicio abierto dentro del workout (editor de ejercicio). */
+    var editingExerciseId by mutableStateOf<Long?>(null)
+        private set
+
+    /** Selector de ejercicios abierto (añade al workout en edición). */
+    var choosingExercise by mutableStateOf(false)
+        private set
+
+    fun editingWorkout(): Workout? =
+        draft?.workouts?.firstOrNull { it.id == editingWorkoutId }
+
+    fun editingExercise(): Exercise? =
+        editingWorkout()?.exercises?.firstOrNull { it.id == editingExerciseId }
+
+    private fun updateDraft(transform: (Training) -> Training) {
         draft = draft?.let(transform)
     }
 
-    private fun updateRound(roundId: Long, transform: (Round) -> Round) {
-        updateDraft { w ->
-            w.copy(rounds = w.rounds.map { if (it.id == roundId) transform(it) else it })
+    private fun updateWorkout(id: Long, transform: (Workout) -> Workout) = updateDraft { t ->
+        t.copy(workouts = t.workouts.map { if (it.id == id) transform(it) else it })
+    }
+
+    private fun updateExercise(workoutId: Long, exerciseId: Long, transform: (Exercise) -> Exercise) =
+        updateWorkout(workoutId) { w ->
+            w.copy(exercises = w.exercises.map { if (it.id == exerciseId) transform(it) else it })
         }
-    }
 
-    private fun cloneItem(item: WorkoutItem): WorkoutItem = when (item) {
-        is ExerciseItem -> item.copy(id = newId())
-        is RestItem -> item.copy(id = newId())
-    }
+    // ---------- Lista de Trainings ----------
 
-    fun setDraftName(name: String) = updateDraft { it.copy(name = name) }
-
-    fun addRound() = updateDraft { it.copy(rounds = it.rounds + Round(id = newId())) }
-
-    fun duplicateRound(roundId: Long) = updateDraft { w ->
-        val i = w.rounds.indexOfFirst { it.id == roundId }
-        if (i < 0) return@updateDraft w
-        val src = w.rounds[i]
-        val copy = src.copy(id = newId(), items = src.items.map { cloneItem(it) })
-        w.copy(rounds = w.rounds.toMutableList().apply { add(i + 1, copy) })
-    }
-
-    fun deleteRound(roundId: Long) = updateDraft { w ->
-        if (w.rounds.size <= 1) w else w.copy(rounds = w.rounds.filterNot { it.id == roundId })
-    }
-
-    /** Inserta un ejercicio al inicio del round. */
-    fun addExercise(roundId: Long, exerciseId: String, name: String) = updateRound(roundId) { r ->
-        r.copy(items = listOf(ExerciseItem(id = newId(), exerciseId = exerciseId, name = name.trim())) + r.items)
-    }
-
-    /** Inserta un descanso al inicio del round. */
-    fun addRest(roundId: Long) = updateRound(roundId) { r ->
-        r.copy(items = listOf(RestItem(id = newId())) + r.items)
-    }
-
-    fun updateExercise(
-        roundId: Long,
-        itemId: Long,
-        mode: ExerciseMode,
-        reps: Int,
-        durationSec: Int,
-        timeToPositionSec: Int,
-    ) = updateRound(roundId) { r ->
-        r.copy(items = r.items.map {
-            if (it.id == itemId && it is ExerciseItem) {
-                it.copy(
-                    mode = mode,
-                    reps = reps,
-                    durationSec = durationSec,
-                    timeToPositionSec = timeToPositionSec,
-                )
-            } else it
-        })
-    }
-
-    fun updateRest(roundId: Long, itemId: Long, durationSec: Int) = updateRound(roundId) { r ->
-        r.copy(items = r.items.map {
-            if (it.id == itemId && it is RestItem) it.copy(durationSec = durationSec) else it
-        })
-    }
-
-    fun deleteItem(roundId: Long, itemId: Long) = updateRound(roundId) { r ->
-        r.copy(items = r.items.filterNot { it.id == itemId })
-    }
-
-    fun duplicateItem(roundId: Long, itemId: Long) = updateRound(roundId) { r ->
-        val i = r.items.indexOfFirst { it.id == itemId }
-        if (i < 0) return@updateRound r
-        r.copy(items = r.items.toMutableList().apply { add(i + 1, cloneItem(r.items[i])) })
-    }
-
-    fun moveItem(roundId: Long, from: Int, to: Int) = updateRound(roundId) { r ->
-        if (from !in r.items.indices || to !in r.items.indices || from == to) return@updateRound r
-        r.copy(items = r.items.toMutableList().apply { add(to, removeAt(from)) })
-    }
-
-    // ---------- Lista ----------
-
-    fun deleteWorkout(id: Long) {
-        workouts.removeAll { it.id == id }
-        persist()
-    }
-
-    /** Reordena la lista de workouts (arrastre manual) y persiste el orden. */
-    fun moveWorkout(from: Int, to: Int) {
-        if (from == to) return
-        if (from !in workouts.indices || to !in workouts.indices) return
-        workouts.add(to, workouts.removeAt(from))
-        persist()
-    }
-
-    fun duplicateWorkout(id: Long) {
-        val src = workouts.firstOrNull { it.id == id } ?: return
+    fun startNewTraining() {
         val now = System.currentTimeMillis()
+        draft = Training(id = newId(), name = "", createdAt = now, updatedAt = now)
+        editingWorkoutId = null
+        editingExerciseId = null
+        choosingExercise = false
+    }
+
+    fun startEditTraining(id: Long) {
+        draft = trainings.firstOrNull { it.id == id }?.copy() ?: return
+        editingWorkoutId = null
+        editingExerciseId = null
+        choosingExercise = false
+    }
+
+    fun closeTrainingEditor() {
+        draft = null
+        editingWorkoutId = null
+        editingExerciseId = null
+        choosingExercise = false
+    }
+
+    val canSaveTraining: Boolean
+        get() = draft?.let { it.name.isNotBlank() && it.workouts.any { w -> w.exercises.isNotEmpty() } } == true
+
+    fun saveTraining() {
+        val d = draft ?: return
+        if (!canSaveTraining) return
+        val updated = d.copy(updatedAt = System.currentTimeMillis())
+        val i = trainings.indexOfFirst { it.id == updated.id }
+        if (i >= 0) trainings[i] = updated else trainings.add(updated)
+        persist()
+        closeTrainingEditor()
+    }
+
+    fun deleteTraining(id: Long) {
+        trainings.removeAll { it.id == id }
+        persist()
+    }
+
+    fun moveTraining(from: Int, to: Int) {
+        if (from == to || from !in trainings.indices || to !in trainings.indices) return
+        trainings.add(to, trainings.removeAt(from))
+        persist()
+    }
+
+    fun duplicateTraining(id: Long) {
+        val src = trainings.firstOrNull { it.id == id } ?: return
         val copy = src.copy(
             id = newId(),
             name = duplicateName(src.name),
-            rounds = src.rounds.map { r ->
-                r.copy(
-                    id = newId(),
-                    items = r.items.map { item ->
-                        when (item) {
-                            is ExerciseItem -> item.copy(id = newId())
-                            is RestItem -> item.copy(id = newId())
-                        }
-                    },
-                )
+            workouts = src.workouts.map { w ->
+                w.copy(id = newId(), exercises = w.exercises.map { it.copy(id = newId()) })
             },
-            createdAt = now,
-            updatedAt = now,
+            createdAt = System.currentTimeMillis(),
+            updatedAt = System.currentTimeMillis(),
         )
-        val i = workouts.indexOfFirst { it.id == id }
-        workouts.add(i + 1, copy)
+        val i = trainings.indexOfFirst { it.id == id }
+        trainings.add(i + 1, copy)
         persist()
     }
 
-    private fun duplicateName(name: String): String =
-        if (name.isBlank()) name else "$name (copy)"
+    private fun duplicateName(name: String): String = if (name.isBlank()) name else "$name (copy)"
 
-    // ---------- Player (ejecutado por WorkoutPlayerService) ----------
+    // ---------- Editor de Training (workouts) ----------
 
-    /** Workout en reproducción; null = player cerrado. */
-    var playerWorkoutId by mutableStateOf<Long?>(null)
+    fun setTrainingName(name: String) = updateDraft { it.copy(name = name) }
+
+    fun addWorkout() {
+        val id = newId()
+        updateDraft { it.copy(workouts = it.workouts + Workout(id = id, name = "")) }
+        editingWorkoutId = id
+    }
+
+    fun openWorkout(id: Long) {
+        editingWorkoutId = id
+    }
+
+    fun closeWorkoutEditor() {
+        editingWorkoutId = null
+    }
+
+    fun deleteWorkout(id: Long) = updateDraft { t ->
+        t.copy(workouts = t.workouts.filterNot { it.id == id })
+    }
+
+    fun duplicateWorkout(id: Long) = updateDraft { t ->
+        val i = t.workouts.indexOfFirst { it.id == id }
+        if (i < 0) return@updateDraft t
+        val src = t.workouts[i]
+        val copy = src.copy(
+            id = newId(),
+            name = duplicateName(src.name),
+            exercises = src.exercises.map { it.copy(id = newId()) },
+        )
+        t.copy(workouts = t.workouts.toMutableList().apply { add(i + 1, copy) })
+    }
+
+    fun moveWorkout(from: Int, to: Int) = updateDraft { t ->
+        if (from == to || from !in t.workouts.indices || to !in t.workouts.indices) return@updateDraft t
+        t.copy(workouts = t.workouts.toMutableList().apply { add(to, removeAt(from)) })
+    }
+
+    // ---------- Editor de Workout (exercises) ----------
+
+    fun setWorkoutName(name: String) {
+        val id = editingWorkoutId ?: return
+        updateWorkout(id) { it.copy(name = name) }
+    }
+
+    fun openExercisePicker() {
+        choosingExercise = true
+    }
+
+    fun closeExercisePicker() {
+        choosingExercise = false
+    }
+
+    /** Crea un ejercicio por defecto desde el catálogo y abre su editor. */
+    fun pickExercise(def: ExerciseDef) {
+        val wId = editingWorkoutId ?: return
+        val id = newId()
+        val ex = Exercise(id = id, exerciseId = def.id, name = def.name)
+        updateWorkout(wId) { it.copy(exercises = it.exercises + ex) }
+        choosingExercise = false
+        editingExerciseId = id
+    }
+
+    fun openExercise(id: Long) {
+        editingExerciseId = id
+    }
+
+    fun closeExerciseEditor() {
+        editingExerciseId = null
+    }
+
+    fun deleteExercise(id: Long) {
+        val wId = editingWorkoutId ?: return
+        updateWorkout(wId) { w -> w.copy(exercises = w.exercises.filterNot { it.id == id }) }
+    }
+
+    fun duplicateExercise(id: Long) {
+        val wId = editingWorkoutId ?: return
+        updateWorkout(wId) { w ->
+            val i = w.exercises.indexOfFirst { it.id == id }
+            if (i < 0) return@updateWorkout w
+            val copy = w.exercises[i].copy(id = newId())
+            w.copy(exercises = w.exercises.toMutableList().apply { add(i + 1, copy) })
+        }
+    }
+
+    fun moveExercise(from: Int, to: Int) {
+        val wId = editingWorkoutId ?: return
+        updateWorkout(wId) { w ->
+            if (from == to || from !in w.exercises.indices || to !in w.exercises.indices) return@updateWorkout w
+            w.copy(exercises = w.exercises.toMutableList().apply { add(to, removeAt(from)) })
+        }
+    }
+
+    /** Persiste los cambios del editor de ejercicio en el draft. */
+    fun saveExercise(updated: Exercise) {
+        val wId = editingWorkoutId ?: return
+        updateExercise(wId, updated.id) { updated }
+        editingExerciseId = null
+    }
+
+    // ---------- Construcción de pasos del player ----------
+
+    private fun fmtKg(d: Double): String {
+        val r = (d * 10).toLong()
+        return if (r % 10 == 0L) (r / 10).toString() else (r / 10.0).toString()
+    }
+
+    private fun weightLabel(e: Exercise, s: WorkSet): String = when (e.weightType) {
+        WeightType.BARBELL -> "${fmtKg(e.barWeight)} + ${fmtKg(s.weight)}"
+        WeightType.DUMBBELL -> "2 × ${fmtKg(s.weight)}"
+        WeightType.TOTAL, WeightType.NONE -> ""
+    }
+
+    private fun buildSteps(t: Training): List<PlayerStep> = buildList {
+        val tw = t.workouts.size.coerceAtLeast(1)
+        t.workouts.forEachIndexed { wi, w ->
+            w.exercises.forEach { e ->
+                if (e.prepareSec > 0) {
+                    add(stageStep(StepKind.PREP, e, w.name, wi, tw, durationSec = e.prepareSec))
+                }
+                val sets = e.sets.coerceAtLeast(1)
+                for (s in 0 until sets) {
+                    if (e.workMode == WorkMode.TIME) {
+                        add(stageStep(StepKind.WORK, e, w.name, wi, tw, durationSec = e.workValue, setIndex = s, totalSets = sets, timeBased = true))
+                    } else {
+                        val ws = e.setAt(s)
+                        add(
+                            stageStep(
+                                StepKind.WORK, e, w.name, wi, tw,
+                                reps = ws.reps, setIndex = s, totalSets = sets, timeBased = false,
+                                weighted = e.isWeighted,
+                                weightTotal = if (e.isWeighted) e.weightTotal(ws) else 0.0,
+                                weightLabel = if (e.isWeighted) weightLabel(e, ws) else "",
+                            ),
+                        )
+                    }
+                    val lastSet = s == sets - 1
+                    if (e.restSec > 0 && !(e.restSkipOnLastSet && lastSet)) {
+                        add(stageStep(StepKind.REST, e, w.name, wi, tw, durationSec = e.restSec, setIndex = s, totalSets = sets))
+                    }
+                }
+                if (e.cooldownSec > 0) {
+                    add(stageStep(StepKind.COOLDOWN, e, w.name, wi, tw, durationSec = e.cooldownSec))
+                }
+            }
+        }
+    }
+
+    private fun stageStep(
+        kind: StepKind,
+        e: Exercise,
+        workoutName: String,
+        workoutIndex: Int,
+        totalWorkouts: Int,
+        durationSec: Int = 0,
+        reps: Int = 0,
+        setIndex: Int = 0,
+        totalSets: Int = 1,
+        timeBased: Boolean = true,
+        weighted: Boolean = false,
+        weightTotal: Double = 0.0,
+        weightLabel: String = "",
+    ): PlayerStep {
+        val cfg = when (kind) {
+            StepKind.PREP -> e.prepareCfg
+            StepKind.WORK -> e.workCfg
+            StepKind.REST -> e.restCfg
+            StepKind.COOLDOWN -> e.cooldownCfg
+        }
+        return PlayerStep(
+            kind = kind,
+            title = if (kind == StepKind.WORK) e.name else "",
+            ownerName = e.name,
+            ownerExerciseId = e.exerciseId,
+            workoutName = workoutName,
+            workoutIndex = workoutIndex,
+            totalWorkouts = totalWorkouts,
+            setIndex = setIndex,
+            totalSets = totalSets,
+            durationSec = durationSec,
+            reps = reps,
+            timeBased = timeBased,
+            display = cfg.display,
+            confirm = cfg.confirm,
+            finalCount = cfg.finalCount,
+            colorArgb = cfg.color,
+            weighted = weighted,
+            weightTotal = weightTotal,
+            weightLabel = weightLabel,
+        )
+    }
+
+    // ---------- Player ----------
+
+    var playerTrainingId by mutableStateOf<Long?>(null)
         private set
-
-    /** Pasos del workout (para la previa / Summary). */
     var playerSteps by mutableStateOf<List<PlayerStep>>(emptyList())
         private set
-
     var playerName by mutableStateOf("")
         private set
     var playerStarted by mutableStateOf(false)
         private set
     var playerFinished by mutableStateOf(false)
         private set
-
-    // Campos espejo del estado publicado por el servicio.
     var playerRunning by mutableStateOf(false)
         private set
     var playerIndex by mutableStateOf(0)
@@ -330,83 +393,93 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var playerRemainingMs by mutableStateOf(0L)
         private set
-    var playerStepKind by mutableStateOf(StepKind.TIMED)
-        private set
-    var playerStepTitle by mutableStateOf("")
-        private set
-    var playerRoundIndex by mutableStateOf(0)
-        private set
-    var playerTotalRounds by mutableStateOf(1)
-        private set
-    var playerReps by mutableStateOf(0)
+    var playerStep by mutableStateOf<PlayerStep?>(null)
         private set
 
-    /** Construye los pasos del player a partir de los rounds/items del workout. */
-    private fun buildSteps(w: Workout): List<PlayerStep> = buildList {
-        val rc = w.rounds.size
-        w.rounds.forEachIndexed { ri, round ->
-            round.items.forEach { item ->
-                when (item) {
-                    is ExerciseItem -> when (item.mode) {
-                        ExerciseMode.DURATION -> {
-                            if (item.timeToPositionSec > 0) {
-                                add(PlayerStep(StepKind.PREP, item.name, ri, rc, durationSec = item.timeToPositionSec))
-                            }
-                            add(PlayerStep(StepKind.TIMED, item.name, ri, rc, durationSec = item.durationSec))
-                        }
-                        ExerciseMode.REPS ->
-                            add(PlayerStep(StepKind.REPS, item.name, ri, rc, reps = item.reps))
-                    }
-                    is RestItem -> add(PlayerStep(StepKind.REST, "", ri, rc, durationSec = item.durationSec))
-                }
-            }
-        }
+    /** Feedback de peso recogido durante el run: nombre ejercicio -> (peso, delta kg). */
+    val weightFeedback = mutableStateMapOf<String, Pair<Double, Double>>()
+
+    fun recordFeedback(exerciseName: String, weight: Double, deltaKg: Double) {
+        weightFeedback[exerciseName] = weight to deltaKg
     }
 
-    /** Abre el player en modo previa (Summary + Start), sin iniciar el servicio. */
-    fun openPlayer(workoutId: Long) {
-        val w = workouts.firstOrNull { it.id == workoutId } ?: return
-        val steps = buildSteps(w)
+    /** Sugerencias de ajuste para la próxima vez (solo las que cambian). */
+    fun weightSuggestions(): List<Triple<String, Double, Double>> =
+        weightFeedback.entries
+            .filter { it.value.second != 0.0 }
+            .map { Triple(it.key, it.value.first, it.value.first + it.value.second) }
+
+    fun openPlayer(trainingId: Long) {
+        val t = trainings.firstOrNull { it.id == trainingId } ?: return
+        val steps = buildSteps(t)
         if (steps.isEmpty()) return
         PlayerBus.state.value = null
+        weightFeedback.clear()
         playerSteps = steps
-        playerWorkoutId = workoutId
-        playerName = w.name
+        playerTrainingId = trainingId
+        playerName = t.name
         playerStarted = false
         playerFinished = false
         playerRunning = false
         playerIndex = 0
+        playerStep = steps[0]
         playerTotalSteps = steps.size
         playerRemainingMs = steps[0].durationSec * 1000L
     }
 
-    /** Inicia el recorrido lanzando el servicio en primer plano. */
     fun startPlayerRun() {
-        val id = playerWorkoutId ?: return
+        val id = playerTrainingId ?: return
         if (playerSteps.isEmpty()) return
         playerStarted = true
         WorkoutPlayerService.start(getApplication(), id, playerName, playerSteps)
     }
 
-    fun pausePlayer() {
-        PlayerBus.command.tryEmit(PlayerCommand.PAUSE)
-    }
-
-    fun resumePlayer() {
-        PlayerBus.command.tryEmit(PlayerCommand.RESUME)
-    }
-
-    fun nextStep() {
-        PlayerBus.command.tryEmit(PlayerCommand.NEXT)
-    }
+    fun pausePlayer() = PlayerBus.command.tryEmit(PlayerCommand.PAUSE)
+    fun resumePlayer() = PlayerBus.command.tryEmit(PlayerCommand.RESUME)
+    fun nextStep() = PlayerBus.command.tryEmit(PlayerCommand.NEXT)
 
     fun closePlayer() {
         WorkoutPlayerService.stop(getApplication())
         PlayerBus.state.value = null
-        playerWorkoutId = null
+        playerTrainingId = null
         playerSteps = emptyList()
         playerStarted = false
         playerRunning = false
         playerFinished = false
+        playerStep = null
+    }
+
+    private fun observePlayer() {
+        viewModelScope.launch {
+            PlayerBus.state.collect { snap ->
+                if (snap == null) return@collect
+                playerIndex = snap.index
+                playerTotalSteps = snap.totalSteps
+                playerRemainingMs = snap.remainingMs
+                playerRunning = snap.running
+                playerFinished = snap.finished
+                playerName = snap.name
+                playerStep = playerSteps.getOrNull(snap.index) ?: PlayerStep(
+                    kind = snap.stepKind,
+                    title = snap.stepTitle,
+                    ownerName = snap.ownerName,
+                    ownerExerciseId = snap.ownerExerciseId,
+                    workoutName = snap.workoutName,
+                    workoutIndex = snap.workoutIndex,
+                    totalWorkouts = snap.totalWorkouts,
+                    setIndex = snap.setIndex,
+                    totalSets = snap.totalSets,
+                    reps = snap.reps,
+                    timeBased = snap.timeBased,
+                    display = snap.display,
+                    finalCount = snap.finalCount,
+                    colorArgb = snap.colorArgb,
+                    weighted = snap.weighted,
+                    weightTotal = snap.weightTotal,
+                    weightLabel = snap.weightLabel,
+                )
+                if (snap.finished) playerRunning = false
+            }
+        }
     }
 }

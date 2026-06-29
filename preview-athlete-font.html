@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ATHLETE dibujado v2 - preview</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin:0; background:#0b0f14; color:#e8eaed; font-family:'Segoe UI',Roboto,system-ui,sans-serif; }
+  .wrap { max-width:680px; margin:0 auto; padding:24px 16px 60px; }
+  h1 { font-size:18px; font-weight:600; text-align:center; margin:8px 0 4px; }
+  p.sub { text-align:center; color:#9aa0a6; font-size:13px; margin:0 0 22px; }
+  .card { background:#161b22; border-radius:20px; padding:22px; margin-bottom:18px; text-align:center; }
+  .card .name { color:#9aa0a6; font-size:12px; margin-bottom:16px; text-transform:uppercase; letter-spacing:1px; }
+  .ref span { font-size:30px;letter-spacing:2px;color:#FF6A3D;font-weight:900;font-style:italic }
+  .topbar { display:flex; align-items:center; gap:12px; justify-content:center; background:#0b0f14; border-radius:14px; padding:16px; }
+  .iconbox { width:72px; height:72px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>"ATHLETE" + M dibujados a mano (v2, con cortes angulares)</h1>
+  <p class="sub">Itálica -15&deg;, trazos pesados, remates en diagonal con puntas</p>
+
+  <svg width="0" height="0" style="position:absolute">
+    <defs>
+      <path id="gA" fill-rule="evenodd" d="M58,0 L84,100 L62,100 L54,72 L34,72 L26,100 L4,100 Z M58,24 L53,58 L37,58 Z"/>
+      <path id="gT" d="M0,24 L18,0 L56,0 L74,24 Z M24,24 L50,24 L50,100 L24,100 Z"/>
+      <path id="gH" d="M0,14 L26,0 L26,100 L0,100 Z M54,14 L80,0 L80,100 L54,100 Z M26,40 L54,40 L54,64 L26,64 Z"/>
+      <path id="gL" d="M0,14 L26,0 L26,100 L0,100 Z M0,76 L46,76 L64,100 L0,100 Z"/>
+      <path id="gE" d="M0,14 L26,0 L26,100 L0,100 Z M20,0 L56,0 L74,24 L20,24 Z M20,40 L48,40 L66,64 L20,64 Z M20,76 L56,76 L74,100 L20,100 Z"/>
+      <path id="gM" d="M0,100 L0,0 L26,0 L46,44 L66,0 L92,0 L92,100 L66,100 L66,42 L46,82 L26,42 L26,100 Z"/>
+      <g id="word">
+        <g transform="translate(0,0)"><use href="#gA"/></g>
+        <g transform="translate(92,0)"><use href="#gT"/></g>
+        <g transform="translate(174,0)"><use href="#gH"/></g>
+        <g transform="translate(262,0)"><use href="#gL"/></g>
+        <g transform="translate(334,0)"><use href="#gE"/></g>
+        <g transform="translate(416,0)"><use href="#gT"/></g>
+        <g transform="translate(498,0)"><use href="#gE"/></g>
+      </g>
+    </defs>
+  </svg>
+
+  <div class="card ref"><div class="name">Referencia original</div><span>FREAK ATHLETE</span></div>
+
+  <div class="card">
+    <div class="name">Mi version dibujada (naranja, para comparar)</div>
+    <svg viewBox="0 0 600 112" style="width:100%;max-width:560px" fill="#FF6A3D">
+      <g transform="translate(28,6) skewX(-15)"><use href="#word"/></g>
+    </svg>
+  </div>
+
+  <div class="card">
+    <div class="name">Como se veria en la barra superior (blanco) + icono</div>
+    <div class="topbar">
+      <svg class="iconbox" viewBox="0 0 24 24">
+        <g transform="rotate(-12 12 12)">
+          <path fill="#ffffff" d="M12,3 L19.04,6.39 L20.77,14 L15.91,20.11 L8.09,20.11 L3.23,14 L4.96,6.39 Z"/>
+          <g transform="translate(6.5,6) scale(0.12) skewX(-12)">
+            <path fill="#0b0f14" d="M0,100 L0,0 L26,0 L46,44 L66,0 L92,0 L92,100 L66,100 L66,42 L46,82 L26,42 L26,100 Z"/>
+          </g>
+        </g>
+      </svg>
+      <svg viewBox="0 0 600 112" style="height:44px" fill="#ffffff">
+        <g transform="translate(28,6) skewX(-15)"><use href="#word"/></g>
+      </svg>
+    </div>
+  </div>
+
+  <p class="sub" style="margin-top:24px">Dime que afinar: angulo de italica, profundidad de los cortes, grosor, espaciado, o forma de alguna letra en particular.</p>
+</div>
+</body>
+</html>

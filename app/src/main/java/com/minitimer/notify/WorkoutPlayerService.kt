@@ -19,6 +19,8 @@ import com.minitimer.data.BackupManager
 import com.minitimer.data.SettingsStore
 import com.minitimer.data.WorkoutStore
 import com.minitimer.i18n.I18n
+import com.minitimer.model.ConfirmMode
+import com.minitimer.model.DisplayMode
 import com.minitimer.model.PlayerStep
 import com.minitimer.model.SessionLog
 import com.minitimer.model.StepKind
@@ -105,7 +107,7 @@ class WorkoutPlayerService : Service() {
     private fun beginStep(i: Int) {
         index = i
         val step = steps.getOrNull(i) ?: return finishPlayer()
-        if (step.kind == StepKind.REPS) {
+        if (step.manual) {
             running = false
             remainingMs = 0L
             stopTick()
@@ -130,7 +132,7 @@ class WorkoutPlayerService : Service() {
 
     private fun resume() {
         val step = steps.getOrNull(index) ?: return
-        if (step.kind == StepKind.REPS || running || finished) return
+        if (step.manual || running || finished) return
         running = true
         endAt = System.currentTimeMillis() + remainingMs
         startTick()
@@ -232,22 +234,34 @@ class WorkoutPlayerService : Service() {
 
     private fun currentRemaining(): Long {
         val step = steps.getOrNull(index) ?: return 0L
-        if (step.kind == StepKind.REPS) return 0L
+        if (step.manual) return 0L
         return if (running) (endAt - System.currentTimeMillis()).coerceAtLeast(0L) else remainingMs
     }
 
     private fun publish() {
         val step = steps.getOrNull(index) ?: return
         PlayerBus.state.value = PlayerSnapshot(
-            workoutId = workoutId,
+            trainingId = workoutId,
             name = name,
             index = index,
             totalSteps = steps.size,
             stepKind = step.kind,
             stepTitle = step.title,
-            roundIndex = step.roundIndex,
-            totalRounds = step.totalRounds,
+            ownerName = step.ownerName,
+            ownerExerciseId = step.ownerExerciseId,
+            workoutName = step.workoutName,
+            workoutIndex = step.workoutIndex,
+            totalWorkouts = step.totalWorkouts,
+            setIndex = step.setIndex,
+            totalSets = step.totalSets,
             reps = step.reps,
+            timeBased = step.timeBased,
+            display = step.display,
+            finalCount = step.finalCount,
+            colorArgb = step.colorArgb,
+            weighted = step.weighted,
+            weightTotal = step.weightTotal,
+            weightLabel = step.weightLabel,
             remainingMs = currentRemaining(),
             running = running,
             finished = finished,
@@ -267,7 +281,8 @@ class WorkoutPlayerService : Service() {
     private fun stepTitleText(step: PlayerStep?, t: com.minitimer.i18n.Strings): String = when (step?.kind) {
         StepKind.PREP -> t.getReady
         StepKind.REST -> t.rest
-        StepKind.REPS, StepKind.TIMED -> step.title.ifBlank { t.exercise }
+        StepKind.COOLDOWN -> t.cooldown
+        StepKind.WORK -> step.title.ifBlank { t.exercise }
         null -> t.tabAthlete
     }
 
@@ -275,13 +290,14 @@ class WorkoutPlayerService : Service() {
         val t = I18n.get(SettingsStore(this).load().language)
         val step = steps.getOrNull(index)
         val title = stepTitleText(step, t)
-        val info = if (step?.kind == StepKind.REPS) {
+        val manual = step?.manual == true
+        val info = if (manual && step?.kind == StepKind.WORK && !step.timeBased) {
             "${step.reps} ${t.repsUnit}"
         } else {
             fmtClock(currentRemaining())
         }
-        val round = if (step != null && step.totalRounds > 1) {
-            " · ${t.round} ${step.roundIndex + 1}/${step.totalRounds}"
+        val round = if (step != null && step.kind == StepKind.WORK && step.totalSets > 1) {
+            " · ${step.setIndex + 1}/${step.totalSets}"
         } else ""
 
         val pi = PendingIntent.getActivity(
@@ -301,7 +317,7 @@ class WorkoutPlayerService : Service() {
             .setContentIntent(pi)
             .setShowWhen(false)
 
-        if (step?.kind == StepKind.REPS) {
+        if (manual) {
             builder.addAction(action(R.drawable.ic_notif_play, t.doneLabel, ACTION_NEXT))
         } else {
             if (running) {
@@ -408,7 +424,7 @@ class WorkoutPlayerService : Service() {
         running = p.getBoolean("running", false)
         finished = false
         val step = steps[index]
-        if (step.kind == StepKind.REPS) {
+        if (step.manual) {
             running = false
             remainingMs = 0L
         } else if (running) {
@@ -420,38 +436,7 @@ class WorkoutPlayerService : Service() {
         return true
     }
 
-    private fun encodeSteps(list: List<PlayerStep>): String {
-        val arr = JSONArray()
-        list.forEach { s ->
-            arr.put(
-                JSONObject()
-                    .put("kind", s.kind.name)
-                    .put("title", s.title)
-                    .put("roundIndex", s.roundIndex)
-                    .put("totalRounds", s.totalRounds)
-                    .put("durationSec", s.durationSec)
-                    .put("reps", s.reps),
-            )
-        }
-        return arr.toString()
-    }
-
-    private fun decodeSteps(json: String): List<PlayerStep> = try {
-        val arr = JSONArray(json)
-        (0 until arr.length()).map { i ->
-            val o = arr.getJSONObject(i)
-            PlayerStep(
-                kind = StepKind.valueOf(o.getString("kind")),
-                title = o.optString("title", ""),
-                roundIndex = o.optInt("roundIndex", 0),
-                totalRounds = o.optInt("totalRounds", 1),
-                durationSec = o.optInt("durationSec", 0),
-                reps = o.optInt("reps", 0),
-            )
-        }
-    } catch (_: Exception) {
-        emptyList()
-    }
+    // Serialización de pasos delegada al companion (encodeSteps/decodeSteps).
 
     override fun onDestroy() {
         super.onDestroy()
@@ -472,29 +457,76 @@ class WorkoutPlayerService : Service() {
         private const val EXTRA_WORKOUT_ID = "workoutId"
         private const val EXTRA_NAME = "name"
 
-        fun start(context: Context, workoutId: Long, name: String, steps: List<PlayerStep>) {
-            val arr = JSONArray()
-            steps.forEach { s ->
-                arr.put(
-                    JSONObject()
-                        .put("kind", s.kind.name)
-                        .put("title", s.title)
-                        .put("roundIndex", s.roundIndex)
-                        .put("totalRounds", s.totalRounds)
-                        .put("durationSec", s.durationSec)
-                        .put("reps", s.reps),
-                )
-            }
+        fun start(context: Context, trainingId: Long, name: String, steps: List<PlayerStep>) {
             val intent = Intent(context, WorkoutPlayerService::class.java)
                 .setAction(ACTION_START)
-                .putExtra(EXTRA_STEPS, arr.toString())
-                .putExtra(EXTRA_WORKOUT_ID, workoutId)
+                .putExtra(EXTRA_STEPS, encodeSteps(steps))
+                .putExtra(EXTRA_WORKOUT_ID, trainingId)
                 .putExtra(EXTRA_NAME, name)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
             } else {
                 context.startService(intent)
             }
+        }
+
+        fun encodeSteps(list: List<PlayerStep>): String {
+            val arr = JSONArray()
+            list.forEach { s ->
+                arr.put(
+                    JSONObject()
+                        .put("kind", s.kind.name)
+                        .put("title", s.title)
+                        .put("ownerName", s.ownerName)
+                        .put("ownerExerciseId", s.ownerExerciseId)
+                        .put("workoutName", s.workoutName)
+                        .put("workoutIndex", s.workoutIndex)
+                        .put("totalWorkouts", s.totalWorkouts)
+                        .put("setIndex", s.setIndex)
+                        .put("totalSets", s.totalSets)
+                        .put("durationSec", s.durationSec)
+                        .put("reps", s.reps)
+                        .put("timeBased", s.timeBased)
+                        .put("display", s.display.name)
+                        .put("confirm", s.confirm.name)
+                        .put("finalCount", s.finalCount)
+                        .put("colorArgb", s.colorArgb)
+                        .put("weighted", s.weighted)
+                        .put("weightTotal", s.weightTotal)
+                        .put("weightLabel", s.weightLabel),
+                )
+            }
+            return arr.toString()
+        }
+
+        fun decodeSteps(json: String): List<PlayerStep> = try {
+            val arr = JSONArray(json)
+            (0 until arr.length()).map { i ->
+                val o = arr.getJSONObject(i)
+                PlayerStep(
+                    kind = StepKind.valueOf(o.getString("kind")),
+                    title = o.optString("title", ""),
+                    ownerName = o.optString("ownerName", ""),
+                    ownerExerciseId = o.optString("ownerExerciseId", ""),
+                    workoutName = o.optString("workoutName", ""),
+                    workoutIndex = o.optInt("workoutIndex", 0),
+                    totalWorkouts = o.optInt("totalWorkouts", 1),
+                    setIndex = o.optInt("setIndex", 0),
+                    totalSets = o.optInt("totalSets", 1),
+                    durationSec = o.optInt("durationSec", 0),
+                    reps = o.optInt("reps", 0),
+                    timeBased = o.optBoolean("timeBased", true),
+                    display = runCatching { DisplayMode.valueOf(o.optString("display")) }.getOrDefault(DisplayMode.COUNTDOWN),
+                    confirm = runCatching { ConfirmMode.valueOf(o.optString("confirm")) }.getOrDefault(ConfirmMode.AUTO),
+                    finalCount = o.optInt("finalCount", 0),
+                    colorArgb = o.optLong("colorArgb", 0xFF2E9E5BL),
+                    weighted = o.optBoolean("weighted", false),
+                    weightTotal = o.optDouble("weightTotal", 0.0),
+                    weightLabel = o.optString("weightLabel", ""),
+                )
+            }
+        } catch (_: Exception) {
+            emptyList()
         }
 
         fun stop(context: Context) {
