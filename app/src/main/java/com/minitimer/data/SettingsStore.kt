@@ -147,6 +147,13 @@ class SettingsStore(context: Context) {
     fun loadRingOffset(): Pair<Int, Int> =
         prefs.getInt(KEY_RING_OFF_X, 0) to prefs.getInt(KEY_RING_OFF_Y, RING_OFFSET_Y_DEFAULT)
 
+    /** Pestaña inferior seleccionada (0=Timer, 1=Athlete, 2=Water). */
+    fun saveSelectedTab(index: Int) {
+        prefs.edit().putInt(KEY_SELECTED_TAB, index).apply()
+    }
+
+    fun loadSelectedTab(): Int = prefs.getInt(KEY_SELECTED_TAB, 0)
+
     private companion object {
         // Desplazamiento vertical (dp) por defecto para centrar el anillo sobre
         // la cámara con las dimensiones actuales del anillo (38x32dp).
@@ -174,5 +181,6 @@ class SettingsStore(context: Context) {
         const val KEY_OVERLAY_ASKED = "overlay_asked"
         const val KEY_RING_OFF_X = "ring_off_x"
         const val KEY_RING_OFF_Y = "ring_off_y"
+        const val KEY_SELECTED_TAB = "selected_tab"
     }
 }

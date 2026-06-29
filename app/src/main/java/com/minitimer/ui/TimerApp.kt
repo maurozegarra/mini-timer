@@ -147,7 +147,7 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var showSheet by remember { mutableStateOf(false) }
-    var selectedTab by remember { mutableStateOf(0) }
+    val selectedTab = vm.selectedTab
     val onBlocked = { scope.launch { snackbar.showSnackbar(t.blockedActive) }; Unit }
 
     // El timer cuyo detalle está abierto (si existe en la lista).
@@ -266,7 +266,7 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                     selected = selectedTab,
                     accent = accent,
                     t = t,
-                    onSelect = { selectedTab = it },
+                    onSelect = { vm.selectTab(it) },
                 )
             }
         },
