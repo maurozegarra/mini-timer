@@ -88,6 +88,15 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     var activeId by mutableStateOf<Long?>(null)
         private set
 
+    /** Pestaña inferior seleccionada (0=Timer, 1=Athlete, 2=Water); persistida. */
+    var selectedTab by mutableStateOf(store.loadSelectedTab())
+        private set
+
+    fun selectTab(index: Int) {
+        selectedTab = index
+        store.saveSelectedTab(index)
+    }
+
     // Offset fino (en dp) del anillo sobre la cámara, ajustable con +/- en ajustes.
     var ringOffsetX by mutableStateOf(store.loadRingOffset().first)
         private set
