@@ -547,8 +547,8 @@ private fun TimerCard(
                     Modifier.border(1.dp, borderColor, RoundedCornerShape(24.dp))
                 else Modifier
             )
-            .then(dragModifier)
-            .pointerInput(item.id) { detectTapGestures(onTap = { onOpen() }) },
+            .pointerInput(item.id) { detectTapGestures(onTap = { onOpen() }) }
+            .then(dragModifier),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

@@ -309,10 +309,12 @@ private fun ItemCard(
             .clip(RoundedCornerShape(12.dp))
             .background(if (dragging) SURFACE else TRACK)
             // Mantener presionado para reordenar; tap para editar.
-            .then(dragModifier)
+            // El detector de tap debe ir ANTES (exterior) y el de arrastre
+            // DESPUÉS (interior); en orden inverso el long-press-drag se bloquea.
             .pointerInput(item.id) {
                 detectTapGestures(onTap = { onClick() })
             }
+            .then(dragModifier)
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

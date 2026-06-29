@@ -268,6 +268,14 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
         persist()
     }
 
+    /** Reordena la lista de workouts (arrastre manual) y persiste el orden. */
+    fun moveWorkout(from: Int, to: Int) {
+        if (from == to) return
+        if (from !in workouts.indices || to !in workouts.indices) return
+        workouts.add(to, workouts.removeAt(from))
+        persist()
+    }
+
     fun duplicateWorkout(id: Long) {
         val src = workouts.firstOrNull { it.id == id } ?: return
         val now = System.currentTimeMillis()
