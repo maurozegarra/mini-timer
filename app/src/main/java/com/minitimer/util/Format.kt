@@ -1,9 +1,11 @@
 package com.minitimer.util
 
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
+import java.time.temporal.ChronoUnit
 import java.util.Locale
 import kotlin.math.ceil
 
@@ -35,14 +37,32 @@ fun formatDurationShort(ms: Long): String {
     return if (parts.isEmpty()) "0 s" else parts.joinToString(" ")
 }
 
-/** Fecha + hora de la última finalización, respetando el locale. */
-fun formatLastFinished(epochMillis: Long, locale: Locale): String {
-    val dt = Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault())
-    val date = dt.toLocalDate()
-        .format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale))
+/**
+ * Última finalización con formato relativo:
+ * - Hoy: solo la hora ("6:35:01 PM").
+ * - Ayer: "Ayer 6:35:01 PM".
+ * - Antes: "Hace X días 28 jun 2026" (sin hora).
+ */
+fun formatLastFinished(
+    epochMillis: Long,
+    locale: Locale,
+    yesterdayLabel: String,
+    daysAgoTemplate: String,
+): String {
+    val zone = ZoneId.systemDefault()
+    val dt = Instant.ofEpochMilli(epochMillis).atZone(zone)
     val time = dt.toLocalTime()
         .format(DateTimeFormatter.ofLocalizedTime(FormatStyle.MEDIUM).withLocale(locale))
-    return "$date $time"
+    val days = ChronoUnit.DAYS.between(dt.toLocalDate(), LocalDate.now(zone))
+    return when {
+        days <= 0L -> time
+        days == 1L -> "$yesterdayLabel $time"
+        else -> {
+            val date = dt.toLocalDate()
+                .format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale))
+            "${String.format(locale, daysAgoTemplate, days)} $date"
+        }
+    }
 }
 
 /** Etiqueta corta del incremento "+tiempo": "+15s", "+1m", "+5m". */
