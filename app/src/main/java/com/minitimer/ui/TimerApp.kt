@@ -563,7 +563,7 @@ private fun TimerCard(
                         )
                     }
                     item.lastFinished > 0L -> Text(
-                        "${t.endedAt} ${formatLastFinished(item.lastFinished, t.locale)}",
+                        formatLastFinished(item.lastFinished, t.locale, t.yesterday, t.daysAgo),
                         color = TEXT_DIM,
                         fontSize = 12.sp,
                     )
