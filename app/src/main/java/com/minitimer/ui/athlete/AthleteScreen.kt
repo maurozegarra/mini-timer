@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import com.minitimer.AthleteViewModel
 import com.minitimer.i18n.Strings
 import com.minitimer.model.Training
+import com.minitimer.model.hasContent
 import com.minitimer.ui.theme.ON_ACCENT
 import com.minitimer.ui.theme.SURFACE
 import com.minitimer.ui.theme.TEXT_DIM
@@ -49,6 +50,8 @@ fun AthleteScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
         vm.playerTrainingId != null -> PlayerScreen(vm, accent, t)
         vm.choosingExercise -> ChooseExerciseScreen(vm, accent, t)
         vm.editingExerciseId != null -> ExerciseEditorScreen(vm, accent, t)
+        vm.editingVariantId != null -> WorkoutEditorScreen(vm, accent, t)
+        vm.editingWorkoutId != null && vm.editingWorkout()?.rotating == true -> VariantListScreen(vm, accent, t)
         vm.editingWorkoutId != null -> WorkoutEditorScreen(vm, accent, t)
         vm.draft != null -> TrainingEditorScreen(vm, accent, t)
         else -> TrainingsList(vm, accent, t)
@@ -110,8 +113,10 @@ private fun TrainingCard(
     onDelete: () -> Unit,
 ) {
     var menu by remember { mutableStateOf(false) }
-    val exercises = training.workouts.sumOf { it.exercises.size }
-    val canPlay = exercises > 0
+    val exercises = training.workouts.sumOf { w ->
+        if (w.variants.isNotEmpty()) w.variants.sumOf { it.exercises.size } else w.exercises.size
+    }
+    val canPlay = training.workouts.any { it.hasContent() }
 
     Row(
         modifier = Modifier

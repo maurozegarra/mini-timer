@@ -145,6 +145,11 @@ data class Strings(
     val durationTitle: String,
     val noteLabel: String,
     val repLabel: String,
+    val variant: String,
+    val addVariant: String,
+    val variantNameHint: String,
+    val makeRotating: String,
+    val makeSimple: String,
 )
 
 object I18n {
@@ -291,6 +296,11 @@ object I18n {
         durationTitle = "Duración",
         noteLabel = "Nota",
         repLabel = "Rep",
+        variant = "Variante",
+        addVariant = "Agregar variante",
+        variantNameHint = "Nombre de la variante",
+        makeRotating = "Hacer rotativo",
+        makeSimple = "Hacer simple",
     )
 
     val EN = Strings(
@@ -434,5 +444,10 @@ object I18n {
         durationTitle = "Duration",
         noteLabel = "Note",
         repLabel = "Rep",
+        variant = "Variant",
+        addVariant = "Add variant",
+        variantNameHint = "Variant name",
+        makeRotating = "Make rotating",
+        makeSimple = "Make simple",
     )
 }

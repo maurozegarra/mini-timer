@@ -7,15 +7,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -38,18 +37,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.minitimer.AthleteViewModel
 import com.minitimer.i18n.Strings
-import com.minitimer.model.Exercise
-import com.minitimer.model.WorkMode
+import com.minitimer.model.WorkoutVariant
 import com.minitimer.ui.theme.SURFACE
 import com.minitimer.ui.theme.TEXT_DIM
 import com.minitimer.ui.theme.TEXT_FADED
 import com.minitimer.ui.theme.TRACK
 
+/** Editor de un workout rotativo: lista de variantes que se alternan al completar. */
 @Composable
-fun WorkoutEditorScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
-    vm.editingWorkout() ?: return
-    val inVariant = vm.editingVariantId != null
-    val exercises = vm.editorExercises()
+fun VariantListScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
+    val workout = vm.editingWorkout() ?: return
 
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
@@ -61,7 +58,7 @@ fun WorkoutEditorScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
                 OutlinedTextField(
                     value = vm.editorName(),
                     onValueChange = { vm.setEditorName(it) },
-                    placeholder = { Text(if (inVariant) t.variantNameHint else t.workoutNameHint, color = TEXT_FADED) },
+                    placeholder = { Text(t.workoutNameHint, color = TEXT_FADED) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -74,18 +71,19 @@ fun WorkoutEditorScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
                 )
             }
 
-            items(exercises, key = { it.id }) { ex ->
-                ExerciseRow(
-                    exercise = ex,
+            itemsIndexed(workout.variants, key = { _, v -> v.id }) { index, v ->
+                VariantRow(
+                    variant = v,
+                    index = index,
                     t = t,
-                    onOpen = { vm.openExercise(ex.id) },
-                    onDuplicate = { vm.duplicateExercise(ex.id) },
-                    onDelete = { vm.deleteExercise(ex.id) },
+                    onOpen = { vm.openVariant(v.id) },
+                    onDuplicate = { vm.duplicateVariant(v.id) },
+                    onDelete = { vm.deleteVariant(v.id) },
                 )
             }
 
             item {
-                AddButton(label = t.addExercise, accent = accent, onClick = { vm.openExercisePicker() })
+                AddButton(label = t.addVariant, accent = accent, onClick = { vm.addVariant() })
             }
         }
 
@@ -96,19 +94,15 @@ fun WorkoutEditorScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .padding(16.dp),
-            onClick = { if (inVariant) vm.closeVariantEditor() else vm.closeWorkoutEditor() },
+            onClick = { vm.closeWorkoutEditor() },
         )
     }
 }
 
-private fun workSummary(ex: Exercise, t: Strings): String {
-    val work = if (ex.workMode == WorkMode.TIME) fmtSec(ex.workValue) else "${ex.workValue} ${t.repsUnit}"
-    return "${ex.sets} × $work"
-}
-
 @Composable
-private fun ExerciseRow(
-    exercise: Exercise,
+private fun VariantRow(
+    variant: WorkoutVariant,
+    index: Int,
     t: Strings,
     onOpen: () -> Unit,
     onDuplicate: () -> Unit,
@@ -121,19 +115,17 @@ private fun ExerciseRow(
             .clip(RoundedCornerShape(16.dp))
             .background(SURFACE)
             .clickable(onClick = onOpen)
-            .padding(12.dp),
+            .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ExerciseGlyph(name = exercise.name, color = exercise.workCfg.color)
-        Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(
-                exercise.name.ifBlank { t.exercise },
+                variant.name.ifBlank { "${t.variant} ${index + 1}" },
                 color = Color.White,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 16.sp,
             )
-            Text(workSummary(exercise, t), color = TEXT_DIM, fontSize = 13.sp)
+            Text("${variant.exercises.size} ${t.exercise}", color = TEXT_DIM, fontSize = 13.sp)
         }
         Box {
             IconButton(onClick = { menu = true }) {
@@ -144,5 +136,6 @@ private fun ExerciseRow(
                 DropdownMenuItem(text = { Text(t.delete) }, onClick = { menu = false; onDelete() })
             }
         }
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = TEXT_DIM)
     }
 }

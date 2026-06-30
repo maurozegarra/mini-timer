@@ -77,6 +77,9 @@ fun TrainingEditorScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
                     onOpen = { vm.openWorkout(w.id) },
                     onDuplicate = { vm.duplicateWorkout(w.id) },
                     onDelete = { vm.deleteWorkout(w.id) },
+                    onToggleRotating = {
+                        if (w.rotating) vm.makeWorkoutSimple(w.id) else vm.makeWorkoutRotating(w.id)
+                    },
                 )
             }
 
@@ -105,10 +108,12 @@ private fun WorkoutRow(
     onOpen: () -> Unit,
     onDuplicate: () -> Unit,
     onDelete: () -> Unit,
+    onToggleRotating: () -> Unit,
 ) {
     var menu by remember { mutableStateOf(false) }
     val subtitle = if (workout.rotating) {
-        workout.variants.joinToString(" / ") { it.name }
+        workout.variants.joinToString(" / ") { it.name.ifBlank { t.variant } }
+            .ifBlank { "${workout.variants.size} ${t.variant}" }
     } else {
         "${workout.exercises.size} ${t.exercise}"
     }
@@ -117,7 +122,7 @@ private fun WorkoutRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(SURFACE)
-            .then(if (workout.rotating) Modifier else Modifier.clickable(onClick = onOpen))
+            .clickable(onClick = onOpen)
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -135,12 +140,14 @@ private fun WorkoutRow(
                 Icon(Icons.Filled.MoreVert, contentDescription = null, tint = TEXT_DIM)
             }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                DropdownMenuItem(
+                    text = { Text(if (workout.rotating) t.makeSimple else t.makeRotating) },
+                    onClick = { menu = false; onToggleRotating() },
+                )
                 DropdownMenuItem(text = { Text(t.duplicate) }, onClick = { menu = false; onDuplicate() })
                 DropdownMenuItem(text = { Text(t.delete) }, onClick = { menu = false; onDelete() })
             }
         }
-        if (!workout.rotating) {
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = TEXT_DIM)
-        }
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = TEXT_DIM)
     }
 }
