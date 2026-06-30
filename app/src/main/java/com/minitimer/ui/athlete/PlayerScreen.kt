@@ -1,5 +1,6 @@
 package com.minitimer.ui.athlete
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -13,25 +14,31 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
@@ -58,40 +65,66 @@ fun PlayerScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
     }
 }
 
+private data class PreviewExercise(val name: String, val exerciseId: String, val meta: String)
+
+private data class PreviewGroup(
+    val index: Int,
+    val title: String,
+    val rotating: Boolean,
+    val variant: String,
+    val durationSec: Int,
+    val exercises: List<PreviewExercise>,
+)
+
+private fun metaFor(s: PlayerStep): String = when {
+    s.timeBased -> formatRemaining(s.durationSec * 1000L)
+    s.totalSets > 1 && s.reps > 1 -> "${s.totalSets}×${s.reps}"
+    s.totalSets > 1 -> "${s.totalSets}×"
+    s.reps > 0 -> "×${s.reps}"
+    else -> ""
+}
+
+private fun buildPreviewGroups(steps: List<PlayerStep>): List<PreviewGroup> =
+    steps.groupBy { it.workoutIndex }.entries.sortedBy { it.key }.map { (idx, list) ->
+        val first = list.first()
+        val exercises = list.filter { it.kind == StepKind.WORK }
+            .distinctBy { it.ownerName + "|" + it.ownerExerciseId }
+            .map { s -> PreviewExercise(s.ownerName, s.ownerExerciseId, metaFor(s)) }
+        PreviewGroup(
+            index = idx,
+            title = first.workoutBaseName.ifBlank { first.workoutName },
+            rotating = first.rotating,
+            variant = first.variantName,
+            durationSec = list.sumOf { it.durationSec },
+            exercises = exercises,
+        )
+    }
+
 @Composable
 private fun PreviewView(vm: AthleteViewModel, accent: Color, t: Strings) {
     val steps = vm.playerSteps
-    val exercises = steps.filter { it.kind == StepKind.WORK }
-        .map { Triple(it.workoutName, it.ownerName, it.ownerExerciseId) }
-        .distinct()
+    val groups = remember(steps) { buildPreviewGroups(steps) }
+    val totalExercises = groups.sumOf { it.exercises.size }
+    val expanded = remember(steps) { mutableStateMapOf<Int, Boolean>() }
+    val firstIndex = groups.firstOrNull()?.index
 
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp, 16.dp, 16.dp, 96.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
                 Text(vm.playerName, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp)
-                Text("${exercises.size} ${t.exercise}", color = TEXT_DIM, fontSize = 14.sp)
-                Spacer(Modifier.height(8.dp))
+                Text(
+                    "$totalExercises ${t.exercise} · ${groups.size} ${t.workout}",
+                    color = TEXT_DIM,
+                    fontSize = 14.sp,
+                )
             }
-            items(exercises) { (workout, name, exId) ->
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(SURFACE)
-                        .padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    ExerciseGlyph(name = name, color = 0xFF2E9E5BL, sizeDp = 38, exerciseId = exId)
-                    Spacer(Modifier.size(12.dp))
-                    Column {
-                        Text(name, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                        if (workout.isNotBlank()) Text(workout, color = TEXT_DIM, fontSize = 12.sp)
-                    }
-                }
+            items(groups, key = { it.index }) { g ->
+                val open = expanded[g.index] ?: (g.index == firstIndex)
+                WorkoutGroupCard(g, open, accent, t) { expanded[g.index] = !open }
             }
         }
         PrimaryButton(
@@ -103,6 +136,169 @@ private fun PreviewView(vm: AthleteViewModel, accent: Color, t: Strings) {
                 .padding(16.dp),
             onClick = { vm.startPlayerRun() },
         )
+    }
+}
+
+@Composable
+private fun WorkoutGroupCard(
+    g: PreviewGroup,
+    open: Boolean,
+    accent: Color,
+    t: Strings,
+    onToggle: () -> Unit,
+) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(SURFACE)
+            .clickable(onClick = onToggle)
+            .padding(14.dp)
+            .animateContentSize(),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        g.title.ifBlank { t.workout },
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 16.sp,
+                    )
+                    if (g.rotating) {
+                        Spacer(Modifier.width(8.dp))
+                        Box(
+                            Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(accent.copy(alpha = 0.22f))
+                                .padding(horizontal = 8.dp, vertical = 2.dp),
+                        ) {
+                            Text(t.rotatingTag, color = accent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+                val sub = buildString {
+                    if (g.rotating && g.variant.isNotBlank()) {
+                        append("${t.activeVariantLabel}: ${g.variant}")
+                    } else {
+                        append("${g.exercises.size} ${t.exercise}")
+                    }
+                    if (g.durationSec > 0) append(" · ${formatRemaining(g.durationSec * 1000L)}")
+                }
+                Text(sub, color = TEXT_DIM, fontSize = 12.sp)
+            }
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = TEXT_DIM,
+                modifier = Modifier.rotate(if (open) 90f else 0f),
+            )
+        }
+        if (open) {
+            Spacer(Modifier.height(10.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                g.exercises.forEachIndexed { i, ex ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        TimelineRail(isFirst = i == 0, isLast = i == g.exercises.lastIndex, accent = accent)
+                        Spacer(Modifier.width(10.dp))
+                        Row(
+                            Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(TRACK)
+                                .padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            ExerciseGlyph(name = ex.name, color = 0xFF2E9E5BL, sizeDp = 30, exerciseId = ex.exerciseId)
+                            Spacer(Modifier.width(10.dp))
+                            Text(
+                                ex.name,
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.weight(1f),
+                            )
+                            if (ex.meta.isNotBlank()) {
+                                Text(ex.meta, color = TEXT_DIM, fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TimelineRail(isFirst: Boolean, isLast: Boolean, accent: Color) {
+    Box(
+        Modifier
+            .width(18.dp)
+            .fillMaxHeight(),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            Modifier.fillMaxHeight(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Box(
+                Modifier
+                    .width(2.dp)
+                    .weight(1f)
+                    .background(if (isFirst) Color.Transparent else TRACK),
+            )
+            Box(
+                Modifier
+                    .width(2.dp)
+                    .weight(1f)
+                    .background(if (isLast) Color.Transparent else TRACK),
+            )
+        }
+        Box(
+            Modifier
+                .size(10.dp)
+                .clip(CircleShape)
+                .background(if (isFirst) accent else TEXT_DIM),
+        )
+    }
+}
+
+@Composable
+private fun WorkoutProgressBar(step: PlayerStep, accent: Color, t: Strings) {
+    val name = step.workoutName.ifBlank { step.workoutBaseName }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color.Black.copy(alpha = 0.20f))
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                "${t.workout} ${step.workoutIndex + 1} / ${step.totalWorkouts}",
+                color = TEXT_DIM,
+                fontSize = 12.sp,
+            )
+            if (name.isNotBlank()) {
+                Text(name, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            repeat(step.totalWorkouts) { i ->
+                val c = when {
+                    i < step.workoutIndex -> accent
+                    i == step.workoutIndex -> Color.White
+                    else -> Color.White.copy(alpha = 0.25f)
+                }
+                Box(
+                    Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(c),
+                )
+            }
+        }
     }
 }
 
@@ -124,6 +320,9 @@ private fun RunningView(vm: AthleteViewModel, accent: Color, t: Strings) {
             .padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        if (step.totalWorkouts > 1) {
+            WorkoutProgressBar(step, accent, t)
+        }
         Spacer(Modifier.height(8.dp))
         if (step.kind != StepKind.WORK && step.ownerName.isNotBlank()) {
             ExerciseGlyph(name = step.ownerName, color = step.colorArgb, sizeDp = 40, exerciseId = step.ownerExerciseId)

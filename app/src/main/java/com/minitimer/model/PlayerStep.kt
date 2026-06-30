@@ -35,6 +35,12 @@ data class PlayerStep(
     val weighted: Boolean = false,
     val weightTotal: Double = 0.0,
     val weightLabel: String = "",
+    /** Nombre base del workout (sin resolver variante), para agrupar en la vista previa. */
+    val workoutBaseName: String = "",
+    /** Nombre de la variante activa si el workout es rotativo (vacío si no rota). */
+    val variantName: String = "",
+    /** true si el workout es rotativo. */
+    val rotating: Boolean = false,
 ) {
     /** La etapa requiere confirmación manual (TAP) para avanzar. */
     val manual: Boolean
