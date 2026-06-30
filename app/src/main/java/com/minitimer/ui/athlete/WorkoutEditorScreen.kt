@@ -37,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.minitimer.AthleteViewModel
+import com.minitimer.data.ExerciseCatalog
 import com.minitimer.i18n.Strings
 import com.minitimer.model.Exercise
 import com.minitimer.model.WorkMode
@@ -124,11 +125,12 @@ private fun ExerciseRow(
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ExerciseGlyph(name = exercise.name, color = exercise.workCfg.color, exerciseId = exercise.exerciseId)
+        val exLabel = ExerciseCatalog.display(exercise.exerciseId, exercise.name, t.locale.language)
+        ExerciseGlyph(name = exLabel, color = exercise.workCfg.color, exerciseId = exercise.exerciseId)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(
-                exercise.name.ifBlank { t.exercise },
+                exLabel.ifBlank { t.exercise },
                 color = Color.White,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 16.sp,
