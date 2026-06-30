@@ -70,6 +70,16 @@ Segunda pestaña de la app: editor y reproductor de rutinas de entrenamiento con
 
 ## Cómo compilar / ejecutar
 
+> ⚠️ **IMPORTANTE — NO existe `gradlew` ni `gradle-wrapper.jar` en el repo, y `gradle` NO está en el PATH.**
+> Esto es **esperado** (el binario del wrapper no se commitea). **No** es un error: para compilar por
+> línea de comandos se usa el **Gradle 9.4.1 ya cacheado**. Comando exacto (copiar/pegar):
+> ```powershell
+> $env:JAVA_HOME = 'C:\Users\mzegarra_ide\Downloads\android-studio\jbr'
+> & "$env:USERPROFILE\.gradle\wrapper\dists\gradle-9.4.1-bin\*\gradle-9.4.1\bin\gradle.bat" assembleRelease --no-daemon --console=plain
+> ```
+> APK resultante: `app/build/outputs/apk/release/app-release.apk` → copiar a `releases/mini-timer-1.0.<n>.apk`.
+> Para verificar solo compilación sin generar APK: usar la misma ruta con `:app:compileReleaseKotlin`.
+
 1. Abre la carpeta del proyecto (raíz del repo) en **Android Studio** (`File > Open`).
 2. Android Studio descargará Gradle 9.4.1 y generará el `gradle-wrapper.jar` automáticamente.
    - Si compilas por línea de comandos y no existe el wrapper, genéralo con un Gradle local:

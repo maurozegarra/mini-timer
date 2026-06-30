@@ -49,6 +49,14 @@ object ExerciseCatalog {
         Triple("ex_shoulder_press", "Press de hombro", "Shoulder Press"),
         Triple("ex_assisted_dips", "Fondos asistidos", "Assisted Dips"),
         Triple("ex_pushups", "Flexiones", "Push-ups"),
+        // Friki Niki extras
+        Triple("ex_front_side_stretch", "Estiramiento frente/lateral", "Front/Side Stretch"),
+        Triple("ex_bulgarian_split_squat", "Búlgaras", "Bulgarian Split Squat"),
+        Triple("ex_long_knees", "Rodillas largas", "Long Knees"),
+        Triple("ex_deep_knees", "Rodillas profundas", "Deep Knees"),
+        Triple("ex_kicks", "Patadas", "Kicks"),
+        Triple("ex_cable_pull", "Polea", "Cable Pull"),
+        Triple("ex_walking_dog", "Perro caminando", "Walking Dog"),
     )
 
     fun base(lang: String): List<ExerciseDef> =

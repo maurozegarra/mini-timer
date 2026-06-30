@@ -56,6 +56,14 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
         customExercises.addAll(store.loadCustomExercises())
         if (firstRun && trainings.isEmpty()) {
             trainings.add(AthleteDefaults.masterTraining(lang()))
+            trainings.add(AthleteDefaults.frikiNikiTraining(lang()))
+            store.setFrikiSeeded()
+            persist()
+        } else if (!store.isFrikiSeeded()) {
+            val masterIdx = trainings.indexOfFirst { it.name == "Master" }
+            val friki = AthleteDefaults.frikiNikiTraining(lang())
+            if (masterIdx >= 0) trainings.add(masterIdx + 1, friki) else trainings.add(friki)
+            store.setFrikiSeeded()
             persist()
         }
         observePlayer()
