@@ -196,6 +196,7 @@ Instalado en `%LOCALAPPDATA%\Android\Sdk` (cmdline-tools + `platform-tools`, `pl
   `FOREGROUND_SERVICE_SPECIAL_USE`, `VIBRATE`, `WAKE_LOCK`.
 - No se incluye icono de launcher personalizado (usa el del sistema); puedes añadir uno en `res/mipmap`.
 - La etiqueta visible del launcher es **`!Timer`** (en `MainActivity`), elegida para que la app quede primera en la lista; el nombre de la aplicación sigue siendo **Mini Timer**.
+- **No versionar `tools/`**: los scripts y previews del wordmark (`tools/`) son **solo locales** (están en `.gitignore`). Sirven para regenerar el wordmark `TIMES` (parser TrueType con stdlib + generador de paths) pero **no se incluyen en commits**. El resultado ya vive en el código: `ui/TimesWordmark.kt`.
 
 ## Pendientes (TODO)
 

@@ -221,11 +221,12 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                             fontFamily = Neuropol,
                             fontSize = 22.sp,
                         )
-                        else -> Text(
-                            if (selectedTab == 2) t.tabWater else t.title,
+                        selectedTab == 2 -> Text(
+                            t.tabWater,
                             color = Color.White,
                             fontWeight = FontWeight.SemiBold,
                         )
+                        else -> TimesWordmark(accent = accent, height = 22.dp)
                     }
                 },
                 navigationIcon = {
