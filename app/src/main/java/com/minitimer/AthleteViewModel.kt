@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.minitimer.data.AthleteDefaults
 import com.minitimer.data.ExerciseCatalog
 import com.minitimer.data.SettingsStore
 import com.minitimer.data.WorkoutStore
@@ -23,6 +24,9 @@ import com.minitimer.model.WeightType
 import com.minitimer.model.WorkMode
 import com.minitimer.model.WorkSet
 import com.minitimer.model.Workout
+import com.minitimer.model.activeExercises
+import com.minitimer.model.activeName
+import com.minitimer.model.hasContent
 import com.minitimer.model.isWeighted
 import com.minitimer.model.setAt
 import com.minitimer.model.weightTotal
@@ -45,8 +49,13 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
     private fun newId(): Long = nextId++
 
     init {
+        val firstRun = store.isFirstRun()
         trainings.addAll(store.loadTrainings())
         customExercises.addAll(store.loadCustomExercises())
+        if (firstRun && trainings.isEmpty()) {
+            trainings.add(AthleteDefaults.masterTraining(lang()))
+            persist()
+        }
         observePlayer()
     }
 
@@ -138,7 +147,7 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     val canSaveTraining: Boolean
-        get() = draft?.let { it.name.isNotBlank() && it.workouts.any { w -> w.exercises.isNotEmpty() } } == true
+        get() = draft?.let { it.name.isNotBlank() && it.workouts.any { w -> w.hasContent() } } == true
 
     fun saveTraining() {
         val d = draft ?: return
@@ -297,19 +306,20 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
     private fun buildSteps(t: Training): List<PlayerStep> = buildList {
         val tw = t.workouts.size.coerceAtLeast(1)
         t.workouts.forEachIndexed { wi, w ->
-            w.exercises.forEach { e ->
+            val wName = w.activeName()
+            w.activeExercises().forEach { e ->
                 if (e.prepareSec > 0) {
-                    add(stageStep(StepKind.PREP, e, w.name, wi, tw, durationSec = e.prepareSec))
+                    add(stageStep(StepKind.PREP, e, wName, wi, tw, durationSec = e.prepareSec))
                 }
                 val sets = e.sets.coerceAtLeast(1)
                 for (s in 0 until sets) {
                     if (e.workMode == WorkMode.TIME) {
-                        add(stageStep(StepKind.WORK, e, w.name, wi, tw, durationSec = e.workValue, setIndex = s, totalSets = sets, timeBased = true))
+                        add(stageStep(StepKind.WORK, e, wName, wi, tw, durationSec = e.workValue, setIndex = s, totalSets = sets, timeBased = true))
                     } else {
                         val ws = e.setAt(s)
                         add(
                             stageStep(
-                                StepKind.WORK, e, w.name, wi, tw,
+                                StepKind.WORK, e, wName, wi, tw,
                                 reps = ws.reps, setIndex = s, totalSets = sets, timeBased = false,
                                 weighted = e.isWeighted,
                                 weightTotal = if (e.isWeighted) e.weightTotal(ws) else 0.0,
@@ -319,11 +329,11 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
                     }
                     val lastSet = s == sets - 1
                     if (e.restSec > 0 && !(e.restSkipOnLastSet && lastSet)) {
-                        add(stageStep(StepKind.REST, e, w.name, wi, tw, durationSec = e.restSec, setIndex = s, totalSets = sets))
+                        add(stageStep(StepKind.REST, e, wName, wi, tw, durationSec = e.restSec, setIndex = s, totalSets = sets))
                     }
                 }
                 if (e.cooldownSec > 0) {
-                    add(stageStep(StepKind.COOLDOWN, e, w.name, wi, tw, durationSec = e.cooldownSec))
+                    add(stageStep(StepKind.COOLDOWN, e, wName, wi, tw, durationSec = e.cooldownSec))
                 }
             }
         }
@@ -353,6 +363,7 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
         return PlayerStep(
             kind = kind,
             title = if (kind == StepKind.WORK) e.name else "",
+            note = e.note,
             ownerName = e.name,
             ownerExerciseId = e.exerciseId,
             workoutName = workoutName,
@@ -409,11 +420,31 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
             .filter { it.value.second != 0.0 }
             .map { Triple(it.key, it.value.first, it.value.first + it.value.second) }
 
+    /** Evita avanzar la rotación más de una vez por corrida (finished puede repetir). */
+    private var rotationAdvanced = false
+
+    /** Avanza el índice de rotación de los workouts rotativos del training (al completar). */
+    private fun advanceRotation(trainingId: Long) {
+        val i = trainings.indexOfFirst { it.id == trainingId }
+        if (i < 0) return
+        val t = trainings[i]
+        if (t.workouts.none { it.rotating && it.variants.isNotEmpty() }) return
+        trainings[i] = t.copy(
+            workouts = t.workouts.map { w ->
+                if (w.rotating && w.variants.isNotEmpty())
+                    w.copy(rotationIndex = (w.rotationIndex + 1) % w.variants.size)
+                else w
+            },
+        )
+        persist()
+    }
+
     fun openPlayer(trainingId: Long) {
         val t = trainings.firstOrNull { it.id == trainingId } ?: return
         val steps = buildSteps(t)
         if (steps.isEmpty()) return
         PlayerBus.state.value = null
+        rotationAdvanced = false
         weightFeedback.clear()
         playerSteps = steps
         playerTrainingId = trainingId
@@ -462,6 +493,7 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
                 playerStep = playerSteps.getOrNull(snap.index) ?: PlayerStep(
                     kind = snap.stepKind,
                     title = snap.stepTitle,
+                    note = snap.note,
                     ownerName = snap.ownerName,
                     ownerExerciseId = snap.ownerExerciseId,
                     workoutName = snap.workoutName,
@@ -478,7 +510,13 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
                     weightTotal = snap.weightTotal,
                     weightLabel = snap.weightLabel,
                 )
-                if (snap.finished) playerRunning = false
+                if (snap.finished) {
+                    playerRunning = false
+                    if (!rotationAdvanced) {
+                        rotationAdvanced = true
+                        playerTrainingId?.let { advanceRotation(it) }
+                    }
+                }
             }
         }
     }

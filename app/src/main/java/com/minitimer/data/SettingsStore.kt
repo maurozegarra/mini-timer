@@ -84,9 +84,15 @@ class SettingsStore(context: Context) {
             .apply()
     }
 
+    /** Timers de ejemplo sembrados en la primera ejecución (instalación limpia). */
+    private fun defaultTimers(): List<TimerItem> = listOf(
+        TimerItem(id = 1L, name = "rest", totalMs = 60_000L, remainingMs = 60_000L, phase = Phase.IDLE),
+        TimerItem(id = 2L, name = "potty", totalMs = 300_000L, remainingMs = 300_000L, phase = Phase.IDLE),
+    )
+
     /** Carga la lista de timers persistida y el id del activo (null si ninguno). */
     fun loadTimers(): Pair<List<TimerItem>, Long?> {
-        val raw = prefs.getString(KEY_TIMERS, null) ?: return emptyList<TimerItem>() to null
+        val raw = prefs.getString(KEY_TIMERS, null) ?: return defaultTimers() to null
         val items = mutableListOf<TimerItem>()
         try {
             val arr = JSONArray(raw)

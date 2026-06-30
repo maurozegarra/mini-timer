@@ -19,6 +19,7 @@ data class PlayerSnapshot(
     val totalSteps: Int,
     val stepKind: StepKind,
     val stepTitle: String,
+    val note: String = "",
     val ownerName: String,
     val ownerExerciseId: String,
     val workoutName: String,

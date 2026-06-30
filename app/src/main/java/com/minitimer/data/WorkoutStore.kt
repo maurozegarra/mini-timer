@@ -12,6 +12,7 @@ import com.minitimer.model.WorkMode
 import com.minitimer.model.Training
 import com.minitimer.model.WorkSet
 import com.minitimer.model.Workout
+import com.minitimer.model.WorkoutVariant
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -31,6 +32,9 @@ class WorkoutStore(context: Context) {
         items.forEach { tr -> arr.put(trainingToJson(tr)) }
         prefs.edit().putString(KEY_TRAININGS, arr.toString()).apply()
     }
+
+    /** true si nunca se ha guardado la lista de trainings (instalación limpia). */
+    fun isFirstRun(): Boolean = !prefs.contains(KEY_TRAININGS)
 
     fun loadTrainings(): List<Training> {
         val raw = prefs.getString(KEY_TRAININGS, null) ?: return emptyList()
@@ -70,10 +74,15 @@ class WorkoutStore(context: Context) {
     private fun workoutToJson(w: Workout): JSONObject {
         val exercises = JSONArray()
         w.exercises.forEach { exercises.put(exerciseToJson(it)) }
+        val variants = JSONArray()
+        w.variants.forEach { variants.put(variantToJson(it)) }
         return JSONObject()
             .put("id", w.id)
             .put("name", w.name)
             .put("exercises", exercises)
+            .put("rotating", w.rotating)
+            .put("rotationIndex", w.rotationIndex)
+            .put("variants", variants)
     }
 
     private fun workoutFromJson(o: JSONObject): Workout {
@@ -81,7 +90,35 @@ class WorkoutStore(context: Context) {
         o.optJSONArray("exercises")?.let { ea ->
             for (i in 0 until ea.length()) exercises.add(exerciseFromJson(ea.getJSONObject(i)))
         }
+        val variants = mutableListOf<WorkoutVariant>()
+        o.optJSONArray("variants")?.let { va ->
+            for (i in 0 until va.length()) variants.add(variantFromJson(va.getJSONObject(i)))
+        }
         return Workout(
+            id = o.getLong("id"),
+            name = o.optString("name", ""),
+            exercises = exercises,
+            rotating = o.optBoolean("rotating", false),
+            rotationIndex = o.optInt("rotationIndex", 0),
+            variants = variants,
+        )
+    }
+
+    private fun variantToJson(v: WorkoutVariant): JSONObject {
+        val exercises = JSONArray()
+        v.exercises.forEach { exercises.put(exerciseToJson(it)) }
+        return JSONObject()
+            .put("id", v.id)
+            .put("name", v.name)
+            .put("exercises", exercises)
+    }
+
+    private fun variantFromJson(o: JSONObject): WorkoutVariant {
+        val exercises = mutableListOf<Exercise>()
+        o.optJSONArray("exercises")?.let { ea ->
+            for (i in 0 until ea.length()) exercises.add(exerciseFromJson(ea.getJSONObject(i)))
+        }
+        return WorkoutVariant(
             id = o.getLong("id"),
             name = o.optString("name", ""),
             exercises = exercises,
@@ -95,6 +132,7 @@ class WorkoutStore(context: Context) {
             .put("id", e.id)
             .put("exerciseId", e.exerciseId)
             .put("name", e.name)
+            .put("note", e.note)
             .put("prepareSec", e.prepareSec)
             .put("sets", e.sets)
             .put("workMode", e.workMode.name)
@@ -123,11 +161,12 @@ class WorkoutStore(context: Context) {
             id = o.getLong("id"),
             exerciseId = o.optString("exerciseId", ""),
             name = o.optString("name", ""),
-            prepareSec = o.optInt("prepareSec", 10),
-            sets = o.optInt("sets", 3),
+            note = o.optString("note", ""),
+            prepareSec = o.optInt("prepareSec", 0),
+            sets = o.optInt("sets", 1),
             workMode = runCatching { WorkMode.valueOf(o.optString("workMode")) }.getOrDefault(WorkMode.TIME),
-            workValue = o.optInt("workValue", 40),
-            restSec = o.optInt("restSec", 20),
+            workValue = o.optInt("workValue", 30),
+            restSec = o.optInt("restSec", 30),
             restSkipOnLastSet = o.optBoolean("restSkipOnLastSet", true),
             cooldownSec = o.optInt("cooldownSec", 0),
             weightType = runCatching { WeightType.valueOf(o.optString("weightType")) }.getOrDefault(WeightType.NONE),
