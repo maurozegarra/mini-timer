@@ -186,3 +186,7 @@ Instalado en `%LOCALAPPDATA%\Android\Sdk` (cmdline-tools + `platform-tools`, `pl
   `FOREGROUND_SERVICE_SPECIAL_USE`, `VIBRATE`, `WAKE_LOCK`.
 - No se incluye icono de launcher personalizado (usa el del sistema); puedes añadir uno en `res/mipmap`.
 - La etiqueta visible del launcher es **`!Timer`** (en `MainActivity`), elegida para que la app quede primera en la lista; el nombre de la aplicación sigue siendo **Mini Timer**.
+
+## Pendientes (TODO)
+
+- [ ] **(media)** Instalar **offline** una librería Python para renderizar/medir fuentes y generar imágenes de glifos (preferible **Pillow** con FreeType, autocontenida; o **fonttools**, Python puro). Se usará para previsualizar/rasterizar la tipografía (`ui/theme/Type.kt`) o producir PNG/SVG de glifos. Seguir [`docs/instalar-librerias-offline-crowdstrike.md`](docs/instalar-librerias-offline-crowdstrike.md) (descargar wheels a mano e instalar con `--no-index` por el bloqueo de CrowdStrike).
