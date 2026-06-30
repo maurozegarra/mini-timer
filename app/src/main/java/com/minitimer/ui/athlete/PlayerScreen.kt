@@ -62,7 +62,7 @@ fun PlayerScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
 private fun PreviewView(vm: AthleteViewModel, accent: Color, t: Strings) {
     val steps = vm.playerSteps
     val exercises = steps.filter { it.kind == StepKind.WORK }
-        .map { it.workoutName to it.ownerName }
+        .map { Triple(it.workoutName, it.ownerName, it.ownerExerciseId) }
         .distinct()
 
     Box(Modifier.fillMaxSize()) {
@@ -76,7 +76,7 @@ private fun PreviewView(vm: AthleteViewModel, accent: Color, t: Strings) {
                 Text("${exercises.size} ${t.exercise}", color = TEXT_DIM, fontSize = 14.sp)
                 Spacer(Modifier.height(8.dp))
             }
-            items(exercises) { (workout, name) ->
+            items(exercises) { (workout, name, exId) ->
                 Row(
                     Modifier
                         .fillMaxWidth()
@@ -85,7 +85,7 @@ private fun PreviewView(vm: AthleteViewModel, accent: Color, t: Strings) {
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    ExerciseGlyph(name = name, color = 0xFF2E9E5BL, sizeDp = 38)
+                    ExerciseGlyph(name = name, color = 0xFF2E9E5BL, sizeDp = 38, exerciseId = exId)
                     Spacer(Modifier.size(12.dp))
                     Column {
                         Text(name, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
@@ -126,7 +126,7 @@ private fun RunningView(vm: AthleteViewModel, accent: Color, t: Strings) {
     ) {
         Spacer(Modifier.height(8.dp))
         if (step.kind != StepKind.WORK && step.ownerName.isNotBlank()) {
-            ExerciseGlyph(name = step.ownerName, color = step.colorArgb, sizeDp = 40)
+            ExerciseGlyph(name = step.ownerName, color = step.colorArgb, sizeDp = 40, exerciseId = step.ownerExerciseId)
             Spacer(Modifier.height(8.dp))
         }
         val repByRep = step.kind == StepKind.WORK && !step.timeBased && step.reps == 1 && step.totalSets > 1
@@ -170,7 +170,7 @@ private fun RepsDisplay(step: PlayerStep, repByRep: Boolean, t: Strings) {
     )
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.graphicsLayer { translationY = offset }) {
-            ExerciseGlyph(name = step.ownerName, color = step.colorArgb, sizeDp = 96)
+            ExerciseGlyph(name = step.ownerName, color = step.colorArgb, sizeDp = 96, exerciseId = step.ownerExerciseId)
         }
         Spacer(Modifier.height(16.dp))
         if (repByRep) {

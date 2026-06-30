@@ -124,7 +124,7 @@ private fun ExerciseRow(
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ExerciseGlyph(name = exercise.name, color = exercise.workCfg.color)
+        ExerciseGlyph(name = exercise.name, color = exercise.workCfg.color, exerciseId = exercise.exerciseId)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(

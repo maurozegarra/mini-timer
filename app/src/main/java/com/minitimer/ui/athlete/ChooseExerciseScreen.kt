@@ -100,7 +100,7 @@ private fun ExercisePickRow(def: ExerciseDef, onClick: () -> Unit) {
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ExerciseGlyph(name = def.name, color = 0xFF2E9E5BL, sizeDp = 38)
+        ExerciseGlyph(name = def.name, color = 0xFF2E9E5BL, sizeDp = 38, exerciseId = def.id)
         Spacer(Modifier.width(12.dp))
         Text(def.name, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
     }
