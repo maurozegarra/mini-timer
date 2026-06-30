@@ -162,6 +162,20 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
     val athletePlaying = selectedTab == 1 && athleteVm.playerTrainingId != null
     val athleteFull = athleteTraining || athletePlaying
 
+    val screenNo = when {
+        vm.showSettings -> 4
+        detail != null -> 2
+        athletePlaying -> 11
+        athleteChoosing -> 10
+        athleteExercise -> 9
+        athleteVariant -> 8
+        athleteWorkout -> 7
+        athleteTraining -> 6
+        selectedTab == 1 -> 5
+        selectedTab == 0 -> 1
+        else -> 12
+    }
+
     BackHandler(enabled = vm.showSettings || vm.detailId != null || athleteFull) {
         when {
             vm.showSettings -> vm.showSettings = false
@@ -299,6 +313,14 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                     subtitle = t.comingSoon,
                 )
             }
+            Text(
+                "#$screenNo",
+                color = TEXT_FADED.copy(alpha = 0.5f),
+                fontSize = 10.sp,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 6.dp, bottom = 6.dp),
+            )
         }
     }
 
@@ -713,6 +735,12 @@ private fun NewTimerSheet(
                 .padding(bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            Text(
+                "#3",
+                color = TEXT_FADED.copy(alpha = 0.5f),
+                fontSize = 10.sp,
+                modifier = Modifier.align(Alignment.Start),
+            )
             Text(t.newTimer, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(12.dp))
             OutlinedTextField(
