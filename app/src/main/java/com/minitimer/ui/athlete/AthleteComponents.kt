@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.minitimer.data.ExerciseIcons
 import com.minitimer.ui.theme.ON_ACCENT
 import com.minitimer.ui.theme.SURFACE
 import com.minitimer.ui.theme.TEXT_DIM
@@ -313,7 +314,8 @@ internal fun ColorDot(color: Long, size: Int = 18, modifier: Modifier = Modifier
 }
 
 @Composable
-internal fun ExerciseGlyph(name: String, color: Long, sizeDp: Int = 44) {
+internal fun ExerciseGlyph(name: String, color: Long, sizeDp: Int = 44, exerciseId: String = "") {
+    val emoji = ExerciseIcons.emoji(exerciseId, name)
     Box(
         modifier = Modifier
             .size(sizeDp.dp)
@@ -321,12 +323,16 @@ internal fun ExerciseGlyph(name: String, color: Long, sizeDp: Int = 44) {
             .background(Color(color).copy(alpha = 0.22f)),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            name.trim().take(1).uppercase().ifBlank { "?" },
-            color = Color(color),
-            fontWeight = FontWeight.Bold,
-            fontSize = (sizeDp / 2.2).sp,
-        )
+        if (emoji != null) {
+            Text(emoji, fontSize = (sizeDp / 1.9).sp)
+        } else {
+            Text(
+                name.trim().take(1).uppercase().ifBlank { "?" },
+                color = Color(color),
+                fontWeight = FontWeight.Bold,
+                fontSize = (sizeDp / 2.2).sp,
+            )
+        }
     }
 }
 
