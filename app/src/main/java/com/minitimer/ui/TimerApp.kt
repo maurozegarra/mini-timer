@@ -108,6 +108,7 @@ import com.minitimer.AthleteViewModel
 import com.minitimer.Phase
 import com.minitimer.R
 import com.minitimer.TimerViewModel
+import com.minitimer.data.ExerciseCatalog
 import com.minitimer.ui.athlete.AthleteScreen
 import com.minitimer.i18n.I18n
 import com.minitimer.model.TimerItem
@@ -205,7 +206,12 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                         )
                         athletePlaying -> Text(athleteVm.playerName, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
                         athleteChoosing -> Text(t.chooseExercise, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
-                        athleteExercise -> Text(athleteVm.editingExercise()?.name?.ifBlank { t.exercise } ?: t.exercise, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
+                        athleteExercise -> {
+                            val exEdit = athleteVm.editingExercise()
+                            val exTitle = exEdit?.let { ExerciseCatalog.display(it.exerciseId, it.name, t.locale.language) }
+                                ?.ifBlank { t.exercise } ?: t.exercise
+                            Text(exTitle, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
+                        }
                         athleteVariant -> Text(athleteVm.editingVariant()?.name?.ifBlank { t.variant } ?: t.variant, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
                         athleteWorkout -> Text(athleteVm.editingWorkout()?.name?.ifBlank { t.workout } ?: t.workout, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
                         athleteTraining -> Text(t.createTraining, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)

@@ -65,4 +65,16 @@ object ExerciseCatalog {
     /** Nombre localizado de un id del catálogo (o el propio id si no existe). */
     fun name(id: String, lang: String): String =
         base.firstOrNull { it.first == id }?.let { if (lang == "es") it.second else it.third } ?: id
+
+    /** Nombre localizado del catálogo, o null si el id no pertenece (p.ej. ejercicio propio). */
+    fun localizedOrNull(id: String, lang: String): String? =
+        base.firstOrNull { it.first == id }?.let { if (lang == "es") it.second else it.third }
+
+    /**
+     * Nombre a mostrar: el del catálogo en el idioma actual si el id existe; si no
+     * (ejercicio propio), el [fallback] guardado. Resuelve el nombre en tiempo de
+     * despliegue para que siga el idioma del app aunque el [fallback] esté congelado.
+     */
+    fun display(id: String, fallback: String, lang: String): String =
+        localizedOrNull(id, lang) ?: fallback
 }

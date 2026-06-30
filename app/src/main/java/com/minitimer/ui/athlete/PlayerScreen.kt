@@ -46,6 +46,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.minitimer.AthleteViewModel
+import com.minitimer.data.ExerciseCatalog
 import com.minitimer.i18n.Strings
 import com.minitimer.ui.AnimatedGlowBorder
 import com.minitimer.ui.glowColors
@@ -211,10 +212,11 @@ private fun WorkoutGroupCard(
                                 .padding(10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            ExerciseGlyph(name = ex.name, color = 0xFF2E9E5BL, sizeDp = 30, exerciseId = ex.exerciseId)
+                            val exLabel = ExerciseCatalog.display(ex.exerciseId, ex.name, t.locale.language)
+                            ExerciseGlyph(name = exLabel, color = 0xFF2E9E5BL, sizeDp = 30, exerciseId = ex.exerciseId)
                             Spacer(Modifier.width(10.dp))
                             Text(
-                                ex.name,
+                                exLabel,
                                 color = Color.White,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium,
@@ -330,8 +332,9 @@ private fun RunningView(vm: AthleteViewModel, accent: Color, t: Strings) {
             WorkoutProgressBar(step, accent, t)
         }
         Spacer(Modifier.height(8.dp))
+        val ownerLabel = ExerciseCatalog.display(step.ownerExerciseId, step.ownerName, t.locale.language)
         if (step.kind != StepKind.WORK && step.ownerName.isNotBlank()) {
-            ExerciseGlyph(name = step.ownerName, color = step.colorArgb, sizeDp = 40, exerciseId = step.ownerExerciseId)
+            ExerciseGlyph(name = ownerLabel, color = step.colorArgb, sizeDp = 40, exerciseId = step.ownerExerciseId)
             Spacer(Modifier.height(8.dp))
         }
         val repByRep = step.kind == StepKind.WORK && !step.timeBased && step.reps == 1 && step.totalSets > 1
@@ -340,7 +343,7 @@ private fun RunningView(vm: AthleteViewModel, accent: Color, t: Strings) {
             Text(step.note, color = TEXT_DIM, fontSize = 14.sp, textAlign = TextAlign.Center)
         }
         if (step.kind != StepKind.WORK && step.ownerName.isNotBlank()) {
-            Text(step.ownerName, color = TEXT_DIM, fontSize = 15.sp)
+            Text(ownerLabel, color = TEXT_DIM, fontSize = 15.sp)
         }
         if (step.kind == StepKind.WORK && step.totalSets > 1 && !repByRep) {
             Text("${step.setIndex + 1} ${t.ofLabel} ${step.totalSets}", color = TEXT_DIM, fontSize = 15.sp)
@@ -377,7 +380,10 @@ private fun RepsDisplay(step: PlayerStep, repByRep: Boolean, t: Strings) {
     )
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.graphicsLayer { translationY = offset }) {
-            ExerciseGlyph(name = step.ownerName, color = step.colorArgb, sizeDp = 96, exerciseId = step.ownerExerciseId)
+            ExerciseGlyph(
+                name = ExerciseCatalog.display(step.ownerExerciseId, step.ownerName, t.locale.language),
+                color = step.colorArgb, sizeDp = 96, exerciseId = step.ownerExerciseId,
+            )
         }
         Spacer(Modifier.height(16.dp))
         if (repByRep) {
