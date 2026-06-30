@@ -107,12 +107,17 @@ private fun WorkoutRow(
     onDelete: () -> Unit,
 ) {
     var menu by remember { mutableStateOf(false) }
+    val subtitle = if (workout.rotating) {
+        workout.variants.joinToString(" / ") { it.name }
+    } else {
+        "${workout.exercises.size} ${t.exercise}"
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(SURFACE)
-            .clickable(onClick = onOpen)
+            .then(if (workout.rotating) Modifier else Modifier.clickable(onClick = onOpen))
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -123,7 +128,7 @@ private fun WorkoutRow(
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 16.sp,
             )
-            Text("${workout.exercises.size} ${t.exercise}", color = TEXT_DIM, fontSize = 13.sp)
+            Text(subtitle, color = TEXT_DIM, fontSize = 13.sp)
         }
         Box {
             IconButton(onClick = { menu = true }) {
@@ -134,6 +139,8 @@ private fun WorkoutRow(
                 DropdownMenuItem(text = { Text(t.delete) }, onClick = { menu = false; onDelete() })
             }
         }
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = TEXT_DIM)
+        if (!workout.rotating) {
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = TEXT_DIM)
+        }
     }
 }

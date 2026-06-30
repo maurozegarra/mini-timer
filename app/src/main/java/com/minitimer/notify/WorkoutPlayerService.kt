@@ -247,6 +247,7 @@ class WorkoutPlayerService : Service() {
             totalSteps = steps.size,
             stepKind = step.kind,
             stepTitle = step.title,
+            note = step.note,
             ownerName = step.ownerName,
             ownerExerciseId = step.ownerExerciseId,
             workoutName = step.workoutName,
@@ -477,6 +478,7 @@ class WorkoutPlayerService : Service() {
                     JSONObject()
                         .put("kind", s.kind.name)
                         .put("title", s.title)
+                        .put("note", s.note)
                         .put("ownerName", s.ownerName)
                         .put("ownerExerciseId", s.ownerExerciseId)
                         .put("workoutName", s.workoutName)
@@ -506,6 +508,7 @@ class WorkoutPlayerService : Service() {
                 PlayerStep(
                     kind = StepKind.valueOf(o.getString("kind")),
                     title = o.optString("title", ""),
+                    note = o.optString("note", ""),
                     ownerName = o.optString("ownerName", ""),
                     ownerExerciseId = o.optString("ownerExerciseId", ""),
                     workoutName = o.optString("workoutName", ""),

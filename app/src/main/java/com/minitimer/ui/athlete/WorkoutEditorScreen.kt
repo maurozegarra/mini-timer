@@ -77,7 +77,7 @@ fun WorkoutEditorScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
                     exercise = ex,
                     t = t,
                     onOpen = { vm.openExercise(ex.id) },
-                    onDuplicate = { vm.openExercise(ex.id).also { vm.duplicateExercise(ex.id) } },
+                    onDuplicate = { vm.duplicateExercise(ex.id) },
                     onDelete = { vm.deleteExercise(ex.id) },
                 )
             }

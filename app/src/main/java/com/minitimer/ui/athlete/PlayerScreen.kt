@@ -129,18 +129,22 @@ private fun RunningView(vm: AthleteViewModel, accent: Color, t: Strings) {
             ExerciseGlyph(name = step.ownerName, color = step.colorArgb, sizeDp = 40)
             Spacer(Modifier.height(8.dp))
         }
+        val repByRep = step.kind == StepKind.WORK && !step.timeBased && step.reps == 1 && step.totalSets > 1
         Text(stageLabel, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 26.sp, textAlign = TextAlign.Center)
+        if (step.note.isNotBlank()) {
+            Text(step.note, color = TEXT_DIM, fontSize = 14.sp, textAlign = TextAlign.Center)
+        }
         if (step.kind != StepKind.WORK && step.ownerName.isNotBlank()) {
             Text(step.ownerName, color = TEXT_DIM, fontSize = 15.sp)
         }
-        if (step.kind == StepKind.WORK && step.totalSets > 1) {
+        if (step.kind == StepKind.WORK && step.totalSets > 1 && !repByRep) {
             Text("${step.setIndex + 1} ${t.ofLabel} ${step.totalSets}", color = TEXT_DIM, fontSize = 15.sp)
         }
 
         Spacer(Modifier.height(28.dp))
         Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
             if (step.kind == StepKind.WORK && !step.timeBased) {
-                RepsDisplay(step, color)
+                RepsDisplay(step, repByRep, t)
             } else {
                 ClockDisplay(step, vm.playerRemainingMs, color)
             }
@@ -156,7 +160,7 @@ private fun RunningView(vm: AthleteViewModel, accent: Color, t: Strings) {
 }
 
 @Composable
-private fun RepsDisplay(step: PlayerStep, color: Color) {
+private fun RepsDisplay(step: PlayerStep, repByRep: Boolean, t: Strings) {
     val transition = rememberInfiniteTransition(label = "bob")
     val offset by transition.animateFloat(
         initialValue = -6f,
@@ -169,7 +173,12 @@ private fun RepsDisplay(step: PlayerStep, color: Color) {
             ExerciseGlyph(name = step.ownerName, color = step.colorArgb, sizeDp = 96)
         }
         Spacer(Modifier.height(16.dp))
-        Text("× ${step.reps}", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 56.sp)
+        if (repByRep) {
+            Text(t.repLabel, color = TEXT_DIM, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Text("${step.setIndex + 1} / ${step.totalSets}", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 56.sp)
+        } else {
+            Text("× ${step.reps}", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 56.sp)
+        }
     }
 }
 

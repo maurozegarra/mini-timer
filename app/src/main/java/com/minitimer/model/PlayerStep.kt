@@ -12,6 +12,8 @@ data class PlayerStep(
     val kind: StepKind,
     /** WORK: nombre del ejercicio. Otras etapas: vacío (la UI localiza el rótulo). */
     val title: String,
+    /** Nota del ejercicio (ej. "each side", "alternado"). */
+    val note: String = "",
     /** Ejercicio al que pertenece la etapa (para mostrar dueño en PREP/REST/COOLDOWN). */
     val ownerName: String = "",
     /** Id del catálogo del ejercicio dueño (para icono/animación). */

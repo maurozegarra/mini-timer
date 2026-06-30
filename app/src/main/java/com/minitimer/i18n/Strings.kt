@@ -142,6 +142,9 @@ data class Strings(
     val ofLabel: String,
     val saveTraining: String,
     val kg: String,
+    val durationTitle: String,
+    val noteLabel: String,
+    val repLabel: String,
 )
 
 object I18n {
@@ -285,6 +288,9 @@ object I18n {
         ofLabel = "de",
         saveTraining = "Guardar entrenamiento",
         kg = "kg",
+        durationTitle = "Duración",
+        noteLabel = "Nota",
+        repLabel = "Rep",
     )
 
     val EN = Strings(
@@ -425,5 +431,8 @@ object I18n {
         ofLabel = "of",
         saveTraining = "Save training",
         kg = "kg",
+        durationTitle = "Duration",
+        noteLabel = "Note",
+        repLabel = "Rep",
     )
 }

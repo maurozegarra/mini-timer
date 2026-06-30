@@ -15,13 +15,23 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.minitimer.ui.theme.ON_ACCENT
@@ -112,6 +122,120 @@ internal fun Stepper(
         }
         StepCircle("+", accent) { onChange((value + step).coerceAtMost(max)) }
     }
+}
+
+/**
+ * Stepper de duración (segundos) con +/- y, al tocar el valor, un diálogo para
+ * escribir minutos:segundos directamente (evita decenas de taps para llegar a
+ * tiempos largos como 30 min).
+ */
+@Composable
+internal fun DurationStepper(
+    label: String,
+    value: Int,
+    accent: Color,
+    dialogTitle: String,
+    minLabel: String,
+    secLabel: String,
+    cancelLabel: String,
+    okLabel: String,
+    modifier: Modifier = Modifier,
+    min: Int = 0,
+    max: Int = 36000,
+    step: Int = 5,
+    onChange: (Int) -> Unit,
+) {
+    var editing by remember { mutableStateOf(false) }
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, color = Color.White, fontSize = 15.sp, modifier = Modifier.weight(1f))
+        StepCircle("−", accent) { onChange((value - step).coerceAtLeast(min)) }
+        Box(
+            modifier = Modifier
+                .width(72.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .clickable { editing = true }
+                .padding(vertical = 6.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(fmtSec(value), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+        }
+        StepCircle("+", accent) { onChange((value + step).coerceAtMost(max)) }
+    }
+    if (editing) {
+        DurationDialog(
+            value = value, min = min, max = max, accent = accent,
+            title = dialogTitle, minLabel = minLabel, secLabel = secLabel,
+            cancelLabel = cancelLabel, okLabel = okLabel,
+            onDismiss = { editing = false },
+            onConfirm = { onChange(it); editing = false },
+        )
+    }
+}
+
+@Composable
+private fun DurationDialog(
+    value: Int,
+    min: Int,
+    max: Int,
+    accent: Color,
+    title: String,
+    minLabel: String,
+    secLabel: String,
+    cancelLabel: String,
+    okLabel: String,
+    onDismiss: () -> Unit,
+    onConfirm: (Int) -> Unit,
+) {
+    var mins by remember { mutableStateOf((value / 60).toString()) }
+    var secs by remember { mutableStateOf((value % 60).toString()) }
+    val colors = OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = accent,
+        unfocusedBorderColor = TRACK,
+        focusedTextColor = Color.White,
+        unfocusedTextColor = Color.White,
+        cursorColor = accent,
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = SURFACE,
+        titleContentColor = Color.White,
+        title = { Text(title) },
+        text = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = mins,
+                    onValueChange = { mins = it.filter(Char::isDigit).take(3) },
+                    label = { Text(minLabel, color = TEXT_DIM) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    colors = colors,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(" : ", color = Color.White, fontWeight = FontWeight.Bold)
+                OutlinedTextField(
+                    value = secs,
+                    onValueChange = { secs = it.filter(Char::isDigit).take(2) },
+                    label = { Text(secLabel, color = TEXT_DIM) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    colors = colors,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val total = (mins.toIntOrNull() ?: 0) * 60 + (secs.toIntOrNull() ?: 0)
+                onConfirm(total.coerceIn(min, max))
+            }) { Text(okLabel, color = accent, fontWeight = FontWeight.Bold) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(cancelLabel, color = TEXT_DIM) }
+        },
+    )
 }
 
 @Composable

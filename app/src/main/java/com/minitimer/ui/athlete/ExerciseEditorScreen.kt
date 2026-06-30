@@ -26,6 +26,8 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -116,9 +118,9 @@ fun ExerciseEditorScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
 @Composable
 private fun SimpleTab(ex: Exercise, accent: Color, t: Strings, onChange: (Exercise) -> Unit) {
     SectionCard {
-        Stepper(t.prepare, ex.prepareSec, accent, min = 0, max = 600, step = 5, format = ::fmtSec) {
-            onChange(ex.copy(prepareSec = it))
-        }
+        ExerciseNoteField(ex, accent, t, onChange)
+        VSpace(14)
+        DurStep(t.prepare, ex.prepareSec, t, accent, max = 1800) { onChange(ex.copy(prepareSec = it)) }
         VSpace(14)
         Stepper(t.setsLabel, ex.sets, accent, min = 1, max = 30) {
             onChange(ex.copy(sets = it))
@@ -133,26 +135,20 @@ private fun SimpleTab(ex: Exercise, accent: Color, t: Strings, onChange: (Exerci
         ) { onChange(ex.copy(workMode = WorkMode.valueOf(it))) }
         VSpace(10)
         if (ex.workMode == WorkMode.TIME) {
-            Stepper(t.secUnit, ex.workValue, accent, min = 1, max = 3600, step = 5, format = ::fmtSec) {
-                onChange(ex.copy(workValue = it))
-            }
+            DurStep(t.secUnit, ex.workValue, t, accent, min = 1, max = 36000) { onChange(ex.copy(workValue = it)) }
         } else {
             Stepper(t.repsUnit, ex.workValue, accent, min = 1, max = 200) {
                 onChange(ex.copy(workValue = it))
             }
         }
         VSpace(14)
-        Stepper(t.rest, ex.restSec, accent, min = 0, max = 600, step = 5, format = ::fmtSec) {
-            onChange(ex.copy(restSec = it))
-        }
+        DurStep(t.rest, ex.restSec, t, accent, max = 1800) { onChange(ex.copy(restSec = it)) }
         VSpace(10)
         ToggleRow(t.restSkipLast, ex.restSkipOnLastSet, accent) {
             onChange(ex.copy(restSkipOnLastSet = it))
         }
         VSpace(14)
-        Stepper(t.cooldown, ex.cooldownSec, accent, min = 0, max = 600, step = 5, format = ::fmtSec) {
-            onChange(ex.copy(cooldownSec = it))
-        }
+        DurStep(t.cooldown, ex.cooldownSec, t, accent, max = 1800) { onChange(ex.copy(cooldownSec = it)) }
     }
 
     if (ex.workMode == WorkMode.REPS) {
@@ -349,6 +345,49 @@ private fun StageCard(
             VSpace(16)
         }
     }
+}
+
+@Composable
+private fun DurStep(
+    label: String,
+    value: Int,
+    t: Strings,
+    accent: Color,
+    min: Int = 0,
+    max: Int = 3600,
+    onChange: (Int) -> Unit,
+) {
+    DurationStepper(
+        label = label,
+        value = value,
+        accent = accent,
+        dialogTitle = t.durationTitle,
+        minLabel = t.minutes,
+        secLabel = t.seconds,
+        cancelLabel = t.cancel,
+        okLabel = t.save,
+        min = min,
+        max = max,
+        onChange = onChange,
+    )
+}
+
+@Composable
+private fun ExerciseNoteField(ex: Exercise, accent: Color, t: Strings, onChange: (Exercise) -> Unit) {
+    OutlinedTextField(
+        value = ex.note,
+        onValueChange = { onChange(ex.copy(note = it)) },
+        label = { Text(t.noteLabel, color = TEXT_DIM) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = accent,
+            unfocusedBorderColor = TRACK,
+            focusedTextColor = Color.White,
+            unfocusedTextColor = Color.White,
+            cursorColor = accent,
+        ),
+    )
 }
 
 @Composable

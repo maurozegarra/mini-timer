@@ -26,7 +26,7 @@ data class StageConfig(
 ) {
     companion object {
         const val COLOR_PREPARE = 0xFFE2641EL
-        const val COLOR_WORK = 0xFF2E9E5BL
+        const val COLOR_WORK = 0xFFC0392BL
         const val COLOR_REST = 0xFF1565C0L
         const val COLOR_COOLDOWN = 0xFF455A64L
     }
@@ -47,11 +47,12 @@ data class Exercise(
     val id: Long,
     val exerciseId: String,
     val name: String,
-    val prepareSec: Int = 10,
-    val sets: Int = 3,
+    val note: String = "",
+    val prepareSec: Int = 0,
+    val sets: Int = 1,
     val workMode: WorkMode = WorkMode.TIME,
-    val workValue: Int = 40,
-    val restSec: Int = 20,
+    val workValue: Int = 30,
+    val restSec: Int = 30,
     val restSkipOnLastSet: Boolean = true,
     val cooldownSec: Int = 0,
     val weightType: WeightType = WeightType.NONE,
@@ -63,12 +64,43 @@ data class Exercise(
     val cooldownCfg: StageConfig = StageConfig(color = StageConfig.COLOR_COOLDOWN),
 )
 
-/** Workout = bloque/agrupador ordenado de ejercicios (Warmup, Cardio, Lower…). */
-data class Workout(
+/**
+ * Variante de un workout rotativo: un conjunto con nombre propio de ejercicios
+ * (ej. "Running", "Lower"). El player elige una variante por corrida.
+ */
+data class WorkoutVariant(
     val id: Long,
     val name: String = "",
     val exercises: List<Exercise> = emptyList(),
 )
+
+/**
+ * Workout = bloque/agrupador ordenado de ejercicios (Warmup, Cardio, Lower…).
+ * Si [rotating] es true, en cada corrida se reproduce UNA de [variants] según
+ * [rotationIndex], que avanza al completar el training (rotación "por completar").
+ */
+data class Workout(
+    val id: Long,
+    val name: String = "",
+    val exercises: List<Exercise> = emptyList(),
+    val rotating: Boolean = false,
+    val rotationIndex: Int = 0,
+    val variants: List<WorkoutVariant> = emptyList(),
+)
+
+/** Variante activa de un workout rotativo (o null si no rota). */
+fun Workout.activeVariant(): WorkoutVariant? =
+    if (rotating && variants.isNotEmpty()) variants[rotationIndex % variants.size] else null
+
+/** Ejercicios que se reproducen en la corrida actual (resuelve rotación). */
+fun Workout.activeExercises(): List<Exercise> = activeVariant()?.exercises ?: exercises
+
+/** Nombre a mostrar en la corrida actual (variante o nombre del workout). */
+fun Workout.activeName(): String = activeVariant()?.name?.ifBlank { name } ?: name
+
+/** Indica si el workout tiene contenido reproducible. */
+fun Workout.hasContent(): Boolean =
+    exercises.isNotEmpty() || variants.any { it.exercises.isNotEmpty() }
 
 /**
  * Training = nivel superior que agrupa workouts y es lo que se EJECUTA de corrido

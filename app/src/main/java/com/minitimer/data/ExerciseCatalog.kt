@@ -9,66 +9,52 @@ import com.minitimer.model.ExerciseDef
  */
 object ExerciseCatalog {
 
-    /** id estable, nombre ES, nombre EN. */
+    /** id estable, nombre ES, nombre EN. Solo los ejercicios usados en el set. */
     private val base = listOf(
+        // Warmup
+        Triple("ex_neck_lr", "Cuello izq-der", "Neck Left to Right"),
+        Triple("ex_neck_circle", "Círculo de cuello", "Neck Circle"),
+        Triple("ex_chest_opening", "Apertura de pecho", "Chest Opening"),
+        Triple("ex_shoulder_rotation", "Rotación de hombros", "Shoulder Rotation"),
+        Triple("ex_trunk_rotation", "Rotación de tronco", "Trunk Rotation"),
+        Triple("ex_hip_rotation", "Rotación de cadera", "Hip Rotation"),
+        Triple("ex_deep_squat", "Sentadilla profunda", "Deep Squat"),
+        Triple("ex_knee_rotation", "Rotación de rodilla", "Knee Rotation"),
+        Triple("ex_ankle_rotation", "Rotación de tobillo", "Ankle Rotation"),
+        // Base
+        Triple("ex_knee_circle", "Círculo de rodilla", "Knee Circle"),
+        Triple("ex_90_90", "90 a 90", "90 to 90"),
         Triple("ex_jumping_jacks", "Saltos de tijera", "Jumping Jacks"),
-        Triple("ex_high_knees", "Rodillas altas", "High Knees"),
-        Triple("ex_butt_kicks", "Talones al glúteo", "Butt Kicks"),
         Triple("ex_burpees", "Burpees", "Burpees"),
-        Triple("ex_mountain_climbers", "Escaladores", "Mountain Climbers"),
-        Triple("ex_pushups", "Flexiones", "Push-ups"),
-        Triple("ex_incline_pushups", "Flexiones inclinadas", "Incline Push-ups"),
-        Triple("ex_diamond_pushups", "Flexiones diamante", "Diamond Push-ups"),
-        Triple("ex_decline_pushups", "Flexiones declinadas", "Decline Push-ups"),
-        Triple("ex_pike_pushups", "Flexiones pica", "Pike Push-ups"),
-        Triple("ex_squats", "Sentadillas", "Squats"),
-        Triple("ex_jump_squats", "Sentadillas con salto", "Jump Squats"),
-        Triple("ex_sumo_squats", "Sentadillas sumo", "Sumo Squats"),
-        Triple("ex_lunges", "Zancadas", "Lunges"),
-        Triple("ex_reverse_lunges", "Zancadas inversas", "Reverse Lunges"),
-        Triple("ex_walking_lunges", "Zancadas caminando", "Walking Lunges"),
-        Triple("ex_bulgarian_split_squat", "Sentadilla búlgara", "Bulgarian Split Squat"),
-        Triple("ex_glute_bridge", "Puente de glúteos", "Glute Bridge"),
+        // Cardio
+        Triple("ex_running", "Trote", "Running"),
+        Triple("ex_rope_jumping", "Saltar la cuerda", "Rope Jumping"),
+        Triple("ex_tire_jumping", "Salto de llanta", "Tire Jumping"),
+        Triple("ex_shadow_boxing", "Boxeo de sombra", "Shadow Boxing"),
+        // Lower
+        Triple("ex_knee_stand", "Parada de rodilla", "Knee Stand"),
+        Triple("ex_knee_jump", "Salto de rodilla", "Knee Jump"),
+        Triple("ex_cossack_squat", "Sentadilla cosaca", "Cossack Squat"),
+        Triple("ex_pistol_squat", "Sentadilla pistola", "Pistol Squat"),
         Triple("ex_hip_thrust", "Empuje de cadera", "Hip Thrust"),
-        Triple("ex_calf_raises", "Elevación de talones", "Calf Raises"),
-        Triple("ex_wall_sit", "Sentadilla en pared", "Wall Sit"),
-        Triple("ex_plank", "Plancha", "Plank"),
-        Triple("ex_side_plank", "Plancha lateral", "Side Plank"),
-        Triple("ex_crunches", "Abdominales", "Crunches"),
-        Triple("ex_bicycle_crunches", "Abdominales bicicleta", "Bicycle Crunches"),
-        Triple("ex_leg_raises", "Elevación de piernas", "Leg Raises"),
-        Triple("ex_russian_twists", "Giros rusos", "Russian Twists"),
-        Triple("ex_sit_ups", "Abdominales completos", "Sit-ups"),
-        Triple("ex_flutter_kicks", "Patada de aleteo", "Flutter Kicks"),
-        Triple("ex_v_ups", "V-ups", "V-ups"),
-        Triple("ex_dead_bug", "Dead bug", "Dead Bug"),
-        Triple("ex_superman", "Superman", "Superman"),
-        Triple("ex_bird_dog", "Bird dog", "Bird Dog"),
-        Triple("ex_pull_ups", "Dominadas", "Pull-ups"),
-        Triple("ex_chin_ups", "Dominadas supinas", "Chin-ups"),
-        Triple("ex_dips", "Fondos", "Dips"),
-        Triple("ex_bench_press", "Press de banca", "Bench Press"),
-        Triple("ex_overhead_press", "Press militar", "Overhead Press"),
-        Triple("ex_bicep_curls", "Curl de bíceps", "Bicep Curls"),
-        Triple("ex_tricep_extension", "Extensión de tríceps", "Triceps Extension"),
-        Triple("ex_lateral_raises", "Elevaciones laterales", "Lateral Raises"),
-        Triple("ex_bent_over_row", "Remo inclinado", "Bent-over Row"),
+        Triple("ex_back_extension", "Extensión lumbar", "Back Extension"),
+        Triple("ex_nordic_curl", "Curl nórdico", "Nordic Curl"),
+        Triple("ex_seated_calf", "Pantorrilla sentado", "Seated Calf"),
+        Triple("ex_donkey_calf", "Pantorrilla burro", "Donkey Calf"),
         Triple("ex_deadlift", "Peso muerto", "Deadlift"),
-        Triple("ex_romanian_deadlift", "Peso muerto rumano", "Romanian Deadlift"),
-        Triple("ex_kettlebell_swing", "Swing con kettlebell", "Kettlebell Swing"),
-        Triple("ex_box_jumps", "Saltos al cajón", "Box Jumps"),
-        Triple("ex_jump_rope", "Saltar la cuerda", "Jump Rope"),
-        Triple("ex_skater_jumps", "Saltos de patinador", "Skater Jumps"),
-        Triple("ex_bear_crawl", "Caminata del oso", "Bear Crawl"),
-        Triple("ex_inchworm", "Gusano", "Inchworm"),
-        Triple("ex_arm_circles", "Círculos de brazos", "Arm Circles"),
-        Triple("ex_hamstring_stretch", "Estiramiento isquios", "Hamstring Stretch"),
-        Triple("ex_hip_flexor_stretch", "Estiramiento flexor cadera", "Hip Flexor Stretch"),
-        Triple("ex_cat_cow", "Gato-vaca", "Cat-Cow"),
-        Triple("ex_child_pose", "Postura del niño", "Child's Pose"),
-        Triple("ex_cobra_stretch", "Estiramiento cobra", "Cobra Stretch"),
+        Triple("ex_zercher_squat", "Sentadilla Zercher", "Zercher Squat"),
+        // Upper
+        Triple("ex_leg_raises", "Elevación de piernas", "Leg Raises"),
+        Triple("ex_pull_ups", "Dominadas", "Pull-up"),
+        Triple("ex_shoulder_press", "Press de hombro", "Shoulder Press"),
+        Triple("ex_assisted_dips", "Fondos asistidos", "Assisted Dips"),
+        Triple("ex_pushups", "Flexiones", "Push-ups"),
     )
 
     fun base(lang: String): List<ExerciseDef> =
         base.map { (id, es, en) -> ExerciseDef(id = id, name = if (lang == "es") es else en, custom = false) }
+
+    /** Nombre localizado de un id del catálogo (o el propio id si no existe). */
+    fun name(id: String, lang: String): String =
+        base.firstOrNull { it.first == id }?.let { if (lang == "es") it.second else it.third } ?: id
 }
