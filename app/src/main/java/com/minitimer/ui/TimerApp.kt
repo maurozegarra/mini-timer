@@ -688,6 +688,10 @@ private fun TimerCard(
                 )
             }
         }
+
+        if (running) {
+            AnimatedGlowBorder(cornerRadius = 24.dp, colors = glowColors(accent))
+        }
     }
 }
 
