@@ -503,6 +503,17 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
             }
         }
 
+        // ===== Desarrollador =====
+        SettingsGroup(t.groupDeveloper, accent) {
+            SwitchRow(
+                label = t.developerMode,
+                desc = t.developerModeDesc,
+                checked = s.developerMode,
+                accent = accent,
+                onCheckedChange = { vm.setDeveloperMode(it) },
+            )
+        }
+
         Spacer(Modifier.height(28.dp))
         TextButton(
             onClick = { vm.resetSettings() },
