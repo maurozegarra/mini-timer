@@ -12,13 +12,17 @@ android {
         applicationId = "com.minitimer"
         minSdk = 26
         targetSdk = 36
-        versionCode = 128
-        versionName = "1.0.128"
+        versionCode = 129
+        versionName = "1.0.129"
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            // Firmamos el release con la clave debug para conservar la misma firma
+            // que los APK anteriores (permite actualizar encima sin desinstalar).
+            signingConfig = signingConfigs.getByName("debug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

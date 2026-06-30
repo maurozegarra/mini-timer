@@ -47,7 +47,9 @@ import com.minitimer.ui.theme.TRACK
 
 @Composable
 fun WorkoutEditorScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
-    val workout = vm.editingWorkout() ?: return
+    vm.editingWorkout() ?: return
+    val inVariant = vm.editingVariantId != null
+    val exercises = vm.editorExercises()
 
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
@@ -57,9 +59,9 @@ fun WorkoutEditorScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
         ) {
             item {
                 OutlinedTextField(
-                    value = workout.name,
-                    onValueChange = { vm.setWorkoutName(it) },
-                    placeholder = { Text(t.workoutNameHint, color = TEXT_FADED) },
+                    value = vm.editorName(),
+                    onValueChange = { vm.setEditorName(it) },
+                    placeholder = { Text(if (inVariant) t.variantNameHint else t.workoutNameHint, color = TEXT_FADED) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -72,7 +74,7 @@ fun WorkoutEditorScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
                 )
             }
 
-            items(workout.exercises, key = { it.id }) { ex ->
+            items(exercises, key = { it.id }) { ex ->
                 ExerciseRow(
                     exercise = ex,
                     t = t,
@@ -94,7 +96,7 @@ fun WorkoutEditorScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .padding(16.dp),
-            onClick = { vm.closeWorkoutEditor() },
+            onClick = { if (inVariant) vm.closeVariantEditor() else vm.closeWorkoutEditor() },
         )
     }
 }

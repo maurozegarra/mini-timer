@@ -157,6 +157,7 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
     val athleteTraining = selectedTab == 1 && athleteVm.draft != null
     val athleteChoosing = selectedTab == 1 && athleteVm.choosingExercise
     val athleteExercise = selectedTab == 1 && athleteVm.editingExerciseId != null
+    val athleteVariant = selectedTab == 1 && athleteVm.editingVariantId != null
     val athleteWorkout = selectedTab == 1 && athleteVm.editingWorkoutId != null
     val athletePlaying = selectedTab == 1 && athleteVm.playerTrainingId != null
     val athleteFull = athleteTraining || athletePlaying
@@ -168,6 +169,7 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
             athletePlaying -> athleteVm.closePlayer()
             athleteChoosing -> athleteVm.closeExercisePicker()
             athleteExercise -> athleteVm.closeExerciseEditor()
+            athleteVariant -> athleteVm.closeVariantEditor()
             athleteWorkout -> athleteVm.closeWorkoutEditor()
             athleteTraining -> athleteVm.closeTrainingEditor()
         }
@@ -190,6 +192,7 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                         athletePlaying -> Text(athleteVm.playerName, color = Color.White, fontFamily = Kanit, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic, fontSize = 20.sp)
                         athleteChoosing -> Text(t.chooseExercise, color = Color.White, fontFamily = Kanit, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic, fontSize = 20.sp)
                         athleteExercise -> Text(athleteVm.editingExercise()?.name?.ifBlank { t.exercise } ?: t.exercise, color = Color.White, fontFamily = Kanit, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic, fontSize = 20.sp)
+                        athleteVariant -> Text(athleteVm.editingVariant()?.name?.ifBlank { t.variant } ?: t.variant, color = Color.White, fontFamily = Kanit, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic, fontSize = 20.sp)
                         athleteWorkout -> Text(athleteVm.editingWorkout()?.name?.ifBlank { t.workout } ?: t.workout, color = Color.White, fontFamily = Kanit, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic, fontSize = 20.sp)
                         athleteTraining -> Text(t.createTraining, color = Color.White, fontFamily = Kanit, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic, fontSize = 20.sp)
                         selectedTab == 1 -> Text(
@@ -216,6 +219,7 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                                 athletePlaying -> athleteVm.closePlayer()
                                 athleteChoosing -> athleteVm.closeExercisePicker()
                                 athleteExercise -> athleteVm.closeExerciseEditor()
+                                athleteVariant -> athleteVm.closeVariantEditor()
                                 athleteWorkout -> athleteVm.closeWorkoutEditor()
                                 athleteTraining -> athleteVm.closeTrainingEditor()
                             }

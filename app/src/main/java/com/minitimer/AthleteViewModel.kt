@@ -24,6 +24,7 @@ import com.minitimer.model.WeightType
 import com.minitimer.model.WorkMode
 import com.minitimer.model.WorkSet
 import com.minitimer.model.Workout
+import com.minitimer.model.WorkoutVariant
 import com.minitimer.model.activeExercises
 import com.minitimer.model.activeName
 import com.minitimer.model.hasContent
@@ -99,15 +100,37 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
     var editingExerciseId by mutableStateOf<Long?>(null)
         private set
 
-    /** Selector de ejercicios abierto (añade al workout en edición). */
+    /** Variante abierta dentro de un workout rotativo (editor de variante). */
+    var editingVariantId by mutableStateOf<Long?>(null)
+        private set
+
+    /** Selector de ejercicios abierto (añade al contenedor en edición). */
     var choosingExercise by mutableStateOf(false)
         private set
 
     fun editingWorkout(): Workout? =
         draft?.workouts?.firstOrNull { it.id == editingWorkoutId }
 
+    /** Variante actualmente en edición (o null si se edita el workout simple). */
+    fun editingVariant(): WorkoutVariant? =
+        editingVariantId?.let { vId -> editingWorkout()?.variants?.firstOrNull { it.id == vId } }
+
+    /** Lista de ejercicios del contenedor en edición (variante si hay, si no workout). */
+    fun editorExercises(): List<Exercise> {
+        val w = editingWorkout() ?: return emptyList()
+        val vId = editingVariantId ?: return w.exercises
+        return w.variants.firstOrNull { it.id == vId }?.exercises ?: emptyList()
+    }
+
+    /** Nombre del contenedor en edición (variante si hay, si no workout). */
+    fun editorName(): String {
+        val w = editingWorkout() ?: return ""
+        val vId = editingVariantId ?: return w.name
+        return w.variants.firstOrNull { it.id == vId }?.name ?: ""
+    }
+
     fun editingExercise(): Exercise? =
-        editingWorkout()?.exercises?.firstOrNull { it.id == editingExerciseId }
+        editorExercises().firstOrNull { it.id == editingExerciseId }
 
     private fun updateDraft(transform: (Training) -> Training) {
         draft = draft?.let(transform)
@@ -116,11 +139,6 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
     private fun updateWorkout(id: Long, transform: (Workout) -> Workout) = updateDraft { t ->
         t.copy(workouts = t.workouts.map { if (it.id == id) transform(it) else it })
     }
-
-    private fun updateExercise(workoutId: Long, exerciseId: Long, transform: (Exercise) -> Exercise) =
-        updateWorkout(workoutId) { w ->
-            w.copy(exercises = w.exercises.map { if (it.id == exerciseId) transform(it) else it })
-        }
 
     // ---------- Lista de Trainings ----------
 
@@ -135,6 +153,7 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
     fun startEditTraining(id: Long) {
         draft = trainings.firstOrNull { it.id == id }?.copy() ?: return
         editingWorkoutId = null
+        editingVariantId = null
         editingExerciseId = null
         choosingExercise = false
     }
@@ -142,6 +161,7 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
     fun closeTrainingEditor() {
         draft = null
         editingWorkoutId = null
+        editingVariantId = null
         editingExerciseId = null
         choosingExercise = false
     }
@@ -200,10 +220,79 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
 
     fun openWorkout(id: Long) {
         editingWorkoutId = id
+        editingVariantId = null
     }
 
     fun closeWorkoutEditor() {
         editingWorkoutId = null
+        editingVariantId = null
+    }
+
+    // ---------- Workouts rotativos / variantes ----------
+
+    /** Convierte un workout simple en rotativo: mueve sus ejercicios a una variante. */
+    fun makeWorkoutRotating(id: Long) = updateWorkout(id) { w ->
+        if (w.rotating) return@updateWorkout w
+        val first = WorkoutVariant(
+            id = newId(),
+            name = w.name.ifBlank { "A" },
+            exercises = w.exercises,
+        )
+        w.copy(rotating = true, rotationIndex = 0, variants = listOf(first), exercises = emptyList())
+    }
+
+    /** Vuelve simple un workout rotativo: conserva los ejercicios de la 1ª variante. */
+    fun makeWorkoutSimple(id: Long) = updateWorkout(id) { w ->
+        if (!w.rotating) return@updateWorkout w
+        w.copy(
+            rotating = false,
+            rotationIndex = 0,
+            exercises = w.variants.firstOrNull()?.exercises ?: w.exercises,
+            variants = emptyList(),
+        )
+    }
+
+    fun addVariant() {
+        val wId = editingWorkoutId ?: return
+        val id = newId()
+        updateWorkout(wId) { it.copy(variants = it.variants + WorkoutVariant(id = id, name = "")) }
+        editingVariantId = id
+    }
+
+    fun openVariant(id: Long) {
+        editingVariantId = id
+    }
+
+    fun closeVariantEditor() {
+        editingVariantId = null
+    }
+
+    fun deleteVariant(id: Long) {
+        val wId = editingWorkoutId ?: return
+        updateWorkout(wId) { w -> w.copy(variants = w.variants.filterNot { it.id == id }) }
+    }
+
+    fun duplicateVariant(id: Long) {
+        val wId = editingWorkoutId ?: return
+        updateWorkout(wId) { w ->
+            val i = w.variants.indexOfFirst { it.id == id }
+            if (i < 0) return@updateWorkout w
+            val src = w.variants[i]
+            val copy = src.copy(
+                id = newId(),
+                name = duplicateName(src.name),
+                exercises = src.exercises.map { it.copy(id = newId()) },
+            )
+            w.copy(variants = w.variants.toMutableList().apply { add(i + 1, copy) })
+        }
+    }
+
+    fun moveVariant(from: Int, to: Int) {
+        val wId = editingWorkoutId ?: return
+        updateWorkout(wId) { w ->
+            if (from == to || from !in w.variants.indices || to !in w.variants.indices) return@updateWorkout w
+            w.copy(variants = w.variants.toMutableList().apply { add(to, removeAt(from)) })
+        }
     }
 
     fun deleteWorkout(id: Long) = updateDraft { t ->
@@ -229,9 +318,30 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---------- Editor de Workout (exercises) ----------
 
-    fun setWorkoutName(name: String) {
-        val id = editingWorkoutId ?: return
-        updateWorkout(id) { it.copy(name = name) }
+    /** Renombra el contenedor en edición: variante si hay una abierta, si no el workout. */
+    fun setEditorName(name: String) {
+        val wId = editingWorkoutId ?: return
+        val vId = editingVariantId
+        if (vId == null) {
+            updateWorkout(wId) { it.copy(name = name) }
+        } else {
+            updateWorkout(wId) { w ->
+                w.copy(variants = w.variants.map { if (it.id == vId) it.copy(name = name) else it })
+            }
+        }
+    }
+
+    /** Aplica una transformación a la lista de ejercicios del contenedor en edición. */
+    private fun updateEditorExercises(transform: (List<Exercise>) -> List<Exercise>) {
+        val wId = editingWorkoutId ?: return
+        val vId = editingVariantId
+        if (vId == null) {
+            updateWorkout(wId) { it.copy(exercises = transform(it.exercises)) }
+        } else {
+            updateWorkout(wId) { w ->
+                w.copy(variants = w.variants.map { if (it.id == vId) it.copy(exercises = transform(it.exercises)) else it })
+            }
+        }
     }
 
     fun openExercisePicker() {
@@ -244,10 +354,10 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Crea un ejercicio por defecto desde el catálogo y abre su editor. */
     fun pickExercise(def: ExerciseDef) {
-        val wId = editingWorkoutId ?: return
+        if (editingWorkoutId == null) return
         val id = newId()
         val ex = Exercise(id = id, exerciseId = def.id, name = def.name)
-        updateWorkout(wId) { it.copy(exercises = it.exercises + ex) }
+        updateEditorExercises { it + ex }
         choosingExercise = false
         editingExerciseId = id
     }
@@ -260,33 +370,21 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
         editingExerciseId = null
     }
 
-    fun deleteExercise(id: Long) {
-        val wId = editingWorkoutId ?: return
-        updateWorkout(wId) { w -> w.copy(exercises = w.exercises.filterNot { it.id == id }) }
+    fun deleteExercise(id: Long) = updateEditorExercises { list -> list.filterNot { it.id == id } }
+
+    fun duplicateExercise(id: Long) = updateEditorExercises { list ->
+        val i = list.indexOfFirst { it.id == id }
+        if (i < 0) list else list.toMutableList().apply { add(i + 1, list[i].copy(id = newId())) }
     }
 
-    fun duplicateExercise(id: Long) {
-        val wId = editingWorkoutId ?: return
-        updateWorkout(wId) { w ->
-            val i = w.exercises.indexOfFirst { it.id == id }
-            if (i < 0) return@updateWorkout w
-            val copy = w.exercises[i].copy(id = newId())
-            w.copy(exercises = w.exercises.toMutableList().apply { add(i + 1, copy) })
-        }
-    }
-
-    fun moveExercise(from: Int, to: Int) {
-        val wId = editingWorkoutId ?: return
-        updateWorkout(wId) { w ->
-            if (from == to || from !in w.exercises.indices || to !in w.exercises.indices) return@updateWorkout w
-            w.copy(exercises = w.exercises.toMutableList().apply { add(to, removeAt(from)) })
-        }
+    fun moveExercise(from: Int, to: Int) = updateEditorExercises { list ->
+        if (from == to || from !in list.indices || to !in list.indices) list
+        else list.toMutableList().apply { add(to, removeAt(from)) }
     }
 
     /** Persiste los cambios del editor de ejercicio en el draft. */
     fun saveExercise(updated: Exercise) {
-        val wId = editingWorkoutId ?: return
-        updateExercise(wId, updated.id) { updated }
+        updateEditorExercises { list -> list.map { if (it.id == updated.id) updated else it } }
         editingExerciseId = null
     }
 
