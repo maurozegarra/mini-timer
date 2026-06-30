@@ -313,14 +313,17 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                     subtitle = t.comingSoon,
                 )
             }
-            Text(
-                "#$screenNo",
-                color = TEXT_FADED.copy(alpha = 0.5f),
-                fontSize = 10.sp,
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(start = 6.dp, bottom = 6.dp),
-            )
+            if (vm.settings.developerMode) {
+                Text(
+                    "#$screenNo",
+                    color = TEXT_FADED.copy(alpha = 0.6f),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(start = 8.dp, bottom = 8.dp),
+                )
+            }
         }
     }
 
@@ -735,12 +738,15 @@ private fun NewTimerSheet(
                 .padding(bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(
-                "#3",
-                color = TEXT_FADED.copy(alpha = 0.5f),
-                fontSize = 10.sp,
-                modifier = Modifier.align(Alignment.Start),
-            )
+            if (vm.settings.developerMode) {
+                Text(
+                    "#3",
+                    color = TEXT_FADED.copy(alpha = 0.6f),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.align(Alignment.Start),
+                )
+            }
             Text(t.newTimer, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(12.dp))
             OutlinedTextField(

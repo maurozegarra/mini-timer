@@ -31,6 +31,8 @@ data class Settings(
     val showNowBar: Boolean = true,
     /** Incremento (en segundos) del botón "+tiempo" de cada tarjeta. */
     val addIncrementSec: Int = 30,
+    /** Modo desarrollador: muestra el número de cada pantalla. */
+    val developerMode: Boolean = false,
 )
 
 /** Opciones (en segundos) para el incremento del botón "+tiempo". */

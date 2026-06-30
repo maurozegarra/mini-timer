@@ -683,6 +683,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     fun setShowOverlay(value: Boolean) = update(settings.copy(showOverlay = value))
     fun setShowNowBar(value: Boolean) = update(settings.copy(showNowBar = value))
     fun setAddIncrement(sec: Int) = update(settings.copy(addIncrementSec = sec))
+    fun setDeveloperMode(value: Boolean) = update(settings.copy(developerMode = value))
     fun resetSettings() {
         update(Settings())
         // Re-aplicar "Beep" como tono por defecto (Settings() deja el tono en null).
