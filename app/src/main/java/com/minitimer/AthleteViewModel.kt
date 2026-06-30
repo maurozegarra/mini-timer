@@ -27,6 +27,7 @@ import com.minitimer.model.Workout
 import com.minitimer.model.WorkoutVariant
 import com.minitimer.model.activeExercises
 import com.minitimer.model.activeName
+import com.minitimer.model.activeVariant
 import com.minitimer.model.hasContent
 import com.minitimer.model.isWeighted
 import com.minitimer.model.setAt
@@ -405,14 +406,15 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
         val tw = t.workouts.size.coerceAtLeast(1)
         t.workouts.forEachIndexed { wi, w ->
             val wName = w.activeName()
+            val wVariant = if (w.rotating) (w.activeVariant()?.name ?: "") else ""
             w.activeExercises().forEach { e ->
                 if (e.prepareSec > 0) {
-                    add(stageStep(StepKind.PREP, e, wName, wi, tw, durationSec = e.prepareSec))
+                    add(stageStep(StepKind.PREP, e, wName, wi, tw, durationSec = e.prepareSec, workoutBase = w.name, variant = wVariant, rotating = w.rotating))
                 }
                 val sets = e.sets.coerceAtLeast(1)
                 for (s in 0 until sets) {
                     if (e.workMode == WorkMode.TIME) {
-                        add(stageStep(StepKind.WORK, e, wName, wi, tw, durationSec = e.workValue, setIndex = s, totalSets = sets, timeBased = true))
+                        add(stageStep(StepKind.WORK, e, wName, wi, tw, durationSec = e.workValue, setIndex = s, totalSets = sets, timeBased = true, workoutBase = w.name, variant = wVariant, rotating = w.rotating))
                     } else {
                         val ws = e.setAt(s)
                         add(
@@ -422,16 +424,17 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
                                 weighted = e.isWeighted,
                                 weightTotal = if (e.isWeighted) e.weightTotal(ws) else 0.0,
                                 weightLabel = if (e.isWeighted) weightLabel(e, ws) else "",
+                                workoutBase = w.name, variant = wVariant, rotating = w.rotating,
                             ),
                         )
                     }
                     val lastSet = s == sets - 1
                     if (e.restSec > 0 && !(e.restSkipOnLastSet && lastSet)) {
-                        add(stageStep(StepKind.REST, e, wName, wi, tw, durationSec = e.restSec, setIndex = s, totalSets = sets))
+                        add(stageStep(StepKind.REST, e, wName, wi, tw, durationSec = e.restSec, setIndex = s, totalSets = sets, workoutBase = w.name, variant = wVariant, rotating = w.rotating))
                     }
                 }
                 if (e.cooldownSec > 0) {
-                    add(stageStep(StepKind.COOLDOWN, e, wName, wi, tw, durationSec = e.cooldownSec))
+                    add(stageStep(StepKind.COOLDOWN, e, wName, wi, tw, durationSec = e.cooldownSec, workoutBase = w.name, variant = wVariant, rotating = w.rotating))
                 }
             }
         }
@@ -451,6 +454,9 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
         weighted: Boolean = false,
         weightTotal: Double = 0.0,
         weightLabel: String = "",
+        workoutBase: String = "",
+        variant: String = "",
+        rotating: Boolean = false,
     ): PlayerStep {
         val cfg = when (kind) {
             StepKind.PREP -> e.prepareCfg
@@ -479,6 +485,9 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
             weighted = weighted,
             weightTotal = weightTotal,
             weightLabel = weightLabel,
+            workoutBaseName = workoutBase,
+            variantName = variant,
+            rotating = rotating,
         )
     }
 
