@@ -32,8 +32,36 @@ Temporizador 100% nativo para Android con **Live Update** (notificación promovi
 - **Pantalla siempre encendida**: mientras la app está en primer plano no se apaga la pantalla
   (`keepScreenOn`); además, mientras el timer corre en background, un *screen wake lock* en el
   servicio intenta mantenerla encendida (deprecado, puede estar limitado en algunos OEM).
-- **Tipografía**: dígitos en **JetBrains Mono** (incluida en `res/font`), con `0` ranurado.
-- **Persistencia**: `SharedPreferences` (ajustes, estado del timer activo y última duración).
+- **Múltiples temporizadores**: lista de timers nombrados, cada uno con su estado; en instalación limpia se siembran dos por defecto (**rest** 1:00 y **potty** 5:00).
+- **Tipografía**: dígitos en **JetBrains Mono** (incluida en `res/font`), con `0` ranurado. El branding de **Athlete** usa dos fuentes (solo ahí): **Neuropol Nova** para el título `ATHLETE` y **Wallpoet** para la `M` del ícono del tab.
+- **Persistencia**: `SharedPreferences` (ajustes, lista de timers, estado del timer activo y última duración).
+
+## Atleta (Athlete)
+
+Segunda pestaña de la app: editor y reproductor de rutinas de entrenamiento con jerarquía de **3 niveles**.
+
+- **Jerarquía**: `Training` > `Workout` > `Exercise`.
+  - **Training**: lo que se ejecuta de corrido en el player (p. ej. *Master*).
+  - **Workout**: agrupador de ejercicios (p. ej. Warmup, Cardio, Lower/Upper).
+  - **Exercise**: unidad mínima, con etapas configurables.
+- **Etapas por ejercicio** (`prepare`, `work`, `rest`, `cooldown`), cada una con `StageConfig`: color (ARGB), `display` (COUNTDOWN/STATIC/COUNTUP), alarma, conteo final y `confirm` (AUTO/MANUAL).
+  - `work` admite modo **TIME** (duración) o **REPS** (repeticiones).
+  - Colores por etapa: PREPARE naranja, WORK rojo, REST azul, COOLDOWN plomo.
+- **Peso por serie** (cuando `work` es REPS): `weightType = NONE | TOTAL | BARBELL | DUMBBELL` (+ `barWeight`), con `WorkSet{reps, weight}` por set. BARBELL = barra + discos; DUMBBELL = 2× peso por mano; TOTAL = directo.
+- **Formato rep-by-rep**: ejercicios por reps con un set por repetición (`sets = nº reps`, `workValue = 1`, confirm manual) y descanso entre reps; el player muestra *Rep n/N*.
+- **Rotación** (workouts rotativos): un workout puede tener **variantes** (`WorkoutVariant`) que rotan **al completar** (p. ej. Cardio entre 4 variantes; Fuerza alternando Lower/Upper). Editor de variantes incluido.
+- **Seed *Master***: en instalación limpia se siembra un Training completo (Warmup, Base, Cardio rotativo, Fuerza Lower/Upper rotativo), localizado ES/EN.
+- **Player en segundo plano**: corre con `WorkoutPlayerService` (foreground) reutilizando el motor de alarma; encadena prepare → sets×(work, rest) → cooldown por cada ejercicio del training.
+- **Catálogo de ejercicios** con íconos (emoji por id) y posibilidad de crear ejercicios propios persistidos.
+- **Entrada de duración** rápida en `mm:ss` (diálogo) además de steppers +/-.
+
+## Respaldo automático
+
+- **Estrategia**: auto-backup a una carpeta elegida por el usuario vía **SAF** (`DocumentsContract`, sin dependencias nuevas).
+- **Formato**: JSON versionado (`schemaVersion`) con volcado tipado de las `SharedPreferences` persistentes (`mini_timer` y `athlete`); se excluye el estado transitorio del player.
+- **Disparo**: en cada cambio de datos (listener con *debounce* 2.5s) y al pasar la app a segundo plano. Archivo `mini-timer-backup.json` (rolling) en la carpeta elegida (`tree Uri` con permiso persistible).
+- **Restaurar**: relee el JSON, reescribe prefs y recarga en caliente (`TimerViewModel.reload()` / `AthleteViewModel.reload()`). UI en Ajustes → grupo **Respaldo**.
+- **Tras reinstalar** se pierde el permiso de la carpeta y hay que re-elegirla; si tiene respaldo, ofrece restaurar.
 
 ## Requisitos
 
@@ -57,18 +85,31 @@ Temporizador 100% nativo para Android con **Live Update** (notificación promovi
 app/src/main/
   AndroidManifest.xml
   java/com/minitimer/
-    MainActivity.kt              # Activity y permiso de notificaciones
+    MainActivity.kt              # Activity, permiso de notificaciones, init de BackupManager
     TimerViewModel.kt            # Lógica: countdown, alarma, auto-dismiss, ajustes, persistencia/restauración
     TimerBus.kt                  # Estado global compartido con el Live Update
+    AthleteViewModel.kt          # CRUD Training/Workout/Exercise, variantes/rotación, buildSteps del player
+    PlayerBus.kt                 # PlayerSnapshot (estado del player de Athlete)
     model/Settings.kt           # Modelo de ajustes + paletas + patrones de vibración
-    data/SettingsStore.kt       # Persistencia (SharedPreferences)
+    model/TimerItem.kt          # Modelo de un temporizador individual
+    model/Workout.kt            # Training/Workout/Exercise/StageConfig/WorkSet/WeightType/WorkoutVariant/SessionLog
+    model/PlayerStep.kt         # Paso del player (StepKind PREP/WORK/REST/COOLDOWN + owner/peso/note)
+    data/SettingsStore.kt       # Persistencia de ajustes y timers (SharedPreferences)
+    data/WorkoutStore.kt        # Persistencia de trainings, ejercicios propios y sesiones (JSON)
+    data/AthleteDefaults.kt     # Seed del Training "Master" (instalación limpia)
+    data/ExerciseCatalog.kt     # Catálogo base de ejercicios (ES/EN)
+    data/ExerciseIcons.kt       # Mapa de emoji por ejercicio (fallback por palabra clave)
+    data/BackupManager.kt       # Auto-backup/restore a carpeta vía SAF
     i18n/Strings.kt             # Traducciones es/en
     util/Format.kt              # Formato de tiempo/hora y parseo de presets
-    ui/TimerApp.kt              # Setup, Countdown, anillo, componentes
-    ui/SettingsScreen.kt        # Pantalla de configuración
-    ui/theme/Theme.kt, Type.kt  # Tema oscuro y fuente JetBrains Mono
-    notify/LiveTimerService.kt  # Foreground service que publica la notificación Live Update
-  res/font/                     # JetBrains Mono (light/regular/semibold)
+    ui/TimerApp.kt              # Setup, Countdown, anillo, tab bar, ícono hexagonal de Athlete
+    ui/SettingsScreen.kt        # Pantalla de configuración (incluye grupo Respaldo)
+    ui/athlete/                 # Pantallas de Athlete (lista, editores, selector, player, variantes)
+    ui/theme/Theme.kt, Type.kt  # Tema oscuro y fuentes (JetBrains Mono, Neuropol, Wallpoet)
+    notify/LiveTimerService.kt  # Foreground service del Live Update del timer
+    notify/WorkoutPlayerService.kt # Foreground service del player de Athlete
+    notify/WorkoutAlarm.kt      # Alarma del player de Athlete
+  res/font/                     # JetBrains Mono, Neuropol Nova, Wallpoet
   res/values/themes.xml         # Tema de la Activity
 ```
 
@@ -113,12 +154,22 @@ Instalado en `%LOCALAPPDATA%\Android\Sdk` (cmdline-tools + `platform-tools`, `pl
 
 ### 5. Construir (verificado ✅)
 - **Recomendado**: abre el proyecto en Android Studio y sincroniza.
-- **CLI** (con el Gradle 9.4.1 ya cacheado y `JAVA_HOME` = JBR):
+- **CLI** (con el Gradle 9.4.1 ya cacheado y `JAVA_HOME` = JBR) — se publica el build **release** (R8 + shrinkResources):
   ```powershell
   $env:JAVA_HOME = 'C:\Users\mzegarra_ide\Downloads\android-studio\jbr'
-  & "$env:USERPROFILE\.gradle\wrapper\dists\gradle-9.4.1-bin\*\gradle-9.4.1\bin\gradle.bat" assembleDebug --no-daemon
+  & "$env:USERPROFILE\.gradle\wrapper\dists\gradle-9.4.1-bin\*\gradle-9.4.1\bin\gradle.bat" assembleRelease --no-daemon
   ```
-  APK resultante: `app/build/outputs/apk/debug/app-debug.apk`.
+  APK resultante: `app/build/outputs/apk/release/app-release.apk` → copiar a `releases/mini-timer-1.0.<n>.apk`.
+
+#### Build de release y versionado
+- El `release` tiene `isMinifyEnabled = true` + `isShrinkResources = true` y se **firma con la clave debug**
+  (`signingConfig = signingConfigs.getByName("debug")`) para conservar la **misma firma** que los APK anteriores
+  y poder **actualizar encima sin desinstalar**. Resultado: ~15.4 MB (debug) → ~1.3 MB (release).
+- `proguard-rules.pro` conserva los nombres de enums del proyecto
+  (`-keepclassmembers enum com.minitimer.** { *; }`) porque la persistencia serializa enums por `name()`/`valueOf()`.
+- **Versionado**: sube +1 por **cada APK generado** (no por commit). `versionName = "1.0.<n>"`, `versionCode = <n>`
+  en `app/build.gradle.kts`. Se deja **solo el último** APK en `releases/`.
+- **Flujo**: compilar → copiar el APK a `releases/` → commit → push (el push se confirma con el usuario).
 
 > Stack verificado: **AGP 9.2.1**, **Gradle 9.4.1**, **Kotlin 2.2.10**, `compileSdk 36.1`.
 > Build exitoso end-to-end resolviendo todo desde JFrog.
