@@ -36,6 +36,10 @@ class WorkoutStore(context: Context) {
     /** true si nunca se ha guardado la lista de trainings (instalación limpia). */
     fun isFirstRun(): Boolean = !prefs.contains(KEY_TRAININGS)
 
+    /** Marca de migración: si ya se sembró el training "Friki Niki" (una sola vez). */
+    fun isFrikiSeeded(): Boolean = prefs.getBoolean(KEY_FRIKI_SEEDED, false)
+    fun setFrikiSeeded() { prefs.edit().putBoolean(KEY_FRIKI_SEEDED, true).apply() }
+
     fun loadTrainings(): List<Training> {
         val raw = prefs.getString(KEY_TRAININGS, null) ?: return emptyList()
         return try {
@@ -258,5 +262,6 @@ class WorkoutStore(context: Context) {
         const val KEY_TRAININGS = "trainings_json"
         const val KEY_CUSTOM_EXERCISES = "custom_exercises_json"
         const val KEY_SESSIONS = "sessions_json"
+        const val KEY_FRIKI_SEEDED = "friki_seeded"
     }
 }
