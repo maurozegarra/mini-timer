@@ -28,6 +28,9 @@ local.properties
 *.p12
 .npmrc
 
+# Herramientas/preview locales del wordmark (no versionar)
+tools/
+
 # OS / editor
 .DS_Store
 Thumbs.db
