@@ -47,6 +47,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.minitimer.AthleteViewModel
 import com.minitimer.i18n.Strings
+import com.minitimer.ui.AnimatedGlowBorder
+import com.minitimer.ui.glowColors
 import com.minitimer.model.DisplayMode
 import com.minitimer.model.PlayerStep
 import com.minitimer.model.StepKind
@@ -313,10 +315,14 @@ private fun RunningView(vm: AthleteViewModel, accent: Color, t: Strings) {
         StepKind.COOLDOWN -> t.cooldown
     }
 
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(color.copy(alpha = 0.16f)),
+    ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(color.copy(alpha = 0.16f))
             .padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -355,6 +361,8 @@ private fun RunningView(vm: AthleteViewModel, accent: Color, t: Strings) {
         }
 
         Controls(vm, step, accent, t)
+    }
+        AnimatedGlowBorder(cornerRadius = 0.dp, colors = glowColors(color), strokeWidth = 3.dp)
     }
 }
 
