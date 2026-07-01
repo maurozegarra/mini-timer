@@ -63,7 +63,6 @@ object AthleteDefaults {
                 reps("ex_trunk_rotation", 20),
                 reps("ex_hip_rotation", 10, note = sideNote(lang)),
                 reps("ex_deep_squat", 20),
-                reps("ex_knee_rotation", 10, note = sideNote(lang)),
                 reps("ex_ankle_rotation", 10, note = sideNote(lang)),
             ),
         )
@@ -73,10 +72,10 @@ object AthleteDefaults {
             id = id(),
             name = "Base",
             exercises = listOf(
+                ex("ex_jumping_jacks", sets = 2, mode = WorkMode.TIME, work = 30, prep = 10, rest = 10, cooldown = 30),
+                ex("ex_burpees", sets = 2, mode = WorkMode.TIME, work = 45, prep = 10, rest = 15, cooldown = 60),
                 reps("ex_knee_circle", 20),
                 reps("ex_90_90", 20),
-                ex("ex_jumping_jacks", sets = 2, mode = WorkMode.TIME, work = 30, prep = 10, rest = 10),
-                ex("ex_burpees", sets = 2, mode = WorkMode.TIME, work = 45, prep = 10, rest = 15),
             ),
         )
 
@@ -87,20 +86,20 @@ object AthleteDefaults {
             rotating = true,
             variants = listOf(
                 WorkoutVariant(
-                    id = id(), name = ExerciseCatalog.name("ex_running", lang),
-                    exercises = listOf(ex("ex_running", mode = WorkMode.TIME, work = 600)),
-                ),
-                WorkoutVariant(
                     id = id(), name = ExerciseCatalog.name("ex_rope_jumping", lang),
-                    exercises = listOf(ex("ex_rope_jumping", sets = 15, work = 30, prep = 10, rest = 10)),
+                    exercises = listOf(ex("ex_rope_jumping", sets = 15, work = 30, prep = 10, rest = 10, cooldown = 60)),
                 ),
                 WorkoutVariant(
                     id = id(), name = ExerciseCatalog.name("ex_tire_jumping", lang),
-                    exercises = listOf(ex("ex_tire_jumping", sets = 8, work = 24, prep = 10, rest = 10)),
+                    exercises = listOf(ex("ex_tire_jumping", sets = 8, work = 24, prep = 10, rest = 10, cooldown = 60)),
                 ),
                 WorkoutVariant(
                     id = id(), name = ExerciseCatalog.name("ex_shadow_boxing", lang),
-                    exercises = listOf(ex("ex_shadow_boxing", sets = 3, work = 45, prep = 10, rest = 15)),
+                    exercises = listOf(ex("ex_shadow_boxing", sets = 3, work = 45, prep = 10, rest = 15, cooldown = 60)),
+                ),
+                WorkoutVariant(
+                    id = id(), name = ExerciseCatalog.name("ex_running", lang),
+                    exercises = listOf(ex("ex_running", mode = WorkMode.TIME, work = 600, prep = 10, cooldown = 60)),
                 ),
             ),
         )
@@ -109,6 +108,7 @@ object AthleteDefaults {
         val lower = WorkoutVariant(
             id = id(), name = "Lower",
             exercises = listOf(
+                reps("ex_knee_rotation", 10, note = sideNote(lang)),
                 reps("ex_knee_stand", 20),
                 reps("ex_knee_jump", 20),
                 reps("ex_cossack_squat", 20),
@@ -128,8 +128,8 @@ object AthleteDefaults {
                 ),
                 ex(
                     "ex_deadlift", sets = 2, mode = WorkMode.REPS, work = 15, rest = 60,
-                    weightType = WeightType.TOTAL,
-                    setList = listOf(WorkSet(15, 15.0), WorkSet(15, 20.0)),
+                    weightType = WeightType.BARBELL, barWeight = 20.0,
+                    setList = listOf(WorkSet(15, 0.0), WorkSet(15, 10.0)),
                 ),
                 ex(
                     "ex_zercher_squat", sets = 2, mode = WorkMode.REPS, work = 15, rest = 60,
@@ -141,7 +141,7 @@ object AthleteDefaults {
         val upper = WorkoutVariant(
             id = id(), name = "Upper",
             exercises = listOf(
-                ex("ex_leg_raises", sets = 2, mode = WorkMode.REPS, work = 10, rest = 60),
+                ex("ex_leg_raises", sets = 2, mode = WorkMode.REPS, work = 10, prep = 5, rest = 60),
                 // Pull-up rep-by-rep: 10 series de 1 rep (confirmación manual) con 15s de descanso entre reps.
                 ex("ex_pull_ups", sets = 10, mode = WorkMode.REPS, work = 1, prep = 5, rest = 15),
                 ex(
