@@ -219,7 +219,7 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                             t.tabAthlete.uppercase(),
                             color = Color.White,
                             fontFamily = Neuropol,
-                            fontSize = 22.sp,
+                            fontSize = 32.sp,
                         )
                         selectedTab == 2 -> Text(
                             t.tabWater,

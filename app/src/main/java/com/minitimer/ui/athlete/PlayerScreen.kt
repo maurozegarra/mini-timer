@@ -338,7 +338,7 @@ private fun RunningView(vm: AthleteViewModel, accent: Color, t: Strings) {
             Spacer(Modifier.height(8.dp))
         }
         val repByRep = step.kind == StepKind.WORK && !step.timeBased && step.reps == 1 && step.totalSets > 1
-        Text(stageLabel, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 26.sp, textAlign = TextAlign.Center)
+        Text(stageLabel, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 48.sp, lineHeight = 52.sp, textAlign = TextAlign.Center)
         if (step.note.isNotBlank()) {
             Text(step.note, color = TEXT_DIM, fontSize = 14.sp, textAlign = TextAlign.Center)
         }
