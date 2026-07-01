@@ -198,6 +198,40 @@ Instalado en `%LOCALAPPDATA%\Android\Sdk` (cmdline-tools + `platform-tools`, `pl
 - La etiqueta visible del launcher es **`!Timer`** (en `MainActivity`), elegida para que la app quede primera en la lista; el nombre de la aplicación sigue siendo **Mini Timer**.
 - **No versionar `tools/`**: los scripts y previews del wordmark (`tools/`) son **solo locales** (están en `.gitignore`). Sirven para regenerar el wordmark `TIMES` (parser TrueType con stdlib + generador de paths) pero **no se incluyen en commits**. El resultado ya vive en el código: `ui/TimesWordmark.kt`.
 
+## Fuentes / Wordmark (flujo offline, sin descargas)
+
+Flujo para modificar tipografías y crear wordmarks **sin pip/red** (por CrowdStrike). Las
+herramientas viven en `tools/` (**solo local**, en `.gitignore`); el resultado se incrusta en el código.
+
+1. **Extraer contornos** (`tools/wallpoet_extract.py`): parser TrueType con **stdlib puro** (`struct`,
+   sin `fonttools`). Lee `head` (unitsPerEm, indexToLocFormat), `maxp`, `hhea`, `cmap` (formato 4),
+   `loca`, `glyf` (glifos simples: flags con REPEAT, curvas cuadráticas con on-curve implícitos) y
+   `hmtx` (advanceWidth). Salida: `tools/wallpoet_glyphs.json` con el path SVG de cada glifo.
+2. **Construir el wordmark** (`tools/wordmark_build.py`, stdlib `json`+`re`): `offset_path` (desplaza X),
+   `map_path` (aplica `fn(x,y)` a cada par: rotar/escalar/voltear), layout por `advanceWidth` + tracking.
+   Genera previews HTML (SVG con `transform="translate(0,CAP) scale(1,-1)"` para pasar de y-up de fuente a
+   y-down de pantalla) y exporta los path data finales (ya en y-down) a `tools/wordmark_paths.txt`.
+3. **Render en Compose**: se incrustan los path data como constantes y se dibujan con
+   `PathParser().parsePathString(d).toPath()` + `Canvas`/`drawPath`. Para **color dinámico** (p. ej. una
+   letra en el acento del tema) se separan en varios paths y se escala con
+   `scale(s, s, pivot = Offset.Zero)`, `s = size.height / VIEWPORT_H`, y `Modifier.height(h).aspectRatio(VW/VH)`.
+   Ejemplo real: `app/src/main/java/com/minitimer/ui/TimesWordmark.kt`.
+
+**Técnicas útiles**
+
+- Fuente TrueType usa coordenadas **y-UP**; convertir a y-down con `y' = CAP - y`.
+- **Puentear cortes** de fuentes stencil: no usar un rectángulo de altura completa (taparía los
+  contadores); añadir rectángulos **solo donde cruzan las barras** (por rango Y), comparando el borde
+  derecho de las piezas izquierdas con el borde izquierdo de las derechas.
+- **Reutilizar un glifo rotado** como otra letra: rotar (cw `(y,-x)`, ccw `(-y,x)`, 180 `(-x,-y)`) y
+  reajustar a la caja (escalar a la altura de mayúscula, trasladar a lsb/baseline).
+- Barra inclinada `\` como I: parámetros *lean* (desplazamiento horizontal top→bottom) y grosor = ancho
+  del stem de la I. Rellenado con `fillType` **NonZero**.
+
+> Datos **Wallpoet** (`app/src/main/res/font/wallpoet_regular.ttf`): unitsPerEm **1000**, cap height **575**,
+> grosor de trazo **126**. Wordmark **TIMES** actual: lean 180, tracking 0; **E** = M rotada 90° ccw;
+> **S** con el corte vertical puenteado; **I** = `\`; **T** y **M** sin cambios; **M** en color de acento.
+
 ## Pendientes (TODO)
 
 - [ ] **(media)** Instalar **offline** una librería Python para renderizar/medir fuentes y generar imágenes de glifos (preferible **Pillow** con FreeType, autocontenida; o **fonttools**, Python puro). Se usará para previsualizar/rasterizar la tipografía (`ui/theme/Type.kt`) o producir PNG/SVG de glifos. Seguir [`docs/instalar-librerias-offline-crowdstrike.md`](docs/instalar-librerias-offline-crowdstrike.md) (descargar wheels a mano e instalar con `--no-index` por el bloqueo de CrowdStrike).
