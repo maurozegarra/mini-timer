@@ -58,13 +58,25 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
             trainings.add(AthleteDefaults.masterTraining(lang()))
             trainings.add(AthleteDefaults.frikiNikiTraining(lang()))
             store.setFrikiSeeded()
+            store.setMasterV2Seeded()
             persist()
-        } else if (!store.isFrikiSeeded()) {
-            val masterIdx = trainings.indexOfFirst { it.name == "Master" }
-            val friki = AthleteDefaults.frikiNikiTraining(lang())
-            if (masterIdx >= 0) trainings.add(masterIdx + 1, friki) else trainings.add(friki)
-            store.setFrikiSeeded()
-            persist()
+        } else {
+            var changed = false
+            if (!store.isFrikiSeeded()) {
+                val masterIdx = trainings.indexOfFirst { it.name == "Master" }
+                val friki = AthleteDefaults.frikiNikiTraining(lang())
+                if (masterIdx >= 0) trainings.add(masterIdx + 1, friki) else trainings.add(friki)
+                store.setFrikiSeeded()
+                changed = true
+            }
+            if (!store.isMasterV2Seeded()) {
+                val masterIdx = trainings.indexOfFirst { it.name == "Master" }
+                val master = AthleteDefaults.masterTraining(lang())
+                if (masterIdx >= 0) trainings[masterIdx] = master else trainings.add(0, master)
+                store.setMasterV2Seeded()
+                changed = true
+            }
+            if (changed) persist()
         }
         observePlayer()
     }
@@ -535,31 +547,15 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
             .filter { it.value.second != 0.0 }
             .map { Triple(it.key, it.value.first, it.value.first + it.value.second) }
 
-    /** Evita avanzar la rotación más de una vez por corrida (finished puede repetir). */
-    private var rotationAdvanced = false
-
-    /** Avanza el índice de rotación de los workouts rotativos del training (al completar). */
-    private fun advanceRotation(trainingId: Long) {
-        val i = trainings.indexOfFirst { it.id == trainingId }
-        if (i < 0) return
-        val t = trainings[i]
-        if (t.workouts.none { it.rotating && it.variants.isNotEmpty() }) return
-        trainings[i] = t.copy(
-            workouts = t.workouts.map { w ->
-                if (w.rotating && w.variants.isNotEmpty())
-                    w.copy(rotationIndex = (w.rotationIndex + 1) % w.variants.size)
-                else w
-            },
-        )
-        persist()
-    }
+    /** Evita recargar los índices de rotación más de una vez por corrida (finished puede repetir). */
+    private var sessionReloaded = false
 
     fun openPlayer(trainingId: Long) {
         val t = trainings.firstOrNull { it.id == trainingId } ?: return
         val steps = buildSteps(t)
         if (steps.isEmpty()) return
         PlayerBus.state.value = null
-        rotationAdvanced = false
+        sessionReloaded = false
         weightFeedback.clear()
         playerSteps = steps
         playerTrainingId = trainingId
@@ -593,6 +589,8 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
         playerRunning = false
         playerFinished = false
         playerStep = null
+        // El servicio ya avanzó la rotación de los workouts completados; refrescar en memoria.
+        reload()
     }
 
     private fun observePlayer() {
@@ -627,9 +625,10 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
                 )
                 if (snap.finished) {
                     playerRunning = false
-                    if (!rotationAdvanced) {
-                        rotationAdvanced = true
-                        playerTrainingId?.let { advanceRotation(it) }
+                    // La rotación por-workout la avanza el servicio; recargar para reflejarla.
+                    if (!sessionReloaded) {
+                        sessionReloaded = true
+                        reload()
                     }
                 }
             }

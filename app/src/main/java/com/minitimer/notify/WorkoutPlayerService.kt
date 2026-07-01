@@ -55,6 +55,8 @@ class WorkoutPlayerService : Service() {
     private var name = ""
     private var workoutId = 0L
     private var lastShownSec = -1L
+    /** Índices de workout cuya rotación ya se avanzó en esta corrida (rotación independiente). */
+    private val advancedWorkouts = mutableSetOf<Int>()
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -78,6 +80,7 @@ class WorkoutPlayerService : Service() {
                 name = intent.getStringExtra(EXTRA_NAME) ?: ""
                 if (steps.isNotEmpty()) {
                     finished = false
+                    advancedWorkouts.clear()
                     beginStep(0)
                 }
             }
@@ -107,6 +110,7 @@ class WorkoutPlayerService : Service() {
     private fun beginStep(i: Int) {
         index = i
         val step = steps.getOrNull(i) ?: return finishPlayer()
+        markCompletedWorkouts(step.workoutIndex)
         if (step.manual) {
             running = false
             remainingMs = 0L
@@ -155,6 +159,7 @@ class WorkoutPlayerService : Service() {
         running = false
         finished = true
         stopTick()
+        markCompletedWorkouts((steps.maxOfOrNull { it.workoutIndex } ?: -1) + 1)
         alarmCue()
         recordSession()
         publish()
@@ -217,6 +222,38 @@ class WorkoutPlayerService : Service() {
         scope.launch {
             delay(2000)
             alarm.stop()
+        }
+    }
+
+    /**
+     * Avanza la rotación de cada workout cuyos pasos ya se completaron por entero.
+     * Cada workout rota de forma INDEPENDIENTE: si abandonas antes de terminar uno,
+     * ese no avanza. [uptoExclusive] = todos los workouts con índice menor están completos.
+     */
+    private fun markCompletedWorkouts(uptoExclusive: Int) {
+        var wi = 0
+        while (wi < uptoExclusive) {
+            if (advancedWorkouts.add(wi)) advanceWorkoutRotation(wi)
+            wi++
+        }
+        persist()
+    }
+
+    private fun advanceWorkoutRotation(workoutIndex: Int) {
+        try {
+            val store = WorkoutStore(this)
+            val trainings = store.loadTrainings().toMutableList()
+            val ti = trainings.indexOfFirst { it.id == workoutId }
+            if (ti < 0) return
+            val t = trainings[ti]
+            val w = t.workouts.getOrNull(workoutIndex) ?: return
+            if (!w.rotating || w.variants.isEmpty()) return
+            val updatedWorkouts = t.workouts.toMutableList()
+            updatedWorkouts[workoutIndex] =
+                w.copy(rotationIndex = (w.rotationIndex + 1) % w.variants.size)
+            trainings[ti] = t.copy(workouts = updatedWorkouts, updatedAt = System.currentTimeMillis())
+            store.saveTrainings(trainings)
+        } catch (_: Exception) {
         }
     }
 
@@ -404,6 +441,7 @@ class WorkoutPlayerService : Service() {
             .putLong("endAt", endAt)
             .putLong("remainingMs", remainingMs)
             .putBoolean("running", running)
+            .putString("advancedWorkouts", advancedWorkouts.joinToString(","))
             .apply()
     }
 
@@ -424,6 +462,10 @@ class WorkoutPlayerService : Service() {
         index = p.getInt("index", 0).coerceIn(0, steps.size - 1)
         running = p.getBoolean("running", false)
         finished = false
+        advancedWorkouts.clear()
+        p.getString("advancedWorkouts", "")?.split(",")?.forEach { s ->
+            s.toIntOrNull()?.let { advancedWorkouts.add(it) }
+        }
         val step = steps[index]
         if (step.manual) {
             running = false
