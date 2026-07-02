@@ -93,6 +93,9 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun lang(): String = SettingsStore(getApplication()).load().language
 
+    /** Preferencia de reloj del player: ceros a la izquierda ("00:30" vs "30"). */
+    fun padPlayerClock(): Boolean = SettingsStore(getApplication()).load().padPlayerClock
+
     // ---------- Catálogo de ejercicios ----------
 
     fun catalog(): List<ExerciseDef> {

@@ -254,6 +254,14 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
                     }
                 }
             }
+            GroupDivider()
+            SwitchRow(
+                label = t.padPlayerClock,
+                desc = t.padPlayerClockDesc,
+                checked = s.padPlayerClock,
+                accent = accent,
+                onCheckedChange = { vm.setPadPlayerClock(it) },
+            )
         }
 
         // ===== Alarma y sonido =====

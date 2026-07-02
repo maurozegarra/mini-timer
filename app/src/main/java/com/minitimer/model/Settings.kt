@@ -33,6 +33,8 @@ data class Settings(
     val addIncrementSec: Int = 30,
     /** Modo desarrollador: muestra el número de cada pantalla. */
     val developerMode: Boolean = false,
+    /** Reloj del player con ceros a la izquierda: "00:30" en vez de "30". */
+    val padPlayerClock: Boolean = false,
 )
 
 /** Opciones (en segundos) para el incremento del botón "+tiempo". */

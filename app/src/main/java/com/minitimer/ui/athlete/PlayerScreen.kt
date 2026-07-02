@@ -332,6 +332,7 @@ private fun RunningView(vm: AthleteViewModel, accent: Color, t: Strings) {
         }
     }
 
+    val padClock = remember { vm.padPlayerClock() }
     // Color de fase completo, oscurecido 12% para legibilidad del texto blanco.
     val bg = lerp(color, Color.Black, 0.12f)
     Box(
@@ -372,7 +373,7 @@ private fun RunningView(vm: AthleteViewModel, accent: Color, t: Strings) {
             if (step.kind == StepKind.WORK && !step.timeBased) {
                 RepsDisplay(step, repByRep, t)
             } else {
-                ClockDisplay(step, vm.playerRemainingMs, color)
+                ClockDisplay(step, vm.playerRemainingMs, padClock)
             }
         }
 
@@ -418,11 +419,11 @@ private fun RepsDisplay(step: PlayerStep, repByRep: Boolean, t: Strings) {
 }
 
 @Composable
-private fun ClockDisplay(step: PlayerStep, remainingMs: Long, color: Color) {
+private fun ClockDisplay(step: PlayerStep, remainingMs: Long, padded: Boolean) {
     val shown = if (step.display == DisplayMode.COUNTUP) {
         (step.durationSec * 1000L - remainingMs).coerceAtLeast(0L)
     } else remainingMs
-    Text(formatPlayerClock(shown), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 84.sp)
+    Text(formatPlayerClock(shown, padded), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 84.sp)
 }
 
 @Composable
