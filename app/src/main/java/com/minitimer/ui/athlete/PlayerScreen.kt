@@ -1,5 +1,6 @@
 package com.minitimer.ui.athlete
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -8,6 +9,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,15 +34,18 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -58,6 +63,7 @@ import com.minitimer.ui.theme.SURFACE
 import com.minitimer.ui.theme.TEXT_DIM
 import com.minitimer.ui.theme.TRACK
 import com.minitimer.util.formatRemaining
+import kotlinx.coroutines.delay
 
 @Composable
 fun PlayerScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
@@ -317,10 +323,21 @@ private fun RunningView(vm: AthleteViewModel, accent: Color, t: Strings) {
         StepKind.COOLDOWN -> t.cooldown
     }
 
+    // Auto-oculta el OSD tras 4 s; se re-arma con cada interacción (osdNonce).
+    LaunchedEffect(vm.playerControlsVisible, vm.osdNonce) {
+        if (vm.playerControlsVisible) {
+            delay(4000)
+            vm.hidePlayerControls()
+        }
+    }
+
+    // Color de fase completo, oscurecido 12% para legibilidad del texto blanco.
+    val bg = lerp(color, Color.Black, 0.12f)
     Box(
         Modifier
             .fillMaxSize()
-            .background(color.copy(alpha = 0.16f)),
+            .background(bg)
+            .pointerInput(Unit) { detectTapGestures { vm.togglePlayerControls() } },
     ) {
     Column(
         modifier = Modifier
@@ -328,7 +345,7 @@ private fun RunningView(vm: AthleteViewModel, accent: Color, t: Strings) {
             .padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        if (step.totalWorkouts > 1) {
+        AnimatedVisibility(visible = vm.playerControlsVisible && step.totalWorkouts > 1) {
             WorkoutProgressBar(step, accent, t)
         }
         Spacer(Modifier.height(8.dp))
@@ -358,12 +375,16 @@ private fun RunningView(vm: AthleteViewModel, accent: Color, t: Strings) {
             }
         }
 
-        if (step.weighted) {
-            WeightFeedback(vm, step, accent, t)
-            Spacer(Modifier.height(12.dp))
+        AnimatedVisibility(visible = vm.playerControlsVisible && step.weighted) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                WeightFeedback(vm, step, accent, t)
+                Spacer(Modifier.height(12.dp))
+            }
         }
 
-        Controls(vm, step, accent, t)
+        AnimatedVisibility(visible = vm.playerControlsVisible) {
+            Controls(vm, step, accent, t)
+        }
     }
         AnimatedGlowBorder(cornerRadius = 0.dp, colors = glowColors(color), strokeWidth = 3.dp)
     }
@@ -425,12 +446,15 @@ private fun WeightFeedback(vm: AthleteViewModel, step: PlayerStep, accent: Color
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FeedbackChip("${t.tooHeavy} ↓", current == -2.5, accent) {
+                vm.showPlayerControls()
                 vm.recordFeedback(step.ownerName, step.weightTotal, -2.5)
             }
             FeedbackChip(t.justRight, current == 0.0, accent) {
+                vm.showPlayerControls()
                 vm.recordFeedback(step.ownerName, step.weightTotal, 0.0)
             }
             FeedbackChip("${t.tooLight} ↑", current == 2.5, accent) {
+                vm.showPlayerControls()
                 vm.recordFeedback(step.ownerName, step.weightTotal, 2.5)
             }
         }
@@ -469,7 +493,10 @@ private fun Controls(vm: AthleteViewModel, step: PlayerStep, accent: Color, t: S
                     .size(56.dp)
                     .clip(CircleShape)
                     .background(SURFACE)
-                    .clickable { if (vm.playerRunning) vm.pausePlayer() else vm.resumePlayer() },
+                    .clickable {
+                        vm.showPlayerControls()
+                        if (vm.playerRunning) vm.pausePlayer() else vm.resumePlayer()
+                    },
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -483,7 +510,7 @@ private fun Controls(vm: AthleteViewModel, step: PlayerStep, accent: Color, t: S
             label = if (step.manual) t.doneLabel else t.nextLabel,
             accent = accent,
             modifier = Modifier.weight(1f),
-            onClick = { vm.nextStep() },
+            onClick = { vm.showPlayerControls(); vm.nextStep() },
         )
     }
 }

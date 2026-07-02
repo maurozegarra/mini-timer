@@ -84,6 +84,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -163,6 +164,12 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
     val athletePlaying = selectedTab == 1 && athleteVm.playerTrainingId != null
     val athleteFull = athleteTraining || athletePlaying
 
+    // Corrida activa del player (no preview ni finished): pinta todo con el color
+    // de la fase y oculta la barra superior cuando el OSD está oculto.
+    val athleteRunning = athletePlaying && athleteVm.playerStarted && !athleteVm.playerFinished
+    val runningColor = athleteVm.playerStep?.let { lerp(Color(it.colorArgb), Color.Black, 0.12f) }
+    val hideChrome = athleteRunning && !athleteVm.playerControlsVisible
+
     val screenNo = when {
         vm.showSettings -> 4
         detail != null -> 2
@@ -191,7 +198,7 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
     }
 
     Scaffold(
-        containerColor = BG,
+        containerColor = if (athleteRunning && runningColor != null) runningColor else BG,
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             CenterAlignedTopAppBar(
@@ -204,7 +211,9 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                             placeholder = t.noName,
                             onCommit = { vm.renameTimer(detail.id, it) },
                         )
-                        athletePlaying -> Text(athleteVm.playerName, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
+                        athletePlaying -> if (!hideChrome) {
+                            Text(athleteVm.playerName, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
+                        }
                         athleteChoosing -> Text(t.chooseExercise, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
                         athleteExercise -> {
                             val exEdit = athleteVm.editingExercise()
@@ -230,7 +239,7 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                     }
                 },
                 navigationIcon = {
-                    if (vm.showSettings || vm.detailId != null || athleteFull) {
+                    if ((vm.showSettings || vm.detailId != null || athleteFull) && !hideChrome) {
                         IconButton(onClick = {
                             when {
                                 vm.showSettings -> vm.showSettings = false

@@ -534,6 +534,27 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
     var playerStep by mutableStateOf<PlayerStep?>(null)
         private set
 
+    /** OSD: si los controles del player están visibles (se auto-ocultan tras un tap). */
+    var playerControlsVisible by mutableStateOf(true)
+        private set
+
+    /** Se incrementa en cada interacción para re-armar el auto-ocultado del OSD. */
+    var osdNonce by mutableStateOf(0)
+        private set
+
+    fun showPlayerControls() {
+        playerControlsVisible = true
+        osdNonce++
+    }
+
+    fun hidePlayerControls() {
+        playerControlsVisible = false
+    }
+
+    fun togglePlayerControls() {
+        if (playerControlsVisible) hidePlayerControls() else showPlayerControls()
+    }
+
     /** Feedback de peso recogido durante el run: nombre ejercicio -> (peso, delta kg). */
     val weightFeedback = mutableStateMapOf<String, Pair<Double, Double>>()
 
@@ -573,6 +594,7 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
         val id = playerTrainingId ?: return
         if (playerSteps.isEmpty()) return
         playerStarted = true
+        showPlayerControls()
         WorkoutPlayerService.start(getApplication(), id, playerName, playerSteps)
     }
 
