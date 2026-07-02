@@ -62,6 +62,7 @@ import com.minitimer.ui.theme.ON_ACCENT
 import com.minitimer.ui.theme.SURFACE
 import com.minitimer.ui.theme.TEXT_DIM
 import com.minitimer.ui.theme.TRACK
+import com.minitimer.util.formatPlayerClock
 import com.minitimer.util.formatRemaining
 import kotlinx.coroutines.delay
 
@@ -318,7 +319,7 @@ private fun RunningView(vm: AthleteViewModel, accent: Color, t: Strings) {
     val color = Color(step.colorArgb)
     val stageLabel = when (step.kind) {
         StepKind.PREP -> t.prepare
-        StepKind.WORK -> step.title.ifBlank { t.exercise }
+        StepKind.WORK -> step.title.ifBlank { t.exercise }.uppercase()
         StepKind.REST -> t.rest
         StepKind.COOLDOWN -> t.cooldown
     }
@@ -363,7 +364,7 @@ private fun RunningView(vm: AthleteViewModel, accent: Color, t: Strings) {
             Text(ownerLabel, color = TEXT_DIM, fontSize = 15.sp)
         }
         if (step.kind == StepKind.WORK && step.totalSets > 1 && !repByRep) {
-            Text("${step.setIndex + 1} ${t.ofLabel} ${step.totalSets}", color = TEXT_DIM, fontSize = 15.sp)
+            Text("${step.setIndex + 1} / ${step.totalSets}", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 40.sp)
         }
 
         Spacer(Modifier.height(28.dp))
@@ -421,7 +422,7 @@ private fun ClockDisplay(step: PlayerStep, remainingMs: Long, color: Color) {
     val shown = if (step.display == DisplayMode.COUNTUP) {
         (step.durationSec * 1000L - remainingMs).coerceAtLeast(0L)
     } else remainingMs
-    Text(formatRemaining(shown), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 72.sp)
+    Text(formatPlayerClock(shown), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 84.sp)
 }
 
 @Composable
