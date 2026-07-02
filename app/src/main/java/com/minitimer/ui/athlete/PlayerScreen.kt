@@ -364,7 +364,7 @@ private fun RunningView(vm: AthleteViewModel, accent: Color, t: Strings) {
             Text(ownerLabel, color = TEXT_DIM, fontSize = 15.sp)
         }
         if (step.kind == StepKind.WORK && step.totalSets > 1 && !repByRep) {
-            Text("${step.setIndex + 1} / ${step.totalSets}", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 40.sp)
+            Text("${step.setIndex + 1} / ${step.totalSets}", color = TEXT_DIM, fontWeight = FontWeight.Bold, fontSize = 40.sp)
         }
 
         Spacer(Modifier.height(28.dp))
