@@ -38,6 +38,7 @@ class SettingsStore(context: Context) {
             showNowBar = prefs.getBoolean(KEY_SHOW_NOW_BAR, defaults.showNowBar),
             addIncrementSec = prefs.getInt(KEY_ADD_INC, defaults.addIncrementSec),
             developerMode = prefs.getBoolean(KEY_DEV_MODE, defaults.developerMode),
+            padPlayerClock = prefs.getBoolean(KEY_PAD_CLOCK, defaults.padPlayerClock),
         )
     }
 
@@ -59,6 +60,7 @@ class SettingsStore(context: Context) {
             .putBoolean(KEY_SHOW_NOW_BAR, s.showNowBar)
             .putInt(KEY_ADD_INC, s.addIncrementSec)
             .putBoolean(KEY_DEV_MODE, s.developerMode)
+            .putBoolean(KEY_PAD_CLOCK, s.padPlayerClock)
             .apply()
     }
 
@@ -183,6 +185,7 @@ class SettingsStore(context: Context) {
         const val KEY_SHOW_NOW_BAR = "showNowBar"
         const val KEY_ADD_INC = "addIncrement"
         const val KEY_DEV_MODE = "developerMode"
+        const val KEY_PAD_CLOCK = "padPlayerClock"
         const val KEY_TIMERS = "timers_json"
         const val KEY_ACTIVE_ID = "active_id"
         const val KEY_LAST_DURATION = "last_duration"
