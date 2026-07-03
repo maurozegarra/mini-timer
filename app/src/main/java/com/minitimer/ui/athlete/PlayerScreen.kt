@@ -320,8 +320,8 @@ private fun RunningView(vm: AthleteViewModel, accent: Color, t: Strings) {
     val stageLabel = when (step.kind) {
         StepKind.PREP -> t.prepare.uppercase()
         StepKind.WORK -> step.title.ifBlank { t.exercise }.uppercase()
-        StepKind.REST -> t.rest
-        StepKind.COOLDOWN -> t.cooldown
+        StepKind.REST -> t.rest.uppercase()
+        StepKind.COOLDOWN -> t.cooldown.uppercase()
     }
 
     // Auto-oculta el OSD tras 4 s; se re-arma con cada interacción (osdNonce).
