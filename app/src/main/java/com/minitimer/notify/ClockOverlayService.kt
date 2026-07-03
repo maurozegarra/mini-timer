@@ -21,6 +21,7 @@ import android.provider.Settings
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
+import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -252,9 +253,28 @@ class ClockOverlayService : Service() {
             applyStyle(panel)
             return try {
                 wm?.addView(container, lp)
+                // Rescata paneles cuya posición guardada quedó fuera de la zona
+                // segura (p. ej. atrapados en la barra de estado antes del fix).
+                container.post { clampToBounds() }
                 true
             } catch (_: Exception) {
                 false
+            }
+        }
+
+        /** Reubica el panel dentro de la zona segura si quedó fuera. */
+        private fun clampToBounds() {
+            val b = dragBounds(container)
+            val nx = lp.x.coerceIn(b[0], b[2])
+            val ny = lp.y.coerceIn(b[1], b[3])
+            if (nx != lp.x || ny != lp.y) {
+                lp.x = nx
+                lp.y = ny
+                try {
+                    wm?.updateViewLayout(container, lp)
+                } catch (_: Exception) {
+                }
+                store.saveOsdPos(index, lp.x, lp.y)
             }
         }
 
@@ -311,8 +331,11 @@ class ClockOverlayService : Service() {
                         true
                     }
                     MotionEvent.ACTION_MOVE -> {
-                        lp.x = startX + (e.rawX - downRawX).toInt()
-                        lp.y = startY + (e.rawY - downRawY).toInt()
+                        // Limitar a la zona segura: nunca entra en la barra de
+                        // estado ni en la de navegación (evita quedar atrapado).
+                        val b = dragBounds(container)
+                        lp.x = (startX + (e.rawX - downRawX).toInt()).coerceIn(b[0], b[2])
+                        lp.y = (startY + (e.rawY - downRawY).toInt()).coerceIn(b[1], b[3])
                         try {
                             wm?.updateViewLayout(container, lp)
                         } catch (_: Exception) {
@@ -321,7 +344,17 @@ class ClockOverlayService : Service() {
                     }
                     MotionEvent.ACTION_UP -> {
                         if (abs(e.rawX - downRawX) > 2 || abs(e.rawY - downRawY) > 2) {
-                            store.saveOsdPos(index, lp.x.coerceAtLeast(0), lp.y.coerceAtLeast(0))
+                            // Magnet: al soltar, pega el panel al lado más cercano.
+                            val b = dragBounds(container)
+                            val (sw, _) = screenBounds()
+                            val centerX = lp.x + container.width / 2
+                            lp.x = if (centerX < sw / 2) b[0] else b[2]
+                            lp.y = lp.y.coerceIn(b[1], b[3])
+                            try {
+                                wm?.updateViewLayout(container, lp)
+                            } catch (_: Exception) {
+                            }
+                            store.saveOsdPos(index, lp.x, lp.y)
                         }
                         true
                     }
@@ -333,6 +366,59 @@ class ClockOverlayService : Service() {
 
     private fun dp(value: Int): Int =
         (value * resources.displayMetrics.density).toInt()
+
+    /** Ancho/alto de la pantalla completa (incluye barras del sistema). */
+    private fun screenBounds(): Pair<Int, Int> {
+        val w = wm
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && w != null) {
+            val b = w.maximumWindowMetrics.bounds
+            b.width() to b.height()
+        } else {
+            val dm = resources.displayMetrics
+            dm.widthPixels to dm.heightPixels
+        }
+    }
+
+    private fun statusBarHeightFallback(): Int {
+        val id = resources.getIdentifier("status_bar_height", "dimen", "android")
+        return if (id > 0) resources.getDimensionPixelSize(id) else dp(24)
+    }
+
+    /**
+     * Zona segura para arrastrar un panel: [minX, minY, maxX, maxY]. Deja fuera la
+     * barra de estado (arriba) y la de navegación (abajo) para que el OSD no quede
+     * atrapado en el "shade" del sistema ni bajo los gestos de navegación.
+     */
+    private fun dragBounds(view: View): IntArray {
+        val (sw, sh) = screenBounds()
+        var top = 0
+        var bottom = 0
+        var left = 0
+        var right = 0
+        view.rootWindowInsets?.let { ins ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val s = ins.getInsets(WindowInsets.Type.systemBars())
+                top = s.top; bottom = s.bottom; left = s.left; right = s.right
+            } else {
+                @Suppress("DEPRECATION")
+                run {
+                    top = ins.systemWindowInsetTop
+                    bottom = ins.systemWindowInsetBottom
+                    left = ins.systemWindowInsetLeft
+                    right = ins.systemWindowInsetRight
+                }
+            }
+        }
+        if (top <= 0) top = statusBarHeightFallback()
+        val margin = dp(4)
+        val vw = view.width
+        val vh = view.height
+        val minX = left + margin
+        val minY = top + margin
+        val maxX = (sw - right - vw - margin).coerceAtLeast(minX)
+        val maxY = (sh - bottom - vh - margin).coerceAtLeast(minY)
+        return intArrayOf(minX, minY, maxX, maxY)
+    }
 
     private fun buildNotification(): Notification {
         val t = I18n.get(store.loadConfig().general.language)
