@@ -244,6 +244,12 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                             fontSize = 32.sp,
                         )
                         selectedTab == 2 -> Text(
+                            t.tabClock.uppercase(),
+                            color = AppTheme.colors.textPrimary,
+                            fontFamily = Neuropol,
+                            fontSize = 32.sp,
+                        )
+                        selectedTab == 3 -> Text(
                             t.tabWater,
                             color = AppTheme.colors.textPrimary,
                             fontWeight = FontWeight.SemiBold,
@@ -336,6 +342,7 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                     onBlocked = onBlocked,
                 )
                 selectedTab == 1 -> AthleteScreen(athleteVm, accent, t)
+                selectedTab == 2 -> ClockScreen(vm)
                 else -> ComingSoonScreen(
                     icon = R.drawable.ic_tab_water,
                     title = t.tabWater,
@@ -378,7 +385,8 @@ private fun BottomNavBar(
     val items = listOf(
         Triple(R.drawable.ic_tab_timer, t.title, 0),
         Triple(R.drawable.ic_tab_athlete, t.tabAthlete, 1),
-        Triple(R.drawable.ic_tab_water, t.tabWater, 2),
+        Triple(R.drawable.ic_tab_clock, t.tabClock, 2),
+        Triple(R.drawable.ic_tab_water, t.tabWater, 3),
     )
     NavigationBar(containerColor = AppTheme.colors.surface, tonalElevation = 0.dp) {
         items.forEach { (iconRes, label, index) ->

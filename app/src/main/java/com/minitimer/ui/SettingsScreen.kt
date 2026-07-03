@@ -886,7 +886,7 @@ private fun SettingsCategoryRow(
 
 /** Encabezado de grupo + contenedor (card) estilo Material 3. */
 @Composable
-private fun SettingsGroup(
+internal fun SettingsGroup(
     title: String,
     accent: Color,
     content: @Composable ColumnScope.() -> Unit,
@@ -910,7 +910,7 @@ private fun SettingsGroup(
 
 /** Etiqueta de un ítem dentro de un grupo. */
 @Composable
-private fun ItemLabel(text: String) {
+internal fun ItemLabel(text: String) {
     Text(
         text,
         color = AppTheme.colors.textPrimary,
@@ -922,7 +922,7 @@ private fun ItemLabel(text: String) {
 
 /** Divisor entre ítems de un mismo grupo. */
 @Composable
-private fun GroupDivider() {
+internal fun GroupDivider() {
     HorizontalDivider(
         color = AppTheme.colors.track,
         thickness = 1.dp,
@@ -932,7 +932,7 @@ private fun GroupDivider() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun Chip(label: String, selected: Boolean, accent: Color, onClick: () -> Unit) {
+internal fun Chip(label: String, selected: Boolean, accent: Color, onClick: () -> Unit) {
     FilterChip(
         selected = selected,
         onClick = onClick,

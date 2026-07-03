@@ -71,6 +71,70 @@ data class WaterConfig(
     val alarm: AlarmConfig = AlarmConfig(),
 )
 
+/** Tamaño del texto del OSD del reloj. */
+const val OSD_SIZE_SMALL = 0
+const val OSD_SIZE_MEDIUM = 1
+const val OSD_SIZE_LARGE = 2
+
+/**
+ * Un panel del OSD (reloj flotante): franja fina e INDEPENDIENTE que se pinta
+ * sobre otras apps. Contenido a la izquierda (hora), indicadores a la derecha
+ * (volumen [n], batería [n%]). Cada panel tiene su propio contenido, apariencia
+ * y posición.
+ */
+data class OsdPanel(
+    /** Panel activo (se pinta el overlay). */
+    val enabled: Boolean = false,
+    // --- Contenido ---
+    val showTime: Boolean = true,
+    /** Segundos en vivo en la hora ("3:14:05"). */
+    val showSeconds: Boolean = true,
+    /** Nivel de volumen multimedia, ej. "[5]". */
+    val showVolume: Boolean = true,
+    /** Porcentaje de batería, ej. "[62%]". */
+    val showBattery: Boolean = true,
+    /** Formato 24 horas (si no, 12h). */
+    val use24h: Boolean = false,
+    val showDate: Boolean = false,
+    val showMemo: Boolean = false,
+    val memo: String = "",
+    // --- Apariencia ---
+    /** [OSD_SIZE_SMALL], [OSD_SIZE_MEDIUM] o [OSD_SIZE_LARGE]. */
+    val size: Int = OSD_SIZE_MEDIUM,
+    val textColor: Long = 0xFFFFFFFF,
+    /** Opacidad del fondo 0f..1f (0 = fondo transparente, sin caja). */
+    val bgAlpha: Float = 0f,
+    // Nota: la posición (x,y) del overlay se guarda aparte en SettingsStore
+    // (como el offset del anillo) para que el arrastre desde el servicio no
+    // choque con la copia en memoria de la config del ViewModel.
+)
+
+/** Ajustes de la mini-app Reloj: OSD flotante con 2 paneles independientes. */
+data class ClockConfig(
+    val panel1: OsdPanel = OsdPanel(),
+    val panel2: OsdPanel = OsdPanel(),
+) {
+    fun panel(index: Int): OsdPanel = if (index == 0) panel1 else panel2
+    fun withPanel(index: Int, p: OsdPanel): ClockConfig =
+        if (index == 0) copy(panel1 = p) else copy(panel2 = p)
+
+    /** ¿Algún panel activo? Determina si el servicio de overlay debe correr. */
+    val anyEnabled: Boolean get() = panel1.enabled || panel2.enabled
+}
+
+/** Tamaños de texto (sp) del OSD por [OSD_SIZE_SMALL]/[MEDIUM]/[LARGE]. */
+val OSD_TEXT_SIZES_SP: List<Int> = listOf(14, 18, 24)
+
+/** Paleta de color de texto para el OSD del reloj. */
+val OSD_TEXT_COLORS: List<Long> = listOf(
+    0xFFFFFFFF,
+    0xFF4AC0D6,
+    0xFF3DDC84,
+    0xFFA06CFF,
+    0xFFFF5252,
+    0xFFFFD54A,
+)
+
 /**
  * Configuración completa de la app: un bloque general + uno por cada mini-app
  * (pestaña). Añadir una pestaña nueva = añadir su data class aquí.
@@ -79,6 +143,7 @@ data class AppConfig(
     val general: GeneralConfig = GeneralConfig(),
     val timer: TimerConfig = TimerConfig(),
     val athlete: AthleteConfig = AthleteConfig(),
+    val clock: ClockConfig = ClockConfig(),
     val water: WaterConfig = WaterConfig(),
 )
 

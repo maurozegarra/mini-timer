@@ -13,7 +13,9 @@ import com.minitimer.audio.AlarmPlayer
 import com.minitimer.data.SettingsStore
 import com.minitimer.model.AlarmConfig
 import com.minitimer.model.AppConfig
+import com.minitimer.model.OsdPanel
 import com.minitimer.model.TimerItem
+import com.minitimer.notify.ClockOverlayService
 import com.minitimer.notify.LiveTimerService
 import com.minitimer.util.dedupeSorted
 import com.minitimer.util.formatRemaining
@@ -86,6 +88,8 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         TimerBus.accent.value = config.general.accent
         publishOverlayPrefs()
         ensureDefaultAlarmSound()
+        // Reanudar el/los OSD del reloj al abrir la app (respeta el permiso).
+        ClockOverlayService.sync(app, config.clock)
         restore()
         val last = store.loadLastDuration()
         if (last > 0) digits = secondsToDigits(last)
@@ -113,6 +117,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         ringOffsetY = store.loadRingOffset().second
         TimerBus.accent.value = config.general.accent
         publishOverlayPrefs()
+        ClockOverlayService.sync(getApplication(), config.clock)
         restore()
         val last = store.loadLastDuration()
         digits = if (last > 0) secondsToDigits(last) else ""
@@ -499,6 +504,13 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     fun setPadPlayerClock(value: Boolean) =
         update(config.copy(athlete = config.athlete.copy(padPlayerClock = value)))
 
+    // Reloj (OSD overlay)
+    /** Reemplaza el panel [index] (0 o 1) del reloj y sincroniza el overlay. */
+    fun setClockPanel(index: Int, panel: OsdPanel) {
+        update(config.copy(clock = config.clock.withPanel(index, panel)))
+        ClockOverlayService.sync(getApplication(), config.clock)
+    }
+
     // ---------- Alarma independiente por pestaña ----------
     /** Devuelve el bloque de alarma de la mini-app [scope]. */
     fun alarmFor(scope: AlarmScope): AlarmConfig = when (scope) {
@@ -520,6 +532,8 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         update(AppConfig())
         // Re-aplicar "Beep" por defecto (AppConfig() deja los tonos en null).
         ensureDefaultAlarmSound()
+        // Apagar los OSD del reloj (AppConfig() los deja deshabilitados).
+        ClockOverlayService.sync(getApplication(), config.clock)
     }
 
     /** Ajuste fino (en dp) de la posición del anillo sobre la cámara. */

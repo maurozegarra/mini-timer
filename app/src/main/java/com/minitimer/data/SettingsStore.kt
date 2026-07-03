@@ -5,7 +5,9 @@ import com.minitimer.Phase
 import com.minitimer.model.AlarmConfig
 import com.minitimer.model.AppConfig
 import com.minitimer.model.AthleteConfig
+import com.minitimer.model.ClockConfig
 import com.minitimer.model.GeneralConfig
+import com.minitimer.model.OsdPanel
 import com.minitimer.model.TimerConfig
 import com.minitimer.model.TimerItem
 import com.minitimer.model.WaterConfig
@@ -30,6 +32,7 @@ class SettingsStore(context: Context) {
                 general = generalFromJson(generalJson),
                 timer = timerFromJson(prefs.getString(KEY_CFG_TIMER, null)),
                 athlete = athleteFromJson(prefs.getString(KEY_CFG_ATHLETE, null)),
+                clock = clockFromJson(prefs.getString(KEY_CFG_CLOCK, null)),
                 water = waterFromJson(prefs.getString(KEY_CFG_WATER, null)),
             )
         }
@@ -46,6 +49,7 @@ class SettingsStore(context: Context) {
             .putString(KEY_CFG_GENERAL, generalToJson(c.general).toString())
             .putString(KEY_CFG_TIMER, timerToJson(c.timer).toString())
             .putString(KEY_CFG_ATHLETE, athleteToJson(c.athlete).toString())
+            .putString(KEY_CFG_CLOCK, clockToJson(c.clock).toString())
             .putString(KEY_CFG_WATER, waterToJson(c.water).toString())
             .also { clearLegacyKeys(it) }
             .apply()
@@ -186,6 +190,52 @@ class SettingsStore(context: Context) {
         return WaterConfig(alarm = alarmFromJson(o.optJSONObject("alarm")))
     }
 
+    private fun panelToJson(p: OsdPanel) = JSONObject()
+        .put("enabled", p.enabled)
+        .put("showTime", p.showTime)
+        .put("showSeconds", p.showSeconds)
+        .put("showVolume", p.showVolume)
+        .put("showBattery", p.showBattery)
+        .put("use24h", p.use24h)
+        .put("showDate", p.showDate)
+        .put("showMemo", p.showMemo)
+        .put("memo", p.memo)
+        .put("size", p.size)
+        .put("textColor", p.textColor)
+        .put("bgAlpha", p.bgAlpha.toDouble())
+
+    private fun panelFromJson(o: JSONObject?): OsdPanel {
+        val d = OsdPanel()
+        if (o == null) return d
+        return OsdPanel(
+            enabled = o.optBoolean("enabled", d.enabled),
+            showTime = o.optBoolean("showTime", d.showTime),
+            showSeconds = o.optBoolean("showSeconds", d.showSeconds),
+            showVolume = o.optBoolean("showVolume", d.showVolume),
+            showBattery = o.optBoolean("showBattery", d.showBattery),
+            use24h = o.optBoolean("use24h", d.use24h),
+            showDate = o.optBoolean("showDate", d.showDate),
+            showMemo = o.optBoolean("showMemo", d.showMemo),
+            memo = o.optString("memo", d.memo),
+            size = o.optInt("size", d.size),
+            textColor = o.optLong("textColor", d.textColor),
+            bgAlpha = o.optDouble("bgAlpha", d.bgAlpha.toDouble()).toFloat(),
+        )
+    }
+
+    private fun clockToJson(cc: ClockConfig) = JSONObject()
+        .put("panel1", panelToJson(cc.panel1))
+        .put("panel2", panelToJson(cc.panel2))
+
+    private fun clockFromJson(json: String?): ClockConfig {
+        val d = ClockConfig()
+        val o = json?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return d
+        return ClockConfig(
+            panel1 = panelFromJson(o.optJSONObject("panel1")),
+            panel2 = panelFromJson(o.optJSONObject("panel2")),
+        )
+    }
+
     private fun clearLegacyKeys(e: android.content.SharedPreferences.Editor) {
         e.remove(KEY_ACCENT).remove(KEY_LANGUAGE).remove(KEY_PRESETS)
             .remove(KEY_AUTO_DISMISS).remove(KEY_IGNORE_SILENT).remove(KEY_ALARM_URI)
@@ -288,22 +338,48 @@ class SettingsStore(context: Context) {
     fun loadRingOffset(): Pair<Int, Int> =
         prefs.getInt(KEY_RING_OFF_X, 0) to prefs.getInt(KEY_RING_OFF_Y, RING_OFFSET_Y_DEFAULT)
 
-    /** Pestaña inferior seleccionada (0=Timer, 1=Athlete, 2=Water). */
+    /** Pestaña inferior seleccionada (0=Timer, 1=Athlete, 2=Reloj, 3=Water). */
     fun saveSelectedTab(index: Int) {
         prefs.edit().putInt(KEY_SELECTED_TAB, index).apply()
     }
 
     fun loadSelectedTab(): Int = prefs.getInt(KEY_SELECTED_TAB, 0)
 
+    /**
+     * Posición (x,y en px) de cada panel OSD del reloj. Se guarda fuera de
+     * [AppConfig] (como el offset del anillo) para que el arrastre desde el
+     * servicio no sea sobrescrito por la copia en memoria de la config.
+     */
+    fun saveOsdPos(panel: Int, x: Int, y: Int) {
+        prefs.edit()
+            .putInt("$KEY_OSD_POS_X$panel", x)
+            .putInt("$KEY_OSD_POS_Y$panel", y)
+            .apply()
+    }
+
+    fun loadOsdPos(panel: Int): Pair<Int, Int> {
+        val defY = if (panel == 0) OSD_POS_Y0_DEFAULT else OSD_POS_Y1_DEFAULT
+        return prefs.getInt("$KEY_OSD_POS_X$panel", OSD_POS_X_DEFAULT) to
+            prefs.getInt("$KEY_OSD_POS_Y$panel", defY)
+    }
+
     private companion object {
         // Desplazamiento vertical (dp) por defecto para centrar el anillo sobre
         // la cámara con las dimensiones actuales del anillo (38x32dp).
         const val RING_OFFSET_Y_DEFAULT = 3
 
+        // Posición por defecto (px) de los paneles OSD: apilados arriba-izquierda.
+        const val OSD_POS_X_DEFAULT = 24
+        const val OSD_POS_Y0_DEFAULT = 90
+        const val OSD_POS_Y1_DEFAULT = 160
+        const val KEY_OSD_POS_X = "osd_pos_x_"
+        const val KEY_OSD_POS_Y = "osd_pos_y_"
+
         // Esquema nuevo: un JSON por sección.
         const val KEY_CFG_GENERAL = "cfg_general"
         const val KEY_CFG_TIMER = "cfg_timer"
         const val KEY_CFG_ATHLETE = "cfg_athlete"
+        const val KEY_CFG_CLOCK = "cfg_clock"
         const val KEY_CFG_WATER = "cfg_water"
 
         // Claves planas antiguas (solo se leen en la migración one-time).
