@@ -1,3 +1,7 @@
+param(
+    [string]$Message = ''
+)
+
 $ErrorActionPreference = 'Stop'
 
 $env:JAVA_HOME = 'C:\Users\mzegarra_ide\Downloads\android-studio\jbr'
@@ -24,3 +28,12 @@ Copy-Item $apkSrc $apkDst -Force
 
 Write-Host ""
 Write-Host "OK -> releases\mini-timer-$version.apk"
+
+if ($Message -ne '') {
+    git add -A
+    if ($LASTEXITCODE -ne 0) { throw "git add failed (exit $LASTEXITCODE)" }
+    git commit -m "$Message (v$version)"
+    if ($LASTEXITCODE -ne 0) { throw "git commit failed (exit $LASTEXITCODE)" }
+    Write-Host "Commit -> $Message (v$version)"
+}
+
