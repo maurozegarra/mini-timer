@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -114,6 +115,7 @@ import com.minitimer.ui.athlete.AthleteScreen
 import com.minitimer.i18n.I18n
 import com.minitimer.model.TimerItem
 import com.minitimer.ui.theme.BG
+import com.minitimer.ui.theme.Dims
 import com.minitimer.ui.theme.DONE_RED
 import com.minitimer.ui.theme.JetBrainsMono
 import com.minitimer.ui.theme.Neuropol
@@ -589,11 +591,11 @@ private fun TimerCard(
                 translationY = dragOffset
                 if (dragging) { scaleX = 1.03f; scaleY = 1.03f }
             }
-            .clip(RoundedCornerShape(24.dp))
+            .clip(RoundedCornerShape(Dims.card))
             .background(if (dragging) TRACK else SURFACE)
             .then(
                 if (borderColor != Color.Transparent)
-                    Modifier.border(1.dp, borderColor, RoundedCornerShape(24.dp))
+                    Modifier.border(1.dp, borderColor, RoundedCornerShape(Dims.card))
                 else Modifier
             )
             .pointerInput(item.id) { detectTapGestures(onTap = { onOpen() }) }
@@ -795,6 +797,27 @@ private fun NewTimerSheet(
                 t = t,
                 onChange = { h, m, s -> vm.setDraftTime(h, m, s) },
             )
+            val presetSecs = vm.settings.presets
+            if (presetSecs.isNotEmpty()) {
+                Spacer(Modifier.height(20.dp))
+                val currentSec = vm.setH * 3600 + vm.setM * 60 + vm.setS
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    presetSecs.forEach { sec ->
+                        PresetChip(
+                            label = formatRemaining(sec * 1000L),
+                            selected = sec == currentSec,
+                            accent = accent,
+                        ) {
+                            vm.setDraftTime(sec / 3600, (sec % 3600) / 60, sec % 60)
+                        }
+                    }
+                }
+            }
             Spacer(Modifier.height(20.dp))
             val canStart = vm.setH * 3600 + vm.setM * 60 + vm.setS > 0
             Button(
@@ -804,7 +827,7 @@ private fun NewTimerSheet(
                     if (!started) onBlocked()
                 },
                 enabled = canStart,
-                shape = RoundedCornerShape(28.dp),
+                shape = RoundedCornerShape(Dims.button),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = accent,
                     contentColor = ON_ACCENT,
@@ -816,6 +839,35 @@ private fun NewTimerSheet(
                 Text(t.start, fontSize = 17.sp, fontWeight = FontWeight.Bold)
             }
         }
+    }
+}
+
+@Composable
+private fun PresetChip(
+    label: String,
+    selected: Boolean,
+    accent: Color,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .height(40.dp)
+            .clip(RoundedCornerShape(50))
+            .then(
+                if (selected) Modifier.border(1.dp, accent, RoundedCornerShape(50))
+                else Modifier.background(TRACK)
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 20.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            label,
+            color = if (selected) accent else Color.White,
+            fontFamily = JetBrainsMono,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 15.sp,
+        )
     }
 }
 
@@ -857,7 +909,7 @@ private fun TimerDetailBody(
                 onClick = { if (!vm.startTimer(item.id)) onBlocked() },
                 enabled = h * 3600 + m * 60 + s > 0,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(30.dp),
+                shape = RoundedCornerShape(Dims.button),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = accent,
                     contentColor = ON_ACCENT,
@@ -953,7 +1005,7 @@ private fun ControlButton(
     Button(
         onClick = onClick,
         modifier = modifier,
-        shape = RoundedCornerShape(30.dp),
+        shape = RoundedCornerShape(Dims.button),
         colors = ButtonDefaults.buttonColors(containerColor = container, contentColor = contentColor),
         contentPadding = PaddingValues(vertical = 16.dp),
     ) {
@@ -1054,7 +1106,7 @@ private val WHEEL_COL_W = 72.dp
 private val WHEEL_ITEM_H = 56.dp
 
 @Composable
-private fun WheelTimePicker(
+internal fun WheelTimePicker(
     h: Int,
     m: Int,
     s: Int,
@@ -1134,6 +1186,12 @@ private fun WheelColumn(range: Int, value: Int, onValue: (Int) -> Unit) {
                 view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                 onValue(idx % range)
             }
+    }
+    LaunchedEffect(value) {
+        if (!listState.isScrollInProgress && center % range != value) {
+            val target = center - (center % range) + value
+            listState.scrollToItem((target - 1).coerceAtLeast(0))
+        }
     }
     LazyColumn(
         state = listState,

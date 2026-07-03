@@ -28,8 +28,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -55,6 +53,7 @@ import com.minitimer.model.WeightType
 import com.minitimer.model.WorkMode
 import com.minitimer.model.WorkSet
 import com.minitimer.model.setAt
+import com.minitimer.ui.SwitchRow
 import com.minitimer.ui.theme.BG
 import com.minitimer.ui.theme.SURFACE
 import com.minitimer.ui.theme.TEXT_DIM
@@ -120,7 +119,7 @@ private fun SimpleTab(ex: Exercise, accent: Color, t: Strings, onChange: (Exerci
     SectionCard {
         ExerciseNoteField(ex, accent, t, onChange)
         VSpace(14)
-        DurStep(t.prepare, ex.prepareSec, t, accent, max = 1800) { onChange(ex.copy(prepareSec = it)) }
+        DurationWheelField(t.prepare, ex.prepareSec, accent, t, max = 1800) { onChange(ex.copy(prepareSec = it)) }
         VSpace(14)
         Stepper(t.setsLabel, ex.sets, accent, min = 1, max = 30) {
             onChange(ex.copy(sets = it))
@@ -135,20 +134,20 @@ private fun SimpleTab(ex: Exercise, accent: Color, t: Strings, onChange: (Exerci
         ) { onChange(ex.copy(workMode = WorkMode.valueOf(it))) }
         VSpace(10)
         if (ex.workMode == WorkMode.TIME) {
-            DurStep(t.secUnit, ex.workValue, t, accent, min = 1, max = 36000) { onChange(ex.copy(workValue = it)) }
+            DurationWheelField(t.secUnit, ex.workValue, accent, t, min = 1, max = 36000) { onChange(ex.copy(workValue = it)) }
         } else {
             Stepper(t.repsUnit, ex.workValue, accent, min = 1, max = 200) {
                 onChange(ex.copy(workValue = it))
             }
         }
         VSpace(14)
-        DurStep(t.rest, ex.restSec, t, accent, max = 1800) { onChange(ex.copy(restSec = it)) }
+        DurationWheelField(t.rest, ex.restSec, accent, t, max = 1800) { onChange(ex.copy(restSec = it)) }
         VSpace(10)
-        ToggleRow(t.restSkipLast, ex.restSkipOnLastSet, accent) {
+        SwitchRow(t.restSkipLast, null, ex.restSkipOnLastSet, accent) {
             onChange(ex.copy(restSkipOnLastSet = it))
         }
         VSpace(14)
-        DurStep(t.cooldown, ex.cooldownSec, t, accent, max = 1800) { onChange(ex.copy(cooldownSec = it)) }
+        DurationWheelField(t.cooldown, ex.cooldownSec, accent, t, max = 1800) { onChange(ex.copy(cooldownSec = it)) }
     }
 
     if (ex.workMode == WorkMode.REPS) {
@@ -300,7 +299,7 @@ private fun StageCard(
             accent = accent,
         ) { onChange(cfg.copy(display = DisplayMode.valueOf(it))) }
         VSpace(12)
-        ToggleRow(t.alarmLabel, cfg.alarm, accent) { onChange(cfg.copy(alarm = it)) }
+        SwitchRow(t.alarmLabel, null, cfg.alarm, accent) { onChange(cfg.copy(alarm = it)) }
         VSpace(10)
         Stepper(t.finalCountLabel, cfg.finalCount, accent, min = 0, max = 10) {
             onChange(cfg.copy(finalCount = it))
@@ -348,31 +347,6 @@ private fun StageCard(
 }
 
 @Composable
-private fun DurStep(
-    label: String,
-    value: Int,
-    t: Strings,
-    accent: Color,
-    min: Int = 0,
-    max: Int = 3600,
-    onChange: (Int) -> Unit,
-) {
-    DurationStepper(
-        label = label,
-        value = value,
-        accent = accent,
-        dialogTitle = t.durationTitle,
-        minLabel = t.minutes,
-        secLabel = t.seconds,
-        cancelLabel = t.cancel,
-        okLabel = t.save,
-        min = min,
-        max = max,
-        onChange = onChange,
-    )
-}
-
-@Composable
 private fun ExerciseNoteField(ex: Exercise, accent: Color, t: Strings, onChange: (Exercise) -> Unit) {
     OutlinedTextField(
         value = ex.note,
@@ -388,20 +362,4 @@ private fun ExerciseNoteField(ex: Exercise, accent: Color, t: Strings, onChange:
             cursorColor = accent,
         ),
     )
-}
-
-@Composable
-private fun ToggleRow(label: String, checked: Boolean, accent: Color, onChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, color = Color.White, fontSize = 15.sp, modifier = Modifier.weight(1f))
-        Switch(
-            checked = checked,
-            onCheckedChange = onChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                checkedTrackColor = accent,
-                uncheckedTrackColor = TRACK,
-            ),
-        )
-    }
 }

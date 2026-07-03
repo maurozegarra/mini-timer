@@ -111,24 +111,4 @@ fun formatClock(epochMillis: Long, locale: Locale): String {
     )
 }
 
-/**
- * Convierte una entrada de preset a segundos.
- * - "90"        -> 90 minutos? No: un solo número = minutos (90 min). Usa "mm:ss" para minutos:segundos.
- * - "5"         -> 5 minutos
- * - "1:30"      -> 90 segundos
- * - "1:00:00"   -> 3600 segundos
- */
-fun parsePresetInput(input: String): Int {
-    val clean = input.trim()
-    if (clean.isEmpty()) return 0
-    val parts = clean.split(":").map { it.trim().toIntOrNull() ?: return 0 }
-    val sec = when (parts.size) {
-        1 -> parts[0] * 60
-        2 -> parts[0] * 60 + parts[1]
-        3 -> parts[0] * 3600 + parts[1] * 60 + parts[2]
-        else -> 0
-    }
-    return if (sec > 0) sec else 0
-}
-
 fun dedupeSorted(list: List<Int>): List<Int> = list.toSortedSet().toList()

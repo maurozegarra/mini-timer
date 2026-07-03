@@ -22,7 +22,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material.icons.Icons
@@ -44,14 +43,10 @@ import androidx.compose.material3.InputChip
 import androidx.compose.material3.InputChipDefaults
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -62,7 +57,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -83,12 +77,12 @@ import com.minitimer.model.AUTO_DISMISS_OPTIONS
 import com.minitimer.model.HEADSET_ONLY
 import com.minitimer.model.SPEAKER_AND_HEADSET
 import com.minitimer.model.VIBRATION_PATTERNS
+import com.minitimer.ui.theme.Dims
 import com.minitimer.ui.theme.DONE_RED
 import com.minitimer.ui.theme.JetBrainsMono
 import com.minitimer.ui.theme.ON_ACCENT
 import com.minitimer.ui.theme.SURFACE
 import com.minitimer.ui.theme.TEXT_DIM
-import com.minitimer.ui.theme.TEXT_FADED
 import com.minitimer.ui.theme.TRACK
 import com.minitimer.util.formatRemaining
 import com.minitimer.util.incLabel
@@ -103,7 +97,9 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
     val s = vm.settings
     val t = I18n.get(s.language)
     val accent = Color(s.accent)
-    var presetInput by remember { mutableStateOf("") }
+    var presetH by remember { mutableStateOf(0) }
+    var presetM by remember { mutableStateOf(5) }
+    var presetS by remember { mutableStateOf(0) }
     var showSoundDialog by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
@@ -207,34 +203,30 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
                 }
             }
             Spacer(Modifier.height(12.dp))
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                OutlinedTextField(
-                    value = presetInput,
-                    onValueChange = { presetInput = it },
-                    placeholder = { Text(t.presetPlaceholder, color = TEXT_FADED) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = TRACK,
-                        unfocusedContainerColor = TRACK,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        cursorColor = accent,
-                    ),
-                )
-                Spacer(Modifier.width(10.dp))
-                Button(
-                    onClick = { if (vm.addPreset(presetInput)) presetInput = "" },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = accent,
-                        contentColor = ON_ACCENT,
-                    ),
-                    contentPadding = PaddingValues(horizontal = 22.dp, vertical = 14.dp),
-                ) {
-                    Text(t.add, fontWeight = FontWeight.Bold)
-                }
+            WheelTimePicker(
+                h = presetH,
+                m = presetM,
+                s = presetS,
+                accent = accent,
+                t = t,
+                onChange = { h, m, sec -> presetH = h; presetM = m; presetS = sec },
+            )
+            Spacer(Modifier.height(12.dp))
+            val presetSec = presetH * 3600 + presetM * 60 + presetS
+            Button(
+                onClick = { vm.addPresetSeconds(presetSec) },
+                enabled = presetSec > 0,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = accent,
+                    contentColor = ON_ACCENT,
+                    disabledContainerColor = TRACK,
+                    disabledContentColor = TEXT_DIM,
+                ),
+                contentPadding = PaddingValues(vertical = 14.dp),
+            ) {
+                Text(t.add, fontWeight = FontWeight.Bold)
             }
             GroupDivider()
             ItemLabel(t.autoDismiss)
@@ -761,7 +753,7 @@ private fun SettingsGroup(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(Dims.card))
             .background(SURFACE)
             .padding(16.dp),
         content = content,
@@ -788,45 +780,6 @@ private fun GroupDivider() {
         thickness = 1.dp,
         modifier = Modifier.padding(vertical = 16.dp),
     )
-}
-
-/** Fila con etiqueta (y descripción opcional) + Switch. */
-@Composable
-private fun SwitchRow(
-    label: String,
-    desc: String?,
-    checked: Boolean,
-    accent: Color,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                label,
-                color = Color.White,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-            if (desc != null) {
-                Spacer(Modifier.height(4.dp))
-                Text(desc, color = TEXT_DIM, fontSize = 13.sp)
-            }
-        }
-        Spacer(Modifier.width(12.dp))
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = ON_ACCENT,
-                checkedTrackColor = accent,
-                uncheckedThumbColor = Color(0xFFCFD3D6),
-                uncheckedTrackColor = TRACK,
-            ),
-        )
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

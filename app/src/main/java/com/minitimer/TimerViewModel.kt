@@ -28,7 +28,6 @@ import com.minitimer.model.VIBRATION_PATTERNS
 import com.minitimer.notify.LiveTimerService
 import com.minitimer.util.dedupeSorted
 import com.minitimer.util.formatRemaining
-import com.minitimer.util.parsePresetInput
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -708,8 +707,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         store.saveRingOffset(0, 0)
     }
 
-    fun addPreset(input: String): Boolean {
-        val sec = parsePresetInput(input)
+    fun addPresetSeconds(sec: Int): Boolean {
         if (sec <= 0) return false
         update(settings.copy(presets = dedupeSorted(settings.presets + sec)))
         return true
