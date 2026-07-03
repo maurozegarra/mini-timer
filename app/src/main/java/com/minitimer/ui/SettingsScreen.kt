@@ -71,6 +71,9 @@ import com.minitimer.model.ADD_INCREMENT_OPTIONS
 import com.minitimer.model.AUTO_DISMISS_OPTIONS
 import com.minitimer.model.HEADSET_ONLY
 import com.minitimer.model.SPEAKER_AND_HEADSET
+import com.minitimer.model.THEME_AUTO
+import com.minitimer.model.THEME_DARK
+import com.minitimer.model.THEME_LIGHT
 import com.minitimer.model.VIBRATION_PATTERNS
 import com.minitimer.ui.theme.Dims
 import com.minitimer.ui.theme.AppTheme
@@ -158,6 +161,13 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
                             .clickable { vm.setAccent(c) }
                     )
                 }
+            }
+            GroupDivider()
+            ItemLabel(t.theme)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Chip(t.themeAuto, s.themeMode == THEME_AUTO, accent) { vm.setThemeMode(THEME_AUTO) }
+                Chip(t.themeLight, s.themeMode == THEME_LIGHT, accent) { vm.setThemeMode(THEME_LIGHT) }
+                Chip(t.themeDark, s.themeMode == THEME_DARK, accent) { vm.setThemeMode(THEME_DARK) }
             }
         }
 

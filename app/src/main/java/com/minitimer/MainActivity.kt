@@ -11,9 +11,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.minitimer.data.BackupManager
 import com.minitimer.data.SettingsStore
+import com.minitimer.model.THEME_DARK
+import com.minitimer.model.THEME_LIGHT
 import com.minitimer.ui.TimerApp
 import com.minitimer.ui.theme.MiniTimerTheme
 
@@ -33,7 +36,12 @@ class MainActivity : ComponentActivity() {
         ensureOverlayPermission()
         setContent {
             val vm: TimerViewModel = viewModel()
-            MiniTimerTheme(accent = vm.settings.accent) {
+            val dark = when (vm.settings.themeMode) {
+                THEME_LIGHT -> false
+                THEME_DARK -> true
+                else -> isSystemInDarkTheme()
+            }
+            MiniTimerTheme(accent = vm.settings.accent, darkTheme = dark) {
                 TimerApp(vm = vm)
             }
         }

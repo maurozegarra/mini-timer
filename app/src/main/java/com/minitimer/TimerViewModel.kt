@@ -684,6 +684,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     fun setAddIncrement(sec: Int) = update(settings.copy(addIncrementSec = sec))
     fun setDeveloperMode(value: Boolean) = update(settings.copy(developerMode = value))
     fun setPadPlayerClock(value: Boolean) = update(settings.copy(padPlayerClock = value))
+    fun setThemeMode(mode: Int) = update(settings.copy(themeMode = mode))
     fun resetSettings() {
         update(Settings())
         // Re-aplicar "Beep" como tono por defecto (Settings() deja el tono en null).

@@ -4,6 +4,11 @@ package com.minitimer.model
 const val HEADSET_ONLY = 0
 const val SPEAKER_AND_HEADSET = 1
 
+/** Modo de tema de la app. */
+const val THEME_AUTO = 0
+const val THEME_LIGHT = 1
+const val THEME_DARK = 2
+
 /** Ajustes configurables, equivalentes a los de la versión web. */
 data class Settings(
     val accent: Long = 0xFFFF5252,
@@ -35,6 +40,8 @@ data class Settings(
     val developerMode: Boolean = false,
     /** Reloj del player con ceros a la izquierda: "00:30" en vez de "30". */
     val padPlayerClock: Boolean = false,
+    /** Tema: [THEME_AUTO] (sigue el sistema), [THEME_LIGHT] o [THEME_DARK]. */
+    val themeMode: Int = THEME_AUTO,
 )
 
 /** Opciones (en segundos) para el incremento del botón "+tiempo". */
