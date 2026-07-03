@@ -252,6 +252,7 @@ class ClockOverlayService : Service() {
         private lateinit var mainView: TextView
         private lateinit var memoView: TextView
         private var posSaved = false
+        private var placeTries = 0
         private val lp = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -355,15 +356,21 @@ class ClockOverlayService : Service() {
          * quedó fuera de la zona segura, respetando la posición del usuario.
          */
         private fun placeInitialOrClamp() {
+            // Colocación inicial: esperar a que los insets reales estén listos.
+            // Si no, se usaría el fallback (más chico) y el panel quedaría
+            // demasiado arriba, dentro de la barra de estado.
+            if (!posSaved && insetTop(container) <= 0 && placeTries < 12) {
+                placeTries++
+                container.postDelayed({ placeInitialOrClamp() }, 16L)
+                return
+            }
             val b = dragBounds(container)
             if (!posSaved) {
                 val nx = if (index == 0) b[0] else b[2]
-                // El panel derecho (índice 1) se alinea a la altura del izquierdo.
-                val ny = if (index > 0) {
-                    (panels[0]?.currentY() ?: b[1]).coerceIn(b[1], b[3])
-                } else {
-                    b[1]
-                }
+                // Ambos paneles a la misma altura (b[1], borde inferior de la
+                // barra). Como se esperó a los insets reales, b[1] es idéntico
+                // para los dos -> quedan alineados sin depender del otro panel.
+                val ny = b[1]
                 lp.x = nx
                 lp.y = ny
                 try {
@@ -519,13 +526,30 @@ class ClockOverlayService : Service() {
         }
         if (top <= 0) top = statusBarHeightFallback()
         val margin = dp(4)
+        // Sin margen arriba: el panel puede subir hasta quedar pegado al borde
+        // inferior de la barra de estado (más arriba = lo taparía el sistema).
+        val topMargin = dp(0)
         val vw = view.width
         val vh = view.height
         val minX = left + margin
-        val minY = top + margin
+        val minY = top + topMargin
         val maxX = (sw - right - vw - margin).coerceAtLeast(minX)
         val maxY = (sh - bottom - vh - margin).coerceAtLeast(minY)
         return intArrayOf(minX, minY, maxX, maxY)
+    }
+
+    /** Top real de la barra de estado según insets; 0 si aún no están listos. */
+    private fun insetTop(view: View): Int {
+        var top = 0
+        view.rootWindowInsets?.let { ins ->
+            top = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                ins.getInsets(WindowInsets.Type.systemBars()).top
+            } else {
+                @Suppress("DEPRECATION")
+                ins.systemWindowInsetTop
+            }
+        }
+        return top
     }
 
     private fun buildNotification(): Notification {
