@@ -130,11 +130,14 @@ class ClockOverlayService : Service() {
         }
     }
 
-    /** Reubica el panel [index] a su posición inicial (debajo del reloj del sistema). */
+    /** Reubica el panel [index] a su posición inicial (debajo del reloj del sistema).
+     *  Si el otro panel está visible, lo alinea a su misma altura para que ambos
+     *  queden en la misma horizontal. */
     private fun resetPanelPos(index: Int) {
         val pw = panels[index]
         if (pw != null) {
-            pw.resetToDefault()
+            val alignY = panels[1 - index]?.currentY()
+            pw.resetToDefault(alignY)
         } else {
             val (x, y) = defaultPos(index)
             store.saveOsdPos(index, x, y)
@@ -248,6 +251,7 @@ class ClockOverlayService : Service() {
         private lateinit var container: LinearLayout
         private lateinit var mainView: TextView
         private lateinit var memoView: TextView
+        private var posSaved = false
         private val lp = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -276,6 +280,7 @@ class ClockOverlayService : Service() {
                 addView(memoView)
             }
             lp.gravity = Gravity.TOP or Gravity.START
+            posSaved = store.hasOsdPos(index)
             val (x, y) = store.loadOsdPos(index)
             lp.x = x
             lp.y = y
@@ -283,14 +288,16 @@ class ClockOverlayService : Service() {
             applyStyle(panel)
             return try {
                 wm?.addView(container, lp)
-                // Rescata paneles cuya posición guardada quedó fuera de la zona
-                // segura (p. ej. atrapados en la barra de estado antes del fix).
-                container.post { clampToBounds() }
+                // Coloca por defecto (alineado) si nunca se fijó, o rescata la
+                // posición guardada si quedó fuera de la zona segura.
+                container.post { placeInitialOrClamp() }
                 true
             } catch (_: Exception) {
                 false
             }
         }
+
+        fun currentY(): Int = lp.y
 
         private var snapAnim: ValueAnimator? = null
 
@@ -331,18 +338,42 @@ class ClockOverlayService : Service() {
             }
         }
 
-        /** Anima el panel a su posición inicial: debajo de la barra de estado, en
-         *  la misma horizontal. Panel 1 a la izquierda, Panel 2 a la derecha. */
-        fun resetToDefault() {
+        /** Anima el panel a su posición inicial: debajo de la barra de estado.
+         *  Panel 1 a la izquierda, Panel 2 a la derecha. Si [alignY] no es null,
+         *  usa esa altura (para alinearse con el otro panel). */
+        fun resetToDefault(alignY: Int? = null) {
             val b = dragBounds(container)
             val targetX = if (index == 0) b[0] else b[2]
-            val targetY = b[1]
+            val targetY = (alignY ?: b[1]).coerceIn(b[1], b[3])
             animateSnap(targetX, targetY)
         }
 
-        /** Reubica el panel dentro de la zona segura si quedó fuera. */
-        private fun clampToBounds() {
+        /**
+         * Si el panel nunca tuvo posición fijada por el usuario, lo coloca en su
+         * lugar por defecto (Panel 1 izquierda, Panel 2 derecha, misma horizontal
+         * alineada con el otro panel). Si ya tenía posición, solo lo rescata si
+         * quedó fuera de la zona segura, respetando la posición del usuario.
+         */
+        private fun placeInitialOrClamp() {
             val b = dragBounds(container)
+            if (!posSaved) {
+                val nx = if (index == 0) b[0] else b[2]
+                // El panel derecho (índice 1) se alinea a la altura del izquierdo.
+                val ny = if (index > 0) {
+                    (panels[0]?.currentY() ?: b[1]).coerceIn(b[1], b[3])
+                } else {
+                    b[1]
+                }
+                lp.x = nx
+                lp.y = ny
+                try {
+                    wm?.updateViewLayout(container, lp)
+                } catch (_: Exception) {
+                }
+                store.saveOsdPos(index, nx, ny)
+                posSaved = true
+                return
+            }
             val nx = lp.x.coerceIn(b[0], b[2])
             val ny = lp.y.coerceIn(b[1], b[3])
             if (nx != lp.x || ny != lp.y) {

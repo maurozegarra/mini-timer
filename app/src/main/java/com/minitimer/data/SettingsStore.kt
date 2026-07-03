@@ -367,6 +367,9 @@ class SettingsStore(context: Context) {
             prefs.getInt("$KEY_OSD_POS_Y$panel", OSD_POS_Y_DEFAULT)
     }
 
+    /** ¿El usuario ya fijó (arrastró/restauró) la posición de este panel? */
+    fun hasOsdPos(panel: Int): Boolean = prefs.contains("$KEY_OSD_POS_X$panel")
+
     private companion object {
         // Desplazamiento vertical (dp) por defecto para centrar el anillo sobre
         // la cámara con las dimensiones actuales del anillo (38x32dp).
