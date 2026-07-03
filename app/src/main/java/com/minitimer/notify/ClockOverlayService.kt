@@ -289,8 +289,16 @@ class ClockOverlayService : Service() {
             applyStyle(panel)
             return try {
                 wm?.addView(container, lp)
-                // Coloca por defecto (alineado) si nunca se fijó, o rescata la
-                // posición guardada si quedó fuera de la zona segura.
+                // Los overlays reciben los insets reales de la barra de estado de
+                // forma ASÍNCRONA tras el layout. Reposicionamos cuando lleguen
+                // (evento), no solo con un post que puede correr demasiado pronto.
+                // Cubre la colocación inicial y el rescate de posiciones guardadas
+                // que hayan quedado dentro de la barra (p. ej. actualizar encima).
+                container.setOnApplyWindowInsetsListener { _, insets ->
+                    placeInitialOrClamp()
+                    insets
+                }
+                container.requestApplyInsets()
                 container.post { placeInitialOrClamp() }
                 true
             } catch (_: Exception) {
@@ -510,6 +518,7 @@ class ClockOverlayService : Service() {
         var bottom = 0
         var left = 0
         var right = 0
+        var cutoutTop = 0
         view.rootWindowInsets?.let { ins ->
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 val s = ins.getInsets(WindowInsets.Type.systemBars())
@@ -523,8 +532,14 @@ class ClockOverlayService : Service() {
                     right = ins.systemWindowInsetRight
                 }
             }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                cutoutTop = ins.displayCutout?.safeInsetTop ?: 0
+            }
         }
-        if (top <= 0) top = statusBarHeightFallback()
+        // El top debe cubrir la barra real: nunca menor que el recurso
+        // status_bar_height, y considerando el cutout (cámara) que en algunos
+        // equipos hace la barra más alta que ese recurso.
+        top = maxOf(top, cutoutTop, statusBarHeightFallback())
         val margin = dp(4)
         // Sin margen arriba: el panel puede subir hasta quedar pegado al borde
         // inferior de la barra de estado (más arriba = lo taparía el sistema).
