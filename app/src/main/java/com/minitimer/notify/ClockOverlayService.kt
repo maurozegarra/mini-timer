@@ -74,9 +74,37 @@ class ClockOverlayService : Service() {
         super.onCreate()
         locale = I18n.get(store.loadConfig().general.language).locale
         ensureChannel()
-        startForegroundCompat(buildNotification())
+        // Si el sistema no permite iniciar el FGS (p. ej. arranque restringido en
+        // segundo plano), degradar con elegancia en vez de crashear.
+        try {
+            startForegroundCompat(buildNotification())
+        } catch (_: Exception) {
+            stopSelf()
+            return
+        }
         observe()
         refresh()
+    }
+
+    /**
+     * Si el usuario quita la app de Recientes, reprograma un reinicio para que el
+     * OSD sobreviva al swipe (algunos fabricantes matan el servicio). Best-effort.
+     */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        if (ClockBus.config.value.anyEnabled) {
+            runCatching {
+                val restart = Intent(applicationContext, ClockOverlayService::class.java)
+                val pi = PendingIntent.getService(
+                    this,
+                    2,
+                    restart,
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_ONE_SHOT,
+                )
+                getSystemService(android.app.AlarmManager::class.java)
+                    ?.set(android.app.AlarmManager.RTC, System.currentTimeMillis() + 1_000, pi)
+            }
+        }
+        super.onTaskRemoved(rootIntent)
     }
 
     private fun observe() {

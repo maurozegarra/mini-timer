@@ -4,6 +4,7 @@ import android.content.Intent
 import android.media.AudioManager
 import android.net.Uri
 import android.os.BatteryManager
+import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -107,6 +108,26 @@ fun ClockScreen(vm: TimerViewModel) {
     }
     val hasOverlay = Settings.canDrawOverlays(context)
 
+    // Exclusión de optimización de batería (para que el sistema no mate el OSD).
+    var battTick by remember { mutableIntStateOf(0) }
+    val battLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { battTick++ }
+    val powerManager = remember { context.getSystemService(PowerManager::class.java) }
+    val ignoringBattery = battTick.let {
+        powerManager?.isIgnoringBatteryOptimizations(context.packageName) ?: true
+    }
+    fun requestBatteryExclusion() {
+        runCatching {
+            battLauncher.launch(
+                Intent(
+                    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    Uri.parse("package:${context.packageName}"),
+                ),
+            )
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -183,6 +204,36 @@ fun ClockScreen(vm: TimerViewModel) {
                     upd(panel.copy(enabled = on))
                 },
             )
+        }
+
+        // Mantener activo: excluir de optimización de batería.
+        SettingsGroup(t.clockKeepAlive, accent) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        t.clockBattOpt,
+                        color = AppTheme.colors.textPrimary,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(t.clockBattOptDesc, color = AppTheme.colors.textDim, fontSize = 13.sp)
+                }
+                Spacer(Modifier.width(12.dp))
+                if (ignoringBattery) {
+                    Text(t.clockBattExcluded, color = accent, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(accent)
+                            .clickable { requestBatteryExclusion() }
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                    ) {
+                        Text(t.clockBattExclude, color = AppTheme.colors.onAccent, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    }
+                }
+            }
         }
 
         // Vista previa en vivo.
