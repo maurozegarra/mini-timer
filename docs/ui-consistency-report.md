@@ -108,13 +108,19 @@ de elemento.
 
 ---
 
-## 7. Componentes duplicados entre módulos — PARCIAL
+## 7. Componentes duplicados entre módulos — RESUELTO
 
-Resuelto: botón primario/secundario (`AppPrimaryButton`/`AppOutlineButton`) y
-toggle (`SwitchRow`) ahora son compartidos en `ui/CommonComponents.kt`.
+Compartidos en `ui/CommonComponents.kt`: botón primario/secundario
+(`AppPrimaryButton`/`AppOutlineButton`), toggle (`SwitchRow`) y ahora el stepper
++/- (`AppStepButton` + `AppStepper`).
 
-Pendiente (menor): los steppers +/- siguen duplicados (`Stepper`/`StepCircle` en
-Athlete vs `OffsetStepperRow` en Ajustes). Se puede unificar más adelante.
+Se eliminaron las duplicaciones: `StepCircle` (Athlete) y `StepBox` (editor, solo
+diferían en el fondo) ahora usan `AppStepButton`; `Stepper` (Athlete) delega en
+`AppStepper`; los botones de `OffsetStepperRow` (Ajustes) y de `WeightStepper`
+(editor) usan `AppStepButton`.
+
+Excepción intencional: el stepper de volumen en Ajustes conserva su estilo de
+iconos (`FilledTonalIconButton` con `+`/`−`) por ser un control de porcentaje.
 
 ---
 
@@ -134,4 +140,5 @@ tarjetas (timer/ajustes/athlete). Migrar el resto de literales de forma gradual.
 4. ~~(Media) Unificar botón primario y radios (3, 7)~~ — HECHO.
 5. ~~(Media) Estilo de chip (4)~~ — excepción documentada (sin cambios).
 6. ~~(Baja) Unificar toggles y radios de tarjeta (5, 6)~~ — HECHO.
-7. ~~(Base) Tokens (8)~~ — HECHO. Pendiente menor: unificar steppers (7).
+7. ~~(Base) Tokens (8)~~ — HECHO.
+8. ~~(Media) Unificar steppers `AppStepButton`/`AppStepper` (7)~~ — HECHO.

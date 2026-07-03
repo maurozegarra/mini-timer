@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -33,6 +32,7 @@ import com.minitimer.data.ExerciseIcons
 import com.minitimer.i18n.Strings
 import com.minitimer.ui.AppOutlineButton
 import com.minitimer.ui.AppPrimaryButton
+import com.minitimer.ui.AppStepper
 import com.minitimer.ui.WheelTimePicker
 import com.minitimer.ui.theme.Dims
 import com.minitimer.ui.theme.ON_ACCENT
@@ -72,7 +72,6 @@ internal fun AddButton(
     onClick: () -> Unit,
 ) = AppOutlineButton(label = "+  $label", accent = accent, modifier = modifier, onClick = onClick)
 
-/** Stepper "− valor +" con etiqueta y formateo configurable. */
 @Composable
 internal fun Stepper(
     label: String,
@@ -84,19 +83,7 @@ internal fun Stepper(
     step: Int = 1,
     format: (Int) -> String = { it.toString() },
     onChange: (Int) -> Unit,
-) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(label, color = Color.White, fontSize = 15.sp, modifier = Modifier.weight(1f))
-        StepCircle("−", accent) { onChange((value - step).coerceAtLeast(min)) }
-        Box(Modifier.width(64.dp), contentAlignment = Alignment.Center) {
-            Text(format(value), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-        }
-        StepCircle("+", accent) { onChange((value + step).coerceAtMost(max)) }
-    }
-}
+) = AppStepper(label, value, accent, modifier, min, max, step, format, onChange)
 
 @Composable
 internal fun DurationWheelField(
@@ -168,20 +155,6 @@ private fun DurationWheelDialog(
             TextButton(onClick = onDismiss) { Text(t.cancel, color = TEXT_DIM) }
         },
     )
-}
-
-@Composable
-private fun StepCircle(symbol: String, accent: Color, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(40.dp)
-            .clip(CircleShape)
-            .background(TRACK)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(symbol, color = accent, fontWeight = FontWeight.Bold, fontSize = 22.sp)
-    }
 }
 
 /** Conjunto de chips tipo segmented control. */

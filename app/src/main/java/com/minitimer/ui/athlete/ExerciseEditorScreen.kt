@@ -53,6 +53,7 @@ import com.minitimer.model.WeightType
 import com.minitimer.model.WorkMode
 import com.minitimer.model.WorkSet
 import com.minitimer.model.setAt
+import com.minitimer.ui.AppStepButton
 import com.minitimer.ui.SwitchRow
 import com.minitimer.ui.theme.BG
 import com.minitimer.ui.theme.SURFACE
@@ -236,24 +237,12 @@ private fun SetRow(
 private fun WeightStepper(label: String, value: Double, accent: Color, onChange: (Double) -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(label, color = Color.White, fontSize = 15.sp, modifier = Modifier.weight(1f))
-        StepBox("−", accent) { onChange((value - 2.5).coerceAtLeast(0.0)) }
+        AppStepButton("−", accent) { onChange((value - 2.5).coerceAtLeast(0.0)) }
         Box(Modifier.width(72.dp), contentAlignment = Alignment.Center) {
             Text("${fmtKg(value)} kg", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
         }
-        StepBox("+", accent) { onChange(value + 2.5) }
+        AppStepButton("+", accent) { onChange(value + 2.5) }
     }
-}
-
-@Composable
-private fun StepBox(symbol: String, accent: Color, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(40.dp)
-            .clip(CircleShape)
-            .background(SURFACE)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) { Text(symbol, color = accent, fontWeight = FontWeight.Bold, fontSize = 22.sp) }
 }
 
 @Composable

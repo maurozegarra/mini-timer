@@ -702,37 +702,14 @@ private fun OffsetStepperRow(
         Text(
             axis,
             color = Color.White,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold,
+            fontSize = 15.sp,
             modifier = Modifier.weight(1f),
         )
-        FilledTonalIconButton(
-            onClick = onMinus,
-            colors = IconButtonDefaults.filledTonalIconButtonColors(
-                containerColor = TRACK,
-                contentColor = Color.White,
-            ),
-        ) {
-            Icon(Icons.Filled.Remove, contentDescription = "Decrease $axis")
+        AppStepButton("−", accent, onMinus)
+        Box(Modifier.width(64.dp), contentAlignment = Alignment.Center) {
+            Text("$value", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
         }
-        Text(
-            "$value",
-            color = accent,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-            fontFamily = JetBrainsMono,
-            modifier = Modifier.width(64.dp),
-        )
-        FilledTonalIconButton(
-            onClick = onPlus,
-            colors = IconButtonDefaults.filledTonalIconButtonColors(
-                containerColor = accent,
-                contentColor = ON_ACCENT,
-            ),
-        ) {
-            Icon(Icons.Filled.Add, contentDescription = "Increase $axis")
-        }
+        AppStepButton("+", accent, onPlus)
     }
 }
 

@@ -31,6 +31,9 @@ local.properties
 # Herramientas/preview locales del wordmark (no versionar)
 tools/
 
+# Workflow local de build (solo local por ahora)
+.windsurf/workflows/generar-apk.md
+
 # OS / editor
 .DS_Store
 Thumbs.db
