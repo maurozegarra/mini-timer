@@ -116,8 +116,22 @@ data class OsdPanel(
 
 /** Ajustes de la mini-app Reloj: OSD flotante con 2 paneles independientes. */
 data class ClockConfig(
-    val panel1: OsdPanel = OsdPanel(),
-    val panel2: OsdPanel = OsdPanel(),
+    /** Panel 1 (izquierda): hora + segundos. */
+    val panel1: OsdPanel = OsdPanel(
+        showTime = true,
+        showSeconds = true,
+        showVolume = false,
+        showBattery = false,
+        showCharging = false,
+    ),
+    /** Panel 2 (derecha): carga + volumen + batería. */
+    val panel2: OsdPanel = OsdPanel(
+        showTime = false,
+        showSeconds = false,
+        showVolume = true,
+        showBattery = true,
+        showCharging = true,
+    ),
 ) {
     fun panel(index: Int): OsdPanel = if (index == 0) panel1 else panel2
     fun withPanel(index: Int, p: OsdPanel): ClockConfig =

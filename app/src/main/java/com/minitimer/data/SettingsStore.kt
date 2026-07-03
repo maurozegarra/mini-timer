@@ -362,9 +362,9 @@ class SettingsStore(context: Context) {
     }
 
     fun loadOsdPos(panel: Int): Pair<Int, Int> {
-        val defY = if (panel == 0) OSD_POS_Y0_DEFAULT else OSD_POS_Y1_DEFAULT
-        return prefs.getInt("$KEY_OSD_POS_X$panel", OSD_POS_X_DEFAULT) to
-            prefs.getInt("$KEY_OSD_POS_Y$panel", defY)
+        val defX = if (panel == 0) OSD_POS_X0_DEFAULT else OSD_POS_X1_DEFAULT
+        return prefs.getInt("$KEY_OSD_POS_X$panel", defX) to
+            prefs.getInt("$KEY_OSD_POS_Y$panel", OSD_POS_Y_DEFAULT)
     }
 
     private companion object {
@@ -372,10 +372,12 @@ class SettingsStore(context: Context) {
         // la cámara con las dimensiones actuales del anillo (38x32dp).
         const val RING_OFFSET_Y_DEFAULT = 3
 
-        // Posición por defecto (px) de los paneles OSD: apilados arriba-izquierda.
-        const val OSD_POS_X_DEFAULT = 24
-        const val OSD_POS_Y0_DEFAULT = 90
-        const val OSD_POS_Y1_DEFAULT = 160
+        // Posición por defecto (px) de los paneles OSD: en la misma horizontal,
+        // Panel 1 a la izquierda y Panel 2 a la derecha (x grande -> el servicio
+        // lo ajusta al borde derecho al pintarlo).
+        const val OSD_POS_X0_DEFAULT = 24
+        const val OSD_POS_X1_DEFAULT = 100_000
+        const val OSD_POS_Y_DEFAULT = 90
         const val KEY_OSD_POS_X = "osd_pos_x_"
         const val KEY_OSD_POS_Y = "osd_pos_y_"
 

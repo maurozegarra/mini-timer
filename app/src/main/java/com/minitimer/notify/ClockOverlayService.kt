@@ -141,13 +141,13 @@ class ClockOverlayService : Service() {
         }
     }
 
-    /** Posición inicial sin vista: esquina superior izquierda, debajo de la barra. */
+    /** Posición inicial sin vista: debajo de la barra. Panel 1 a la izquierda;
+     *  Panel 2 con x muy grande para que [clampToBounds] lo pegue a la derecha. */
     private fun defaultPos(index: Int): Pair<Int, Int> {
         val top = statusBarHeightFallback()
         val margin = dp(4)
-        val gap = dp(6)
-        val x = margin
-        val y = top + margin + index * (dp(40) + gap)
+        val x = if (index == 0) margin else 100_000
+        val y = top + margin
         return x to y
     }
 
@@ -331,14 +331,12 @@ class ClockOverlayService : Service() {
             }
         }
 
-        /** Anima el panel a su posición inicial: pegado a la izquierda, debajo de
-         *  la barra de estado (junto al reloj del sistema). El panel 2 queda un
-         *  poco más abajo para no solaparse con el panel 1. */
+        /** Anima el panel a su posición inicial: debajo de la barra de estado, en
+         *  la misma horizontal. Panel 1 a la izquierda, Panel 2 a la derecha. */
         fun resetToDefault() {
             val b = dragBounds(container)
-            val gap = dp(6)
-            val targetX = b[0]
-            val targetY = (b[1] + index * (container.height + gap)).coerceIn(b[1], b[3])
+            val targetX = if (index == 0) b[0] else b[2]
+            val targetY = b[1]
             animateSnap(targetX, targetY)
         }
 
