@@ -318,7 +318,7 @@ private fun RunningView(vm: AthleteViewModel, accent: Color, t: Strings) {
     val step = vm.playerStep ?: return
     val color = Color(step.colorArgb)
     val stageLabel = when (step.kind) {
-        StepKind.PREP -> t.prepare
+        StepKind.PREP -> t.prepare.uppercase()
         StepKind.WORK -> step.title.ifBlank { t.exercise }.uppercase()
         StepKind.REST -> t.rest
         StepKind.COOLDOWN -> t.cooldown
@@ -362,7 +362,7 @@ private fun RunningView(vm: AthleteViewModel, accent: Color, t: Strings) {
             Text(step.note, color = TEXT_DIM, fontSize = 14.sp, textAlign = TextAlign.Center)
         }
         if (step.kind != StepKind.WORK && step.ownerName.isNotBlank()) {
-            Text(ownerLabel, color = TEXT_DIM, fontSize = 15.sp)
+            Text(ownerLabel.uppercase(), color = TEXT_DIM, fontSize = 40.sp)
         }
         if (step.kind == StepKind.WORK && step.totalSets > 1 && !repByRep) {
             Text("${step.setIndex + 1} / ${step.totalSets}", color = TEXT_DIM, fontWeight = FontWeight.Bold, fontSize = 40.sp)
