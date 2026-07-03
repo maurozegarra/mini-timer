@@ -109,6 +109,7 @@ import androidx.compose.ui.unit.sp
 import com.minitimer.AthleteViewModel
 import com.minitimer.Phase
 import com.minitimer.R
+import com.minitimer.SettingsSection
 import com.minitimer.TimerViewModel
 import com.minitimer.data.ExerciseCatalog
 import com.minitimer.ui.athlete.AthleteScreen
@@ -183,7 +184,7 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
 
     BackHandler(enabled = vm.showSettings || vm.detailId != null || athleteFull) {
         when {
-            vm.showSettings -> vm.showSettings = false
+            vm.showSettings -> if (vm.settingsSection != null) vm.settingsSection = null else vm.showSettings = false
             vm.detailId != null -> vm.detailId = null
             athletePlaying -> athleteVm.closePlayer()
             athleteChoosing -> athleteVm.closeExercisePicker()
@@ -205,7 +206,18 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
             CenterAlignedTopAppBar(
                 title = {
                     when {
-                        vm.showSettings -> Text(t.settings, color = AppTheme.colors.textPrimary, fontWeight = FontWeight.SemiBold)
+                        vm.showSettings -> {
+                            val settingsTitle = when (vm.settingsSection) {
+                                SettingsSection.APPEARANCE -> t.groupAppearance
+                                SettingsSection.TIMER -> t.groupTimer
+                                SettingsSection.ALARM -> t.groupAlarm
+                                SettingsSection.OVERLAY -> t.groupOverlay
+                                SettingsSection.BACKUP -> t.groupBackup
+                                SettingsSection.DEVELOPER -> t.groupDeveloper
+                                null -> t.settings
+                            }
+                            Text(settingsTitle, color = AppTheme.colors.textPrimary, fontWeight = FontWeight.SemiBold)
+                        }
                         detail != null -> EditableTitle(
                             name = detail.name,
                             accent = accent,
@@ -243,7 +255,7 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                     if ((vm.showSettings || vm.detailId != null || athleteFull) && !hideChrome) {
                         IconButton(onClick = {
                             when {
-                                vm.showSettings -> vm.showSettings = false
+                                vm.showSettings -> if (vm.settingsSection != null) vm.settingsSection = null else vm.showSettings = false
                                 vm.detailId != null -> vm.detailId = null
                                 athletePlaying -> athleteVm.closePlayer()
                                 athleteChoosing -> athleteVm.closeExercisePicker()
@@ -279,7 +291,7 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                                 }
                             }
                         }
-                        else -> IconButton(onClick = { vm.showSettings = true }) {
+                        else -> IconButton(onClick = { vm.settingsSection = null; vm.showSettings = true }) {
                             Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = AppTheme.colors.textDim)
                         }
                     }

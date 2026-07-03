@@ -64,6 +64,9 @@ private val MEDIA_HEADSET_TYPES = listOf(
     AudioDeviceInfo.TYPE_HEARING_AID,
 )
 
+/** Categorías de la pantalla de Ajustes (patrón lista + subpantalla). */
+enum class SettingsSection { APPEARANCE, TIMER, ALARM, OVERLAY, BACKUP, DEVELOPER }
+
 class TimerViewModel(app: Application) : AndroidViewModel(app) {
 
     private val store = SettingsStore(app)
@@ -76,6 +79,9 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     var draftName by mutableStateOf("")
         private set
     var showSettings by mutableStateOf(false)
+
+    /** Sección de Ajustes abierta (null = lista de categorías). */
+    var settingsSection by mutableStateOf<SettingsSection?>(null)
 
     /** Id del timer cuya pantalla de detalle está abierta; null si ninguna. */
     var detailId by mutableStateOf<Long?>(null)

@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -26,8 +27,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -52,7 +59,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import android.content.Intent
@@ -61,9 +70,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 import com.minitimer.AthleteViewModel
+import com.minitimer.SettingsSection
 import com.minitimer.TimerViewModel
 import com.minitimer.data.BackupManager
 import com.minitimer.i18n.I18n
+import com.minitimer.i18n.Strings
+import com.minitimer.model.Settings
 import java.text.DateFormat
 import java.util.Date
 import com.minitimer.model.ACCENT_COLORS
@@ -133,8 +145,10 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
             .verticalScroll(rememberScrollState())
             .padding(top = 8.dp, bottom = 48.dp),
     ) {
-        // ===== Apariencia =====
-        SettingsGroup(t.groupAppearance, accent) {
+        when (vm.settingsSection) {
+        null -> SettingsCategoryList(vm = vm, s = s, t = t, accent = accent, folderName = folderName)
+
+        SettingsSection.APPEARANCE -> SettingsGroup(t.groupAppearance, accent) {
             ItemLabel(t.language)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Chip("Español", s.language == "es", accent) { vm.setLanguage("es") }
@@ -171,8 +185,7 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
             }
         }
 
-        // ===== Temporizador =====
-        SettingsGroup(t.groupTimer, accent) {
+        SettingsSection.TIMER -> SettingsGroup(t.groupTimer, accent) {
             ItemLabel(t.presets)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 s.presets.forEach { sec ->
@@ -259,8 +272,7 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
             )
         }
 
-        // ===== Alarma y sonido =====
-        SettingsGroup(t.groupAlarm, accent) {
+        SettingsSection.ALARM -> SettingsGroup(t.groupAlarm, accent) {
             ItemLabel(t.alarmSound)
             Row(
                 modifier = Modifier
@@ -354,8 +366,7 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
             }
         }
 
-        // ===== Overlay =====
-        SettingsGroup(t.groupOverlay, accent) {
+        SettingsSection.OVERLAY -> SettingsGroup(t.groupOverlay, accent) {
             SwitchRow(
                 label = t.showNowBar,
                 desc = t.showNowBarDesc,
@@ -418,8 +429,7 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
             }
         }
 
-        // ===== Respaldo =====
-        SettingsGroup(t.groupBackup, accent) {
+        SettingsSection.BACKUP -> SettingsGroup(t.groupBackup, accent) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -483,8 +493,7 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
             }
         }
 
-        // ===== Desarrollador =====
-        SettingsGroup(t.groupDeveloper, accent) {
+        SettingsSection.DEVELOPER -> SettingsGroup(t.groupDeveloper, accent) {
             SwitchRow(
                 label = t.developerMode,
                 desc = t.developerModeDesc,
@@ -493,16 +502,6 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
                 onCheckedChange = { vm.setDeveloperMode(it) },
             )
         }
-
-        Spacer(Modifier.height(28.dp))
-        TextButton(
-            onClick = { vm.resetSettings() },
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.textButtonColors(contentColor = DONE_RED),
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-        ) {
-            Text(t.reset, fontWeight = FontWeight.SemiBold)
         }
     }
 
@@ -690,6 +689,139 @@ private fun OffsetStepperRow(
             Text("$value", color = AppTheme.colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
         }
         AppStepButton("+", accent) { onPlus() }
+    }
+}
+
+/** Lista principal de categorías (patrón lista + subpantalla). */
+@Composable
+private fun SettingsCategoryList(
+    vm: TimerViewModel,
+    s: Settings,
+    t: Strings,
+    accent: Color,
+    folderName: String?,
+) {
+    val langName = if (s.language == "es") "Español" else "English"
+    val themeName = when (s.themeMode) {
+        THEME_LIGHT -> t.themeLight
+        THEME_DARK -> t.themeDark
+        else -> t.themeAuto
+    }
+    val autoDismissLabel = if (s.autoDismiss == 0) t.off else "${s.autoDismiss}s"
+    val overlaySummary = listOfNotNull(
+        if (s.showNowBar) t.showNowBar else null,
+        if (s.showOverlay) t.showOverlay else null,
+        if (s.showRing) t.showRing else null,
+    ).joinToString(" · ").ifBlank { t.off }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(Dims.card))
+            .background(AppTheme.colors.surface),
+    ) {
+        SettingsCategoryRow(
+            icon = Icons.Filled.Palette,
+            title = t.groupAppearance,
+            subtitle = "$langName · $themeName",
+            accent = accent,
+            first = true,
+        ) { vm.settingsSection = SettingsSection.APPEARANCE }
+        SettingsCategoryRow(
+            icon = Icons.Filled.Timer,
+            title = t.groupTimer,
+            subtitle = "${t.autoDismiss}: $autoDismissLabel · ${incLabel(s.addIncrementSec)}",
+            accent = accent,
+        ) { vm.settingsSection = SettingsSection.TIMER }
+        SettingsCategoryRow(
+            icon = Icons.Filled.Notifications,
+            title = t.groupAlarm,
+            subtitle = "${s.alarmSoundName ?: t.defaultSound} · ${(s.alarmVolume * 100).roundToInt()}%",
+            accent = accent,
+        ) { vm.settingsSection = SettingsSection.ALARM }
+        SettingsCategoryRow(
+            icon = Icons.Filled.Layers,
+            title = t.groupOverlay,
+            subtitle = overlaySummary,
+            accent = accent,
+        ) { vm.settingsSection = SettingsSection.OVERLAY }
+        SettingsCategoryRow(
+            icon = Icons.Filled.Backup,
+            title = t.groupBackup,
+            subtitle = folderName ?: t.backupNotSet,
+            accent = accent,
+        ) { vm.settingsSection = SettingsSection.BACKUP }
+        SettingsCategoryRow(
+            icon = Icons.Filled.Code,
+            title = t.groupDeveloper,
+            subtitle = if (s.developerMode) t.on else t.off,
+            accent = accent,
+        ) { vm.settingsSection = SettingsSection.DEVELOPER }
+    }
+
+    Spacer(Modifier.height(28.dp))
+    TextButton(
+        onClick = { vm.resetSettings() },
+        shape = RoundedCornerShape(12.dp),
+        colors = ButtonDefaults.textButtonColors(contentColor = DONE_RED),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .wrapContentWidth(Alignment.CenterHorizontally),
+    ) {
+        Text(t.reset, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+/** Fila de categoría en la lista principal de Ajustes. */
+@Composable
+private fun SettingsCategoryRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    accent: Color,
+    first: Boolean = false,
+    onClick: () -> Unit,
+) {
+    if (!first) {
+        HorizontalDivider(
+            color = AppTheme.colors.track,
+            thickness = 1.dp,
+            modifier = Modifier.padding(start = 70.dp),
+        )
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(accent.copy(alpha = 0.16f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(22.dp))
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, color = AppTheme.colors.textPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Text(
+                subtitle,
+                color = AppTheme.colors.textDim,
+                fontSize = 13.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Icon(
+            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = AppTheme.colors.textDim,
+        )
     }
 }
 
