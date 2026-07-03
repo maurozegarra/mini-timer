@@ -1,5 +1,8 @@
 package com.minitimer.notify
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.ValueAnimator
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -23,6 +26,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowManager
+import android.view.animation.DecelerateInterpolator
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.res.ResourcesCompat
@@ -262,6 +266,45 @@ class ClockOverlayService : Service() {
             }
         }
 
+        private var snapAnim: ValueAnimator? = null
+
+        /** Anima el panel desde su posición actual hasta ([targetX], [targetY])
+         *  con desaceleración, como si el borde lo atrajera. Guarda al terminar. */
+        private fun animateSnap(targetX: Int, targetY: Int) {
+            snapAnim?.cancel()
+            val fromX = lp.x
+            val fromY = lp.y
+            if (fromX == targetX && fromY == targetY) {
+                store.saveOsdPos(index, targetX, targetY)
+                return
+            }
+            snapAnim = ValueAnimator.ofFloat(0f, 1f).apply {
+                duration = 260L
+                interpolator = DecelerateInterpolator(1.6f)
+                addUpdateListener { a ->
+                    val f = a.animatedValue as Float
+                    lp.x = (fromX + (targetX - fromX) * f).roundToInt()
+                    lp.y = (fromY + (targetY - fromY) * f).roundToInt()
+                    try {
+                        wm?.updateViewLayout(container, lp)
+                    } catch (_: Exception) {
+                    }
+                }
+                addListener(object : AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: Animator) {
+                        lp.x = targetX
+                        lp.y = targetY
+                        try {
+                            wm?.updateViewLayout(container, lp)
+                        } catch (_: Exception) {
+                        }
+                        store.saveOsdPos(index, targetX, targetY)
+                    }
+                })
+                start()
+            }
+        }
+
         /** Reubica el panel dentro de la zona segura si quedó fuera. */
         private fun clampToBounds() {
             val b = dragBounds(container)
@@ -279,6 +322,7 @@ class ClockOverlayService : Service() {
         }
 
         fun detach() {
+            snapAnim?.cancel()
             try {
                 wm?.removeView(container)
             } catch (_: Exception) {
@@ -324,6 +368,7 @@ class ClockOverlayService : Service() {
             container.setOnTouchListener { _, e ->
                 when (e.action) {
                     MotionEvent.ACTION_DOWN -> {
+                        snapAnim?.cancel()
                         downRawX = e.rawX
                         downRawY = e.rawY
                         startX = lp.x
@@ -344,17 +389,14 @@ class ClockOverlayService : Service() {
                     }
                     MotionEvent.ACTION_UP -> {
                         if (abs(e.rawX - downRawX) > 2 || abs(e.rawY - downRawY) > 2) {
-                            // Magnet: al soltar, pega el panel al lado más cercano.
+                            // Magnet: al soltar, el lado más cercano "atrae" el panel
+                            // con un movimiento suave (no un salto brusco).
                             val b = dragBounds(container)
                             val (sw, _) = screenBounds()
                             val centerX = lp.x + container.width / 2
-                            lp.x = if (centerX < sw / 2) b[0] else b[2]
-                            lp.y = lp.y.coerceIn(b[1], b[3])
-                            try {
-                                wm?.updateViewLayout(container, lp)
-                            } catch (_: Exception) {
-                            }
-                            store.saveOsdPos(index, lp.x, lp.y)
+                            val targetX = if (centerX < sw / 2) b[0] else b[2]
+                            val targetY = lp.y.coerceIn(b[1], b[3])
+                            animateSnap(targetX, targetY)
                         }
                         true
                     }
