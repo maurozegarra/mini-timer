@@ -9,6 +9,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,7 +28,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -50,7 +50,9 @@ import androidx.compose.ui.unit.sp
 import com.minitimer.TimerViewModel
 import com.minitimer.i18n.I18n
 import com.minitimer.model.OSD_TEXT_COLORS
-import com.minitimer.model.OSD_TEXT_SIZES_SP
+import com.minitimer.model.OSD_TEXT_SIZE_MAX
+import com.minitimer.model.OSD_TEXT_SIZE_MIN
+import com.minitimer.model.OSD_TEXT_SIZE_STEP
 import com.minitimer.model.OsdPanel
 import com.minitimer.ui.theme.AppTheme
 import kotlinx.coroutines.delay
@@ -203,6 +205,8 @@ fun ClockScreen(vm: TimerViewModel) {
             GroupDivider()
             SwitchRow(t.clockBattery, t.clockBatteryDesc, panel.showBattery, accent) { upd(panel.copy(showBattery = it)) }
             GroupDivider()
+            SwitchRow(t.clockCharging, t.clockChargingDesc, panel.showCharging, accent) { upd(panel.copy(showCharging = it)) }
+            GroupDivider()
             SwitchRow(t.clock24h, null, panel.use24h, accent) { upd(panel.copy(use24h = it)) }
             GroupDivider()
             SwitchRow(t.clockDate, null, panel.showDate, accent) { upd(panel.copy(showDate = it)) }
@@ -233,35 +237,56 @@ fun ClockScreen(vm: TimerViewModel) {
 
         // Apariencia.
         SettingsGroup(t.groupAppearance, accent) {
-            ItemLabel(t.clockSize)
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Chip(t.sizeSmall, panel.size == 0, accent) { upd(panel.copy(size = 0)) }
-                Chip(t.sizeMedium, panel.size == 1, accent) { upd(panel.copy(size = 1)) }
-                Chip(t.sizeLarge, panel.size == 2, accent) { upd(panel.copy(size = 2)) }
-            }
-            GroupDivider()
-            ItemLabel(t.clockTextColor)
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                OSD_TEXT_COLORS.forEach { col ->
-                    val selected = panel.textColor == col
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(Color(col))
-                            .then(
-                                if (selected) {
-                                    Modifier.border(2.dp, AppTheme.colors.textPrimary, CircleShape)
-                                } else {
-                                    Modifier
-                                },
-                            )
-                            .clickable { upd(panel.copy(textColor = col)) },
-                    )
+                Text(
+                    t.clockSize,
+                    color = AppTheme.colors.textPrimary,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f),
+                )
+                AppStepButton("−", accent, enabled = panel.textSizeSp > OSD_TEXT_SIZE_MIN) {
+                    upd(panel.copy(textSizeSp = (panel.textSizeSp - OSD_TEXT_SIZE_STEP).coerceAtLeast(OSD_TEXT_SIZE_MIN)))
+                }
+                Box(Modifier.width(64.dp), contentAlignment = Alignment.Center) {
+                    Text("${panel.textSizeSp}pt", color = AppTheme.colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                }
+                AppStepButton("+", accent, enabled = panel.textSizeSp < OSD_TEXT_SIZE_MAX) {
+                    upd(panel.copy(textSizeSp = (panel.textSizeSp + OSD_TEXT_SIZE_STEP).coerceAtMost(OSD_TEXT_SIZE_MAX)))
+                }
+            }
+            GroupDivider()
+            SwitchRow(t.clockDarkMode, t.clockDarkModeDesc, panel.autoDarkColor, accent) {
+                upd(panel.copy(autoDarkColor = it))
+            }
+            if (!panel.autoDarkColor) {
+                GroupDivider()
+                ItemLabel(t.clockTextColor)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    OSD_TEXT_COLORS.forEach { col ->
+                        val selected = panel.textColor == col
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(Color(col))
+                                .then(
+                                    if (selected) {
+                                        Modifier.border(2.dp, AppTheme.colors.textPrimary, CircleShape)
+                                    } else {
+                                        Modifier
+                                    },
+                                )
+                                .clickable { upd(panel.copy(textColor = col)) },
+                        )
+                    }
                 }
             }
             GroupDivider()
@@ -305,8 +330,13 @@ private fun OsdPreview(
     val battery = remember { context.getSystemService(BatteryManager::class.java) }
     val vol = audio?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: 0
     val batt = battery?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: 0
-    val sizeSp = OSD_TEXT_SIZES_SP.getOrElse(panel.size) { 18 }.sp
-    val textColor = Color(panel.textColor)
+    val charging = previewChargingLabel(context)
+    val sizeSp = panel.textSizeSp.sp
+    val textColor = if (panel.autoDarkColor) {
+        if (isSystemInDarkTheme()) Color.White else Color.Black
+    } else {
+        Color(panel.textColor)
+    }
 
     Box(
         modifier = Modifier
@@ -322,7 +352,7 @@ private fun OsdPreview(
                 .padding(horizontal = 10.dp, vertical = 4.dp),
         ) {
             Text(
-                osdMainText(panel, nowMs, vol, batt, locale),
+                osdMainText(panel, nowMs, vol, batt, charging, locale),
                 color = textColor,
                 fontSize = sizeSp,
                 fontWeight = FontWeight.SemiBold,
@@ -339,8 +369,22 @@ private fun OsdPreview(
     }
 }
 
-/** Construye la línea principal del OSD (fecha, hora, [volumen], [batería]). */
-private fun osdMainText(panel: OsdPanel, nowMs: Long, vol: Int, batt: Int, locale: Locale): String {
+/** Etiqueta de carga para la vista previa ([AC]/[USB]/[Wireless]); null si no carga. */
+private fun previewChargingLabel(context: android.content.Context): String? {
+    val plugged = context.registerReceiver(
+        null,
+        android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED),
+    )?.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) ?: 0
+    return when (plugged) {
+        BatteryManager.BATTERY_PLUGGED_AC -> "[AC]"
+        BatteryManager.BATTERY_PLUGGED_USB -> "[USB]"
+        BatteryManager.BATTERY_PLUGGED_WIRELESS -> "[Wireless]"
+        else -> null
+    }
+}
+
+/** Construye la línea principal del OSD (fecha, hora, [carga], [volumen], [batería]). */
+private fun osdMainText(panel: OsdPanel, nowMs: Long, vol: Int, batt: Int, charging: String?, locale: Locale): String {
     val parts = mutableListOf<String>()
     if (panel.showDate) parts += SimpleDateFormat("EEE d MMM", locale).format(Date(nowMs))
     if (panel.showTime) {
@@ -352,6 +396,7 @@ private fun osdMainText(panel: OsdPanel, nowMs: Long, vol: Int, batt: Int, local
         }
         parts += SimpleDateFormat(pattern, locale).format(Date(nowMs))
     }
+    if (panel.showCharging && charging != null) parts += charging
     if (panel.showVolume) parts += "[$vol]"
     if (panel.showBattery) parts += "[$batt%]"
     return parts.joinToString("  ").ifBlank { " " }

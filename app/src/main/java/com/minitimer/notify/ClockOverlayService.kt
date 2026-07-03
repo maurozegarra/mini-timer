@@ -7,7 +7,9 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
+import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
@@ -29,7 +31,6 @@ import com.minitimer.R
 import com.minitimer.data.SettingsStore
 import com.minitimer.i18n.I18n
 import com.minitimer.model.ClockConfig
-import com.minitimer.model.OSD_TEXT_SIZES_SP
 import com.minitimer.model.OsdPanel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -122,22 +123,48 @@ class ClockOverlayService : Service() {
         panels[index] = null
     }
 
-    /** Refresca el texto (hora/volumen/batería/fecha/memo) de los paneles visibles. */
+    /** Refresca el texto (hora/volumen/batería/carga/fecha/memo) de los paneles visibles. */
     private fun updateContent() {
         if (panels.all { it == null }) return
         val now = Date()
         val vol = audio?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: 0
         val batt = battery?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: 0
+        val charging = chargingLabel()
         val cfg = ClockBus.config.value
         for (i in 0..1) {
-            panels[i]?.bind(cfg.panel(i), now, vol, batt)
+            panels[i]?.bind(cfg.panel(i), now, vol, batt, charging)
         }
     }
 
-    private fun mainText(panel: OsdPanel, now: Date, vol: Int, batt: Int): String {
+    /** Etiqueta del estado de carga ([AC]/[USB]/[Wireless]); null si no carga. */
+    private fun chargingLabel(): String? {
+        val plugged = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            ?.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) ?: 0
+        return when (plugged) {
+            BatteryManager.BATTERY_PLUGGED_AC -> "[AC]"
+            BatteryManager.BATTERY_PLUGGED_USB -> "[USB]"
+            BatteryManager.BATTERY_PLUGGED_WIRELESS -> "[Wireless]"
+            else -> null
+        }
+    }
+
+    /** Color efectivo del texto: automático por modo oscuro, o el color elegido. */
+    private fun resolveColor(panel: OsdPanel): Int =
+        if (panel.autoDarkColor) {
+            if (isNightMode()) Color.WHITE else Color.BLACK
+        } else {
+            panel.textColor.toInt()
+        }
+
+    private fun isNightMode(): Boolean =
+        (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+            Configuration.UI_MODE_NIGHT_YES
+
+    private fun mainText(panel: OsdPanel, now: Date, vol: Int, batt: Int, charging: String?): String {
         val parts = mutableListOf<String>()
         if (panel.showDate) parts += dateFmt(panel).format(now)
         if (panel.showTime) parts += timeFmt(panel).format(now)
+        if (panel.showCharging && charging != null) parts += charging
         if (panel.showVolume) parts += "[$vol]"
         if (panel.showBattery) parts += "[$batt%]"
         return parts.joinToString("  ")
@@ -210,14 +237,12 @@ class ClockOverlayService : Service() {
             }
         }
 
-        /** Aplica tamaño, color, fondo y padding (apariencia del panel). */
+        /** Aplica tamaño, fondo y padding (apariencia del panel). El color se
+         *  fija en [bind] para que el modo oscuro automático se refresque. */
         fun applyStyle(panel: OsdPanel) {
-            val sizeSp = OSD_TEXT_SIZES_SP.getOrElse(panel.size) { 18 }.toFloat()
-            val color = panel.textColor.toInt()
+            val sizeSp = panel.textSizeSp.toFloat()
             mainView.textSize = sizeSp
-            mainView.setTextColor(color)
             memoView.textSize = (sizeSp - 3f).coerceAtLeast(10f)
-            memoView.setTextColor(color)
             val padH = dp(10)
             val padV = dp(4)
             container.setPadding(padH, padV, padH, padV)
@@ -232,9 +257,12 @@ class ClockOverlayService : Service() {
             }
         }
 
-        /** Vincula el contenido de texto (hora/indicadores/memo). */
-        fun bind(panel: OsdPanel, now: Date, vol: Int, batt: Int) {
-            mainView.text = mainText(panel, now, vol, batt)
+        /** Vincula el contenido de texto (hora/indicadores/memo) y el color. */
+        fun bind(panel: OsdPanel, now: Date, vol: Int, batt: Int, charging: String?) {
+            val color = resolveColor(panel)
+            mainView.setTextColor(color)
+            memoView.setTextColor(color)
+            mainView.text = mainText(panel, now, vol, batt, charging)
             val showMemo = panel.showMemo && panel.memo.isNotBlank()
             memoView.visibility = if (showMemo) View.VISIBLE else View.GONE
             if (showMemo) memoView.text = panel.memo

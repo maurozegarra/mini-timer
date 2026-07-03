@@ -71,10 +71,11 @@ data class WaterConfig(
     val alarm: AlarmConfig = AlarmConfig(),
 )
 
-/** Tamaño del texto del OSD del reloj. */
-const val OSD_SIZE_SMALL = 0
-const val OSD_SIZE_MEDIUM = 1
-const val OSD_SIZE_LARGE = 2
+/** Rango del tamaño de texto del OSD del reloj, en pt. */
+const val OSD_TEXT_SIZE_MIN = 10
+const val OSD_TEXT_SIZE_MAX = 40
+const val OSD_TEXT_SIZE_DEFAULT = 14
+const val OSD_TEXT_SIZE_STEP = 2
 
 /**
  * Un panel del OSD (reloj flotante): franja fina e INDEPENDIENTE que se pinta
@@ -93,15 +94,19 @@ data class OsdPanel(
     val showVolume: Boolean = true,
     /** Porcentaje de batería, ej. "[62%]". */
     val showBattery: Boolean = true,
+    /** Mostrar estado de carga cuando está enchufado, ej. "[AC]"/"[USB]". */
+    val showCharging: Boolean = false,
     /** Formato 24 horas (si no, 12h). */
     val use24h: Boolean = false,
     val showDate: Boolean = false,
     val showMemo: Boolean = false,
     val memo: String = "",
     // --- Apariencia ---
-    /** [OSD_SIZE_SMALL], [OSD_SIZE_MEDIUM] o [OSD_SIZE_LARGE]. */
-    val size: Int = OSD_SIZE_MEDIUM,
+    /** Tamaño del texto en pt (ver [OSD_TEXT_SIZE_MIN]/[OSD_TEXT_SIZE_MAX]). */
+    val textSizeSp: Int = OSD_TEXT_SIZE_DEFAULT,
     val textColor: Long = 0xFFFFFFFF,
+    /** Cambia el color del texto automáticamente según el modo oscuro/claro. */
+    val autoDarkColor: Boolean = false,
     /** Opacidad del fondo 0f..1f (0 = fondo transparente, sin caja). */
     val bgAlpha: Float = 0f,
     // Nota: la posición (x,y) del overlay se guarda aparte en SettingsStore
@@ -121,9 +126,6 @@ data class ClockConfig(
     /** ¿Algún panel activo? Determina si el servicio de overlay debe correr. */
     val anyEnabled: Boolean get() = panel1.enabled || panel2.enabled
 }
-
-/** Tamaños de texto (sp) del OSD por [OSD_SIZE_SMALL]/[MEDIUM]/[LARGE]. */
-val OSD_TEXT_SIZES_SP: List<Int> = listOf(14, 18, 24)
 
 /** Paleta de color de texto para el OSD del reloj. */
 val OSD_TEXT_COLORS: List<Long> = listOf(

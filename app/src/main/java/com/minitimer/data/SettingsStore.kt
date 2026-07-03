@@ -196,12 +196,14 @@ class SettingsStore(context: Context) {
         .put("showSeconds", p.showSeconds)
         .put("showVolume", p.showVolume)
         .put("showBattery", p.showBattery)
+        .put("showCharging", p.showCharging)
         .put("use24h", p.use24h)
         .put("showDate", p.showDate)
         .put("showMemo", p.showMemo)
         .put("memo", p.memo)
-        .put("size", p.size)
+        .put("textSizeSp", p.textSizeSp)
         .put("textColor", p.textColor)
+        .put("autoDarkColor", p.autoDarkColor)
         .put("bgAlpha", p.bgAlpha.toDouble())
 
     private fun panelFromJson(o: JSONObject?): OsdPanel {
@@ -213,12 +215,14 @@ class SettingsStore(context: Context) {
             showSeconds = o.optBoolean("showSeconds", d.showSeconds),
             showVolume = o.optBoolean("showVolume", d.showVolume),
             showBattery = o.optBoolean("showBattery", d.showBattery),
+            showCharging = o.optBoolean("showCharging", d.showCharging),
             use24h = o.optBoolean("use24h", d.use24h),
             showDate = o.optBoolean("showDate", d.showDate),
             showMemo = o.optBoolean("showMemo", d.showMemo),
             memo = o.optString("memo", d.memo),
-            size = o.optInt("size", d.size),
+            textSizeSp = o.optInt("textSizeSp", d.textSizeSp),
             textColor = o.optLong("textColor", d.textColor),
+            autoDarkColor = o.optBoolean("autoDarkColor", d.autoDarkColor),
             bgAlpha = o.optDouble("bgAlpha", d.bgAlpha.toDouble()).toFloat(),
         )
     }
