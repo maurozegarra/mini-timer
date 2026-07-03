@@ -58,6 +58,7 @@ import com.minitimer.ui.glowColors
 import com.minitimer.model.DisplayMode
 import com.minitimer.model.PlayerStep
 import com.minitimer.model.StepKind
+import com.minitimer.ui.theme.AppTheme
 import com.minitimer.ui.theme.ON_ACCENT
 import com.minitimer.ui.theme.SURFACE
 import com.minitimer.ui.theme.TEXT_DIM
@@ -125,10 +126,10 @@ private fun PreviewView(vm: AthleteViewModel, accent: Color, t: Strings) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
-                Text(vm.playerName, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                Text(vm.playerName, color = AppTheme.colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 22.sp)
                 Text(
                     "$totalExercises ${t.exercise} · ${groups.size} ${t.workout}",
-                    color = TEXT_DIM,
+                    color = AppTheme.colors.textDim,
                     fontSize = 14.sp,
                 )
             }
@@ -161,7 +162,7 @@ private fun WorkoutGroupCard(
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(SURFACE)
+            .background(AppTheme.colors.surface)
             .clickable(onClick = onToggle)
             .padding(14.dp)
             .animateContentSize(),
@@ -171,7 +172,7 @@ private fun WorkoutGroupCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         g.title.ifBlank { t.workout },
-                        color = Color.White,
+                        color = AppTheme.colors.textPrimary,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 16.sp,
                     )
@@ -195,12 +196,12 @@ private fun WorkoutGroupCard(
                     }
                     if (g.durationSec > 0) append(" · ${formatRemaining(g.durationSec * 1000L)}")
                 }
-                Text(sub, color = TEXT_DIM, fontSize = 12.sp)
+                Text(sub, color = AppTheme.colors.textDim, fontSize = 12.sp)
             }
             Icon(
                 Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
-                tint = TEXT_DIM,
+                tint = AppTheme.colors.textDim,
                 modifier = Modifier.rotate(if (open) 90f else 0f),
             )
         }
@@ -215,7 +216,7 @@ private fun WorkoutGroupCard(
                             Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(TRACK)
+                                .background(AppTheme.colors.track)
                                 .padding(10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
@@ -224,13 +225,13 @@ private fun WorkoutGroupCard(
                             Spacer(Modifier.width(10.dp))
                             Text(
                                 exLabel,
-                                color = Color.White,
+                                color = AppTheme.colors.textPrimary,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium,
                                 modifier = Modifier.weight(1f),
                             )
                             if (ex.meta.isNotBlank()) {
-                                Text(ex.meta, color = TEXT_DIM, fontSize = 12.sp)
+                                Text(ex.meta, color = AppTheme.colors.textDim, fontSize = 12.sp)
                             }
                         }
                     }
@@ -256,20 +257,20 @@ private fun TimelineRail(isFirst: Boolean, isLast: Boolean, accent: Color) {
                 Modifier
                     .width(2.dp)
                     .weight(1f)
-                    .background(if (isFirst) Color.Transparent else TRACK),
+                    .background(if (isFirst) Color.Transparent else AppTheme.colors.track),
             )
             Box(
                 Modifier
                     .width(2.dp)
                     .weight(1f)
-                    .background(if (isLast) Color.Transparent else TRACK),
+                    .background(if (isLast) Color.Transparent else AppTheme.colors.track),
             )
         }
         Box(
             Modifier
                 .size(10.dp)
                 .clip(CircleShape)
-                .background(if (isFirst) accent else TEXT_DIM),
+                .background(if (isFirst) accent else AppTheme.colors.textDim),
         )
     }
 }
@@ -529,12 +530,12 @@ private fun FinishedView(vm: AthleteViewModel, accent: Color, t: Strings) {
         ) {
             item {
                 Text("🎉", fontSize = 56.sp)
-                Text(t.workoutComplete, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 24.sp)
+                Text(t.workoutComplete, color = AppTheme.colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 24.sp)
                 Spacer(Modifier.height(8.dp))
             }
             if (suggestions.isNotEmpty()) {
                 item {
-                    Text(t.nextSuggestions, color = TEXT_DIM, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Text(t.nextSuggestions, color = AppTheme.colors.textDim, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(4.dp))
                 }
                 items(suggestions) { (name, _, next) ->
@@ -542,11 +543,11 @@ private fun FinishedView(vm: AthleteViewModel, accent: Color, t: Strings) {
                         Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(14.dp))
-                            .background(SURFACE)
+                            .background(AppTheme.colors.surface)
                             .padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(name, color = Color.White, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                        Text(name, color = AppTheme.colors.textPrimary, fontSize = 15.sp, modifier = Modifier.weight(1f))
                         Text("${fmtKg(next)} ${t.kg}", color = accent, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
                 }

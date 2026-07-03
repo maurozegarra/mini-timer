@@ -38,10 +38,7 @@ import androidx.compose.ui.unit.sp
 import com.minitimer.AthleteViewModel
 import com.minitimer.i18n.Strings
 import com.minitimer.model.Workout
-import com.minitimer.ui.theme.SURFACE
-import com.minitimer.ui.theme.TEXT_DIM
-import com.minitimer.ui.theme.TEXT_FADED
-import com.minitimer.ui.theme.TRACK
+import com.minitimer.ui.theme.AppTheme
 
 @Composable
 fun TrainingEditorScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
@@ -57,14 +54,14 @@ fun TrainingEditorScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
                 OutlinedTextField(
                     value = draft.name,
                     onValueChange = { vm.setTrainingName(it) },
-                    placeholder = { Text(t.trainingNameHint, color = TEXT_FADED) },
+                    placeholder = { Text(t.trainingNameHint, color = AppTheme.colors.textFaded) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = accent,
-                        unfocusedBorderColor = TRACK,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
+                        unfocusedBorderColor = AppTheme.colors.track,
+                        focusedTextColor = AppTheme.colors.textPrimary,
+                        unfocusedTextColor = AppTheme.colors.textPrimary,
                         cursorColor = accent,
                     ),
                 )
@@ -121,7 +118,7 @@ private fun WorkoutRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(SURFACE)
+            .background(AppTheme.colors.surface)
             .clickable(onClick = onOpen)
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -129,15 +126,15 @@ private fun WorkoutRow(
         Column(Modifier.weight(1f)) {
             Text(
                 workout.name.ifBlank { t.workout },
-                color = Color.White,
+                color = AppTheme.colors.textPrimary,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 16.sp,
             )
-            Text(subtitle, color = TEXT_DIM, fontSize = 13.sp)
+            Text(subtitle, color = AppTheme.colors.textDim, fontSize = 13.sp)
         }
         Box {
             IconButton(onClick = { menu = true }) {
-                Icon(Icons.Filled.MoreVert, contentDescription = null, tint = TEXT_DIM)
+                Icon(Icons.Filled.MoreVert, contentDescription = null, tint = AppTheme.colors.textDim)
             }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                 DropdownMenuItem(
@@ -148,6 +145,6 @@ private fun WorkoutRow(
                 DropdownMenuItem(text = { Text(t.delete) }, onClick = { menu = false; onDelete() })
             }
         }
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = TEXT_DIM)
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = AppTheme.colors.textDim)
     }
 }

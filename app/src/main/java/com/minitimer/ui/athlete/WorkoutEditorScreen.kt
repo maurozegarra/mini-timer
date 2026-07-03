@@ -41,10 +41,7 @@ import com.minitimer.data.ExerciseCatalog
 import com.minitimer.i18n.Strings
 import com.minitimer.model.Exercise
 import com.minitimer.model.WorkMode
-import com.minitimer.ui.theme.SURFACE
-import com.minitimer.ui.theme.TEXT_DIM
-import com.minitimer.ui.theme.TEXT_FADED
-import com.minitimer.ui.theme.TRACK
+import com.minitimer.ui.theme.AppTheme
 
 @Composable
 fun WorkoutEditorScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
@@ -62,14 +59,14 @@ fun WorkoutEditorScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
                 OutlinedTextField(
                     value = vm.editorName(),
                     onValueChange = { vm.setEditorName(it) },
-                    placeholder = { Text(if (inVariant) t.variantNameHint else t.workoutNameHint, color = TEXT_FADED) },
+                    placeholder = { Text(if (inVariant) t.variantNameHint else t.workoutNameHint, color = AppTheme.colors.textFaded) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = accent,
-                        unfocusedBorderColor = TRACK,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
+                        unfocusedBorderColor = AppTheme.colors.track,
+                        focusedTextColor = AppTheme.colors.textPrimary,
+                        unfocusedTextColor = AppTheme.colors.textPrimary,
                         cursorColor = accent,
                     ),
                 )
@@ -120,7 +117,7 @@ private fun ExerciseRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(SURFACE)
+            .background(AppTheme.colors.surface)
             .clickable(onClick = onOpen)
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -131,15 +128,15 @@ private fun ExerciseRow(
         Column(Modifier.weight(1f)) {
             Text(
                 exLabel.ifBlank { t.exercise },
-                color = Color.White,
+                color = AppTheme.colors.textPrimary,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 16.sp,
             )
-            Text(workSummary(exercise, t), color = TEXT_DIM, fontSize = 13.sp)
+            Text(workSummary(exercise, t), color = AppTheme.colors.textDim, fontSize = 13.sp)
         }
         Box {
             IconButton(onClick = { menu = true }) {
-                Icon(Icons.Filled.MoreVert, contentDescription = null, tint = TEXT_DIM)
+                Icon(Icons.Filled.MoreVert, contentDescription = null, tint = AppTheme.colors.textDim)
             }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                 DropdownMenuItem(text = { Text(t.duplicate) }, onClick = { menu = false; onDuplicate() })

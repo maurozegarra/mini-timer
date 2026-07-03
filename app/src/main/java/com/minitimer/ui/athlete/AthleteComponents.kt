@@ -34,11 +34,8 @@ import com.minitimer.ui.AppOutlineButton
 import com.minitimer.ui.AppPrimaryButton
 import com.minitimer.ui.AppStepper
 import com.minitimer.ui.WheelTimePicker
+import com.minitimer.ui.theme.AppTheme
 import com.minitimer.ui.theme.Dims
-import com.minitimer.ui.theme.ON_ACCENT
-import com.minitimer.ui.theme.SURFACE
-import com.minitimer.ui.theme.TEXT_DIM
-import com.minitimer.ui.theme.TRACK
 import com.minitimer.util.pad2
 
 /** Paleta de colores para etapas (ARGB Long), igual orden que en los mocks. */
@@ -101,16 +98,16 @@ internal fun DurationWheelField(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, color = Color.White, fontSize = 15.sp, modifier = Modifier.weight(1f))
+        Text(label, color = AppTheme.colors.textPrimary, fontSize = 15.sp, modifier = Modifier.weight(1f))
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(12.dp))
-                .background(TRACK)
+                .background(AppTheme.colors.track)
                 .clickable { editing = true }
                 .padding(horizontal = 18.dp, vertical = 10.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Text(fmtSec(value), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            Text(fmtSec(value), color = AppTheme.colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
         }
     }
     if (editing) {
@@ -137,8 +134,8 @@ private fun DurationWheelDialog(
     var s by remember { mutableStateOf(value % 60) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = SURFACE,
-        titleContentColor = Color.White,
+        containerColor = AppTheme.colors.surface,
+        titleContentColor = AppTheme.colors.textPrimary,
         title = { Text(t.durationTitle) },
         text = {
             WheelTimePicker(
@@ -152,7 +149,7 @@ private fun DurationWheelDialog(
             }) { Text(t.save, color = accent, fontWeight = FontWeight.Bold) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(t.cancel, color = TEXT_DIM) }
+            TextButton(onClick = onDismiss) { Text(t.cancel, color = AppTheme.colors.textDim) }
         },
     )
 }
@@ -170,7 +167,7 @@ internal fun SegmentToggle(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .background(TRACK)
+            .background(AppTheme.colors.track)
             .padding(4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
@@ -187,7 +184,7 @@ internal fun SegmentToggle(
             ) {
                 Text(
                     text,
-                    color = if (active) ON_ACCENT else TEXT_DIM,
+                    color = if (active) AppTheme.colors.onAccent else AppTheme.colors.textDim,
                     fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
                     fontSize = 14.sp,
                 )
@@ -202,7 +199,7 @@ internal fun SectionCard(modifier: Modifier = Modifier, content: @Composable () 
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(Dims.card))
-            .background(SURFACE)
+            .background(AppTheme.colors.surface)
             .padding(16.dp),
     ) { content() }
 }

@@ -38,10 +38,7 @@ import androidx.compose.ui.unit.sp
 import com.minitimer.AthleteViewModel
 import com.minitimer.i18n.Strings
 import com.minitimer.model.WorkoutVariant
-import com.minitimer.ui.theme.SURFACE
-import com.minitimer.ui.theme.TEXT_DIM
-import com.minitimer.ui.theme.TEXT_FADED
-import com.minitimer.ui.theme.TRACK
+import com.minitimer.ui.theme.AppTheme
 
 /** Editor de un workout rotativo: lista de variantes que se alternan al completar. */
 @Composable
@@ -58,14 +55,14 @@ fun VariantListScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
                 OutlinedTextField(
                     value = vm.editorName(),
                     onValueChange = { vm.setEditorName(it) },
-                    placeholder = { Text(t.workoutNameHint, color = TEXT_FADED) },
+                    placeholder = { Text(t.workoutNameHint, color = AppTheme.colors.textFaded) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = accent,
-                        unfocusedBorderColor = TRACK,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
+                        unfocusedBorderColor = AppTheme.colors.track,
+                        focusedTextColor = AppTheme.colors.textPrimary,
+                        unfocusedTextColor = AppTheme.colors.textPrimary,
                         cursorColor = accent,
                     ),
                 )
@@ -113,7 +110,7 @@ private fun VariantRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(SURFACE)
+            .background(AppTheme.colors.surface)
             .clickable(onClick = onOpen)
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -121,21 +118,21 @@ private fun VariantRow(
         Column(Modifier.weight(1f)) {
             Text(
                 variant.name.ifBlank { "${t.variant} ${index + 1}" },
-                color = Color.White,
+                color = AppTheme.colors.textPrimary,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 16.sp,
             )
-            Text("${variant.exercises.size} ${t.exercise}", color = TEXT_DIM, fontSize = 13.sp)
+            Text("${variant.exercises.size} ${t.exercise}", color = AppTheme.colors.textDim, fontSize = 13.sp)
         }
         Box {
             IconButton(onClick = { menu = true }) {
-                Icon(Icons.Filled.MoreVert, contentDescription = null, tint = TEXT_DIM)
+                Icon(Icons.Filled.MoreVert, contentDescription = null, tint = AppTheme.colors.textDim)
             }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                 DropdownMenuItem(text = { Text(t.duplicate) }, onClick = { menu = false; onDuplicate() })
                 DropdownMenuItem(text = { Text(t.delete) }, onClick = { menu = false; onDelete() })
             }
         }
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = TEXT_DIM)
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = AppTheme.colors.textDim)
     }
 }

@@ -55,10 +55,7 @@ import com.minitimer.model.WorkSet
 import com.minitimer.model.setAt
 import com.minitimer.ui.AppStepButton
 import com.minitimer.ui.SwitchRow
-import com.minitimer.ui.theme.BG
-import com.minitimer.ui.theme.SURFACE
-import com.minitimer.ui.theme.TEXT_DIM
-import com.minitimer.ui.theme.TRACK
+import com.minitimer.ui.theme.AppTheme
 
 @Composable
 fun ExerciseEditorScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
@@ -99,11 +96,11 @@ fun ExerciseEditorScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
                 modifier = Modifier
                     .size(52.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(SURFACE)
+                    .background(AppTheme.colors.surface)
                     .clickable { vm.deleteExercise(ex.id); vm.closeExerciseEditor() },
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Filled.Delete, contentDescription = t.delete, tint = TEXT_DIM)
+                Icon(Icons.Filled.Delete, contentDescription = t.delete, tint = AppTheme.colors.textDim)
             }
             PrimaryButton(
                 label = t.save,
@@ -126,7 +123,7 @@ private fun SimpleTab(ex: Exercise, accent: Color, t: Strings, onChange: (Exerci
             onChange(ex.copy(sets = it))
         }
         VSpace(14)
-        Text(t.work, color = TEXT_DIM, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        Text(t.work, color = AppTheme.colors.textDim, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
         VSpace(8)
         SegmentToggle(
             options = listOf("TIME" to t.secUnit, "REPS" to t.repsUnit),
@@ -160,7 +157,7 @@ private fun SimpleTab(ex: Exercise, accent: Color, t: Strings, onChange: (Exerci
 @Composable
 private fun WeightSection(ex: Exercise, accent: Color, t: Strings, onChange: (Exercise) -> Unit) {
     SectionCard {
-        Text(t.weight, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        Text(t.weight, color = AppTheme.colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
         VSpace(10)
         SegmentToggle(
             options = listOf(
@@ -217,10 +214,10 @@ private fun SetRow(
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(TRACK)
+            .background(AppTheme.colors.track)
             .padding(12.dp),
     ) {
-        Text("SET ${index + 1}", color = TEXT_DIM, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Text("SET ${index + 1}", color = AppTheme.colors.textDim, fontSize = 12.sp, fontWeight = FontWeight.Bold)
         VSpace(6)
         Stepper(t.repsUnit, set.reps, accent, min = 1, max = 200) { onChange(set.copy(reps = it)) }
         VSpace(8)
@@ -236,10 +233,10 @@ private fun SetRow(
 @Composable
 private fun WeightStepper(label: String, value: Double, accent: Color, onChange: (Double) -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, color = Color.White, fontSize = 15.sp, modifier = Modifier.weight(1f))
+        Text(label, color = AppTheme.colors.textPrimary, fontSize = 15.sp, modifier = Modifier.weight(1f))
         AppStepButton("−", accent) { onChange((value - 2.5).coerceAtLeast(0.0)) }
         Box(Modifier.width(72.dp), contentAlignment = Alignment.Center) {
-            Text("${fmtKg(value)} kg", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Text("${fmtKg(value)} kg", color = AppTheme.colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
         }
         AppStepButton("+", accent) { onChange(value + 2.5) }
     }
@@ -268,7 +265,7 @@ private fun StageCard(
     var showColors by remember { mutableStateOf(false) }
     SectionCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.weight(1f))
+            Text(title, color = AppTheme.colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.weight(1f))
             ColorDot(
                 color = cfg.color,
                 size = 26,
@@ -276,7 +273,7 @@ private fun StageCard(
             )
         }
         VSpace(12)
-        Text(t.displayLabel, color = TEXT_DIM, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        Text(t.displayLabel, color = AppTheme.colors.textDim, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         VSpace(6)
         SegmentToggle(
             options = listOf(
@@ -294,7 +291,7 @@ private fun StageCard(
             onChange(cfg.copy(finalCount = it))
         }
         VSpace(12)
-        Text(t.advanceLabel, color = TEXT_DIM, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        Text(t.advanceLabel, color = AppTheme.colors.textDim, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         VSpace(6)
         SegmentToggle(
             options = listOf("AUTO" to t.advanceAuto, "MANUAL" to t.advanceManual),
@@ -307,7 +304,7 @@ private fun StageCard(
         ModalBottomSheet(
             onDismissRequest = { showColors = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = BG,
+            containerColor = AppTheme.colors.bg,
         ) {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(5),
@@ -340,14 +337,14 @@ private fun ExerciseNoteField(ex: Exercise, accent: Color, t: Strings, onChange:
     OutlinedTextField(
         value = ex.note,
         onValueChange = { onChange(ex.copy(note = it)) },
-        label = { Text(t.noteLabel, color = TEXT_DIM) },
+        label = { Text(t.noteLabel, color = AppTheme.colors.textDim) },
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = accent,
-            unfocusedBorderColor = TRACK,
-            focusedTextColor = Color.White,
-            unfocusedTextColor = Color.White,
+            unfocusedBorderColor = AppTheme.colors.track,
+            focusedTextColor = AppTheme.colors.textPrimary,
+            unfocusedTextColor = AppTheme.colors.textPrimary,
             cursorColor = accent,
         ),
     )

@@ -114,17 +114,12 @@ import com.minitimer.data.ExerciseCatalog
 import com.minitimer.ui.athlete.AthleteScreen
 import com.minitimer.i18n.I18n
 import com.minitimer.model.TimerItem
-import com.minitimer.ui.theme.BG
+import com.minitimer.ui.theme.AppTheme
 import com.minitimer.ui.theme.Dims
 import com.minitimer.ui.theme.DONE_RED
 import com.minitimer.ui.theme.JetBrainsMono
 import com.minitimer.ui.theme.Neuropol
 import com.minitimer.ui.theme.Wallpoet
-import com.minitimer.ui.theme.ON_ACCENT
-import com.minitimer.ui.theme.SURFACE
-import com.minitimer.ui.theme.TEXT_DIM
-import com.minitimer.ui.theme.TEXT_FADED
-import com.minitimer.ui.theme.TRACK
 import com.minitimer.util.formatClock
 import com.minitimer.util.formatLastFinished
 import com.minitimer.util.formatRemaining
@@ -200,13 +195,17 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
     }
 
     Scaffold(
-        containerColor = if (athleteRunning && runningColor != null) runningColor else BG,
+        containerColor = when {
+            athleteRunning && runningColor != null -> runningColor
+            vm.showSettings -> AppTheme.colors.bg
+            else -> AppTheme.colors.bg
+        },
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
                     when {
-                        vm.showSettings -> Text(t.settings, color = Color.White, fontWeight = FontWeight.SemiBold)
+                        vm.showSettings -> Text(t.settings, color = AppTheme.colors.textPrimary, fontWeight = FontWeight.SemiBold)
                         detail != null -> EditableTitle(
                             name = detail.name,
                             accent = accent,
@@ -214,27 +213,27 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                             onCommit = { vm.renameTimer(detail.id, it) },
                         )
                         athletePlaying -> if (!hideChrome) {
-                            Text(athleteVm.playerName, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
+                            Text(athleteVm.playerName, color = if (athleteRunning) Color.White else AppTheme.colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
                         }
-                        athleteChoosing -> Text(t.chooseExercise, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
+                        athleteChoosing -> Text(t.chooseExercise, color = AppTheme.colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
                         athleteExercise -> {
                             val exEdit = athleteVm.editingExercise()
                             val exTitle = exEdit?.let { ExerciseCatalog.display(it.exerciseId, it.name, t.locale.language) }
                                 ?.ifBlank { t.exercise } ?: t.exercise
-                            Text(exTitle, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
+                            Text(exTitle, color = AppTheme.colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
                         }
-                        athleteVariant -> Text(athleteVm.editingVariant()?.name?.ifBlank { t.variant } ?: t.variant, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
-                        athleteWorkout -> Text(athleteVm.editingWorkout()?.name?.ifBlank { t.workout } ?: t.workout, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
-                        athleteTraining -> Text(t.createTraining, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
+                        athleteVariant -> Text(athleteVm.editingVariant()?.name?.ifBlank { t.variant } ?: t.variant, color = AppTheme.colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
+                        athleteWorkout -> Text(athleteVm.editingWorkout()?.name?.ifBlank { t.workout } ?: t.workout, color = AppTheme.colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
+                        athleteTraining -> Text(t.createTraining, color = AppTheme.colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
                         selectedTab == 1 -> Text(
                             t.tabAthlete.uppercase(),
-                            color = Color.White,
+                            color = AppTheme.colors.textPrimary,
                             fontFamily = Neuropol,
                             fontSize = 32.sp,
                         )
                         selectedTab == 2 -> Text(
                             t.tabWater,
-                            color = Color.White,
+                            color = AppTheme.colors.textPrimary,
                             fontWeight = FontWeight.SemiBold,
                         )
                         else -> TimesWordmark(accent = accent, height = 22.dp)
@@ -257,7 +256,7 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Back",
-                                tint = Color.White,
+                                tint = if (athleteRunning) Color.White else AppTheme.colors.textPrimary,
                             )
                         }
                     }
@@ -270,7 +269,7 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                             var menu by remember { mutableStateOf(false) }
                             Box {
                                 IconButton(onClick = { menu = true }) {
-                                    Icon(Icons.Filled.MoreVert, contentDescription = "Menu", tint = TEXT_DIM)
+                                    Icon(Icons.Filled.MoreVert, contentDescription = "Menu", tint = AppTheme.colors.textDim)
                                 }
                                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                                     DropdownMenuItem(
@@ -281,7 +280,7 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                             }
                         }
                         else -> IconButton(onClick = { vm.showSettings = true }) {
-                            Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = TEXT_DIM)
+                            Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = AppTheme.colors.textDim)
                         }
                     }
                 },
@@ -295,7 +294,7 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                 FloatingActionButton(
                     onClick = { vm.prepareNewTimer(); showSheet = true },
                     containerColor = accent,
-                    contentColor = ON_ACCENT,
+                    contentColor = AppTheme.colors.onAccent,
                     shape = RoundedCornerShape(20.dp),
                 ) {
                     Icon(Icons.Filled.Add, contentDescription = t.newTimer)
@@ -334,7 +333,7 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
             if (vm.settings.developerMode) {
                 Text(
                     "#$screenNo",
-                    color = TEXT_FADED.copy(alpha = 0.6f),
+                    color = AppTheme.colors.textFaded.copy(alpha = 0.6f),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier
@@ -369,7 +368,7 @@ private fun BottomNavBar(
         Triple(R.drawable.ic_tab_athlete, t.tabAthlete, 1),
         Triple(R.drawable.ic_tab_water, t.tabWater, 2),
     )
-    NavigationBar(containerColor = SURFACE, tonalElevation = 0.dp) {
+    NavigationBar(containerColor = AppTheme.colors.surface, tonalElevation = 0.dp) {
         items.forEach { (iconRes, label, index) ->
             NavigationBarItem(
                 selected = selected == index,
@@ -387,11 +386,11 @@ private fun BottomNavBar(
                 },
                 label = { Text(label, fontSize = 12.sp) },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = ON_ACCENT,
+                    selectedIconColor = AppTheme.colors.onAccent,
                     selectedTextColor = accent,
                     indicatorColor = accent,
-                    unselectedIconColor = TEXT_DIM,
-                    unselectedTextColor = TEXT_DIM,
+                    unselectedIconColor = AppTheme.colors.textDim,
+                    unselectedTextColor = AppTheme.colors.textDim,
                 ),
             )
         }
@@ -449,13 +448,13 @@ private fun ComingSoonScreen(icon: Int, title: String, subtitle: String) {
         Icon(
             painter = painterResource(icon),
             contentDescription = title,
-            tint = TEXT_FADED,
+            tint = AppTheme.colors.textFaded,
             modifier = Modifier.size(72.dp),
         )
         Spacer(Modifier.height(16.dp))
-        Text(title, color = TEXT_DIM, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+        Text(title, color = AppTheme.colors.textDim, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(6.dp))
-        Text(subtitle, color = TEXT_FADED, fontSize = 14.sp)
+        Text(subtitle, color = AppTheme.colors.textFaded, fontSize = 14.sp)
     }
 }
 
@@ -473,9 +472,9 @@ private fun TimerListScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            Text(t.noTimers, color = TEXT_DIM, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+            Text(t.noTimers, color = AppTheme.colors.textDim, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(6.dp))
-            Text(t.noTimersDesc, color = TEXT_FADED, fontSize = 14.sp)
+            Text(t.noTimersDesc, color = AppTheme.colors.textFaded, fontSize = 14.sp)
         }
         return
     }
@@ -561,7 +560,7 @@ private fun TimerCard(
     val timeColor = when {
         done -> DONE_RED
         running -> accent
-        else -> Color.White
+        else -> AppTheme.colors.textPrimary
     }
     val borderColor = when {
         running -> accent
@@ -581,7 +580,7 @@ private fun TimerCard(
             formatLastFinished(item.lastFinished, t.locale, t.yesterday, t.daysAgo)
         else -> null
     }
-    val captionColor = if (done) DONE_RED else TEXT_DIM
+    val captionColor = if (done) DONE_RED else AppTheme.colors.textDim
 
     Box(
         modifier = Modifier
@@ -592,7 +591,7 @@ private fun TimerCard(
                 if (dragging) { scaleX = 1.03f; scaleY = 1.03f }
             }
             .clip(RoundedCornerShape(Dims.card))
-            .background(if (dragging) TRACK else SURFACE)
+            .background(if (dragging) AppTheme.colors.track else AppTheme.colors.surface)
             .then(
                 if (borderColor != Color.Transparent)
                     Modifier.border(1.dp, borderColor, RoundedCornerShape(Dims.card))
@@ -607,7 +606,7 @@ private fun TimerCard(
                     Icon(
                         Icons.Filled.Star,
                         contentDescription = "Star",
-                        tint = if (item.starred) Color(0xFFFFC24B) else TEXT_FADED,
+                        tint = if (item.starred) Color(0xFFFFC24B) else AppTheme.colors.textFaded,
                         modifier = Modifier.size(20.dp),
                     )
                 }
@@ -616,8 +615,8 @@ private fun TimerCard(
                     item.name.ifBlank { t.noName },
                     color = when {
                         running -> accent
-                        item.name.isBlank() -> TEXT_FADED
-                        else -> Color.White
+                        item.name.isBlank() -> AppTheme.colors.textFaded
+                        else -> AppTheme.colors.textPrimary
                     },
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
@@ -663,7 +662,7 @@ private fun TimerCard(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))
                                 .clickable { onAddTime() }
-                                .background(TRACK)
+                                .background(AppTheme.colors.track)
                                 .padding(horizontal = 8.dp, vertical = 3.dp),
                         )
                     }
@@ -674,16 +673,16 @@ private fun TimerCard(
                         Icon(Icons.Filled.Check, contentDescription = t.dismiss, tint = Color(0xFF2A0000))
                     }
                     active -> Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        RoundCtrl(bg = TRACK, onClick = onReset) {
-                            Icon(Icons.Filled.Refresh, contentDescription = t.cancel, tint = Color.White)
+                        RoundCtrl(bg = AppTheme.colors.track, onClick = onReset) {
+                            Icon(Icons.Filled.Refresh, contentDescription = t.cancel, tint = AppTheme.colors.textPrimary)
                         }
                         RoundCtrl(bg = accent, dim = blocked, onClick = onToggle) {
-                            if (running) PauseIcon(ON_ACCENT)
-                            else Icon(Icons.Filled.PlayArrow, contentDescription = t.resume, tint = ON_ACCENT)
+                            if (running) PauseIcon(AppTheme.colors.onAccent)
+                            else Icon(Icons.Filled.PlayArrow, contentDescription = t.resume, tint = AppTheme.colors.onAccent)
                         }
                     }
                     else -> RoundCtrl(bg = accent, dim = blocked, onClick = onToggle) {
-                        Icon(Icons.Filled.PlayArrow, contentDescription = t.start, tint = ON_ACCENT)
+                        Icon(Icons.Filled.PlayArrow, contentDescription = t.start, tint = AppTheme.colors.onAccent)
                     }
                 }
             }
@@ -696,7 +695,7 @@ private fun TimerCard(
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
                     .height(3.dp)
-                    .background(TRACK),
+                    .background(AppTheme.colors.track),
             ) {
                 Box(
                     modifier = Modifier
@@ -750,7 +749,7 @@ private fun NewTimerSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = SURFACE,
+        containerColor = AppTheme.colors.surface,
         sheetState = sheetState,
     ) {
         Column(
@@ -763,25 +762,25 @@ private fun NewTimerSheet(
             if (vm.settings.developerMode) {
                 Text(
                     "#3",
-                    color = TEXT_FADED.copy(alpha = 0.6f),
+                    color = AppTheme.colors.textFaded.copy(alpha = 0.6f),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.align(Alignment.Start),
                 )
             }
-            Text(t.newTimer, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Text(t.newTimer, color = AppTheme.colors.textPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(12.dp))
             OutlinedTextField(
                 value = vm.draftName,
                 onValueChange = { vm.updateDraftName(it) },
-                placeholder = { Text(t.timerName, color = TEXT_FADED) },
+                placeholder = { Text(t.timerName, color = AppTheme.colors.textFaded) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = TRACK,
-                    unfocusedContainerColor = TRACK,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
+                    focusedContainerColor = AppTheme.colors.track,
+                    unfocusedContainerColor = AppTheme.colors.track,
+                    focusedTextColor = AppTheme.colors.textPrimary,
+                    unfocusedTextColor = AppTheme.colors.textPrimary,
                     cursorColor = accent,
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
@@ -830,9 +829,9 @@ private fun NewTimerSheet(
                 shape = RoundedCornerShape(Dims.button),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = accent,
-                    contentColor = ON_ACCENT,
-                    disabledContainerColor = TRACK,
-                    disabledContentColor = TEXT_DIM,
+                    contentColor = AppTheme.colors.onAccent,
+                    disabledContainerColor = AppTheme.colors.track,
+                    disabledContentColor = AppTheme.colors.textDim,
                 ),
                 contentPadding = PaddingValues(horizontal = 48.dp, vertical = 14.dp),
             ) {
@@ -855,7 +854,7 @@ private fun PresetChip(
             .clip(RoundedCornerShape(50))
             .then(
                 if (selected) Modifier.border(1.dp, accent, RoundedCornerShape(50))
-                else Modifier.background(TRACK)
+                else Modifier.background(AppTheme.colors.track)
             )
             .clickable(onClick = onClick)
             .padding(horizontal = 20.dp),
@@ -863,7 +862,7 @@ private fun PresetChip(
     ) {
         Text(
             label,
-            color = if (selected) accent else Color.White,
+            color = if (selected) accent else AppTheme.colors.textPrimary,
             fontFamily = JetBrainsMono,
             fontWeight = FontWeight.SemiBold,
             fontSize = 15.sp,
@@ -912,9 +911,9 @@ private fun TimerDetailBody(
                 shape = RoundedCornerShape(Dims.button),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = accent,
-                    contentColor = ON_ACCENT,
-                    disabledContainerColor = SURFACE,
-                    disabledContentColor = TEXT_DIM,
+                    contentColor = AppTheme.colors.onAccent,
+                    disabledContainerColor = AppTheme.colors.surface,
+                    disabledContentColor = AppTheme.colors.textDim,
                 ),
                 contentPadding = PaddingValues(vertical = 18.dp),
             ) { Text(t.start, fontSize = 18.sp, fontWeight = FontWeight.Bold) }
@@ -930,7 +929,7 @@ private fun TimerDetailBody(
                 } else {
                     Text(
                         formatRemaining(item.remainingMs),
-                        color = if (phase == Phase.RUNNING) accent else Color.White,
+                        color = if (phase == Phase.RUNNING) accent else AppTheme.colors.textPrimary,
                         fontSize = 52.sp,
                         fontFamily = JetBrainsMono,
                         fontWeight = FontWeight.Light,
@@ -939,7 +938,7 @@ private fun TimerDetailBody(
                     Text(
                         if (phase == Phase.PAUSED) t.paused
                         else "${t.endsAt} ${formatClock(item.endAt, t.locale)}",
-                        color = TEXT_DIM,
+                        color = AppTheme.colors.textDim,
                         fontSize = 14.sp,
                     )
                 }
@@ -994,13 +993,13 @@ private fun ControlButton(
 ) {
     val container = when {
         done -> DONE_RED
-        muted -> SURFACE
+        muted -> AppTheme.colors.surface
         else -> accent
     }
     val contentColor = when {
         done -> Color(0xFF2A0000)
-        muted -> Color.White
-        else -> ON_ACCENT
+        muted -> AppTheme.colors.textPrimary
+        else -> AppTheme.colors.onAccent
     }
     Button(
         onClick = onClick,
@@ -1015,6 +1014,7 @@ private fun ControlButton(
 
 @Composable
 private fun ProgressRing(progress: Float, accent: Color, content: @Composable () -> Unit) {
+    val trackColor = AppTheme.colors.track
     Box(contentAlignment = Alignment.Center, modifier = Modifier.size(280.dp)) {
         Canvas(modifier = Modifier.size(280.dp)) {
             val stroke = 14.dp.toPx()
@@ -1022,7 +1022,7 @@ private fun ProgressRing(progress: Float, accent: Color, content: @Composable ()
             val tl = Offset((size.width - d) / 2f, (size.height - d) / 2f)
             val arc = Size(d, d)
             drawArc(
-                color = TRACK,
+                color = trackColor,
                 startAngle = 0f,
                 sweepAngle = 360f,
                 useCenter = false,
@@ -1060,7 +1060,7 @@ private fun EditableTitle(
             value = text,
             onValueChange = { text = it.take(40) },
             singleLine = true,
-            placeholder = { Text(placeholder, color = TEXT_FADED) },
+            placeholder = { Text(placeholder, color = AppTheme.colors.textFaded) },
             textStyle = androidx.compose.ui.text.TextStyle(
                 fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -1068,10 +1068,10 @@ private fun EditableTitle(
             ),
             modifier = Modifier.widthIn(max = 240.dp).focusRequester(focus),
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = TRACK,
-                unfocusedContainerColor = TRACK,
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White,
+                focusedContainerColor = AppTheme.colors.track,
+                unfocusedContainerColor = AppTheme.colors.track,
+                focusedTextColor = AppTheme.colors.textPrimary,
+                unfocusedTextColor = AppTheme.colors.textPrimary,
                 cursorColor = accent,
                 focusedIndicatorColor = accent,
                 unfocusedIndicatorColor = Color.Transparent,
@@ -1091,12 +1091,12 @@ private fun EditableTitle(
         ) {
             Text(
                 name.ifBlank { placeholder },
-                color = if (name.isBlank()) TEXT_DIM else Color.White,
+                color = if (name.isBlank()) AppTheme.colors.textDim else AppTheme.colors.textPrimary,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.SemiBold,
             )
             Spacer(Modifier.width(6.dp))
-            Icon(Icons.Outlined.Edit, contentDescription = "Edit name", tint = TEXT_DIM, modifier = Modifier.size(16.dp))
+            Icon(Icons.Outlined.Edit, contentDescription = "Edit name", tint = AppTheme.colors.textDim, modifier = Modifier.size(16.dp))
         }
     }
 }
@@ -1148,14 +1148,14 @@ internal fun WheelTimePicker(
 @Composable
 private fun WheelLabel(text: String) {
     Box(modifier = Modifier.width(WHEEL_COL_W), contentAlignment = Alignment.Center) {
-        Text(text, color = TEXT_DIM, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+        Text(text, color = AppTheme.colors.textDim, fontSize = 13.sp, fontWeight = FontWeight.Medium)
     }
 }
 
 @Composable
 private fun WheelColon() {
     Box(modifier = Modifier.width(16.dp), contentAlignment = Alignment.Center) {
-        Text(":", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Bold)
+        Text(":", color = AppTheme.colors.textPrimary, fontSize = 34.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -1204,7 +1204,7 @@ private fun WheelColumn(range: Int, value: Int, onValue: (Int) -> Unit) {
             Box(modifier = Modifier.width(WHEEL_COL_W).height(WHEEL_ITEM_H), contentAlignment = Alignment.Center) {
                 Text(
                     pad2(index % range),
-                    color = if (selected) Color.White else TEXT_FADED,
+                    color = if (selected) AppTheme.colors.textPrimary else AppTheme.colors.textFaded,
                     fontSize = if (selected) 40.sp else 24.sp,
                     fontFamily = JetBrainsMono,
                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Light,

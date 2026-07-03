@@ -32,8 +32,9 @@ class MainActivity : ComponentActivity() {
         ensureNotificationPermission()
         ensureOverlayPermission()
         setContent {
-            MiniTimerTheme {
-                TimerApp(vm = viewModel())
+            val vm: TimerViewModel = viewModel()
+            MiniTimerTheme(accent = vm.settings.accent) {
+                TimerApp(vm = vm)
             }
         }
     }

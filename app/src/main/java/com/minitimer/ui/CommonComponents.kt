@@ -27,10 +27,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.minitimer.ui.theme.AppTheme
 import com.minitimer.ui.theme.Dims
-import com.minitimer.ui.theme.ON_ACCENT
-import com.minitimer.ui.theme.TEXT_DIM
-import com.minitimer.ui.theme.TRACK
 
 @Composable
 internal fun AppPrimaryButton(
@@ -40,6 +38,7 @@ internal fun AppPrimaryButton(
     enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
+    val c = AppTheme.colors
     Button(
         onClick = onClick,
         enabled = enabled,
@@ -47,9 +46,9 @@ internal fun AppPrimaryButton(
         shape = RoundedCornerShape(Dims.button),
         colors = ButtonDefaults.buttonColors(
             containerColor = accent,
-            contentColor = ON_ACCENT,
-            disabledContainerColor = TRACK,
-            disabledContentColor = TEXT_DIM,
+            contentColor = c.onAccent,
+            disabledContainerColor = c.track,
+            disabledContentColor = c.textDim,
         ),
     ) {
         Text(label, fontWeight = FontWeight.Bold, fontSize = 16.sp)
@@ -67,7 +66,7 @@ internal fun AppOutlineButton(
         onClick = onClick,
         modifier = modifier.height(Dims.buttonHeight),
         shape = RoundedCornerShape(Dims.button),
-        border = BorderStroke(1.dp, TRACK),
+        border = BorderStroke(1.dp, AppTheme.colors.track),
         colors = ButtonDefaults.outlinedButtonColors(contentColor = accent),
     ) {
         Text(label, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
@@ -75,16 +74,27 @@ internal fun AppOutlineButton(
 }
 
 @Composable
-internal fun AppStepButton(symbol: String, accent: Color, onClick: () -> Unit) {
+internal fun AppStepButton(
+    symbol: String,
+    accent: Color,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
+    val c = AppTheme.colors
     Box(
         modifier = Modifier
             .size(40.dp)
             .clip(CircleShape)
-            .background(TRACK)
-            .clickable(onClick = onClick),
+            .background(c.track)
+            .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(symbol, color = accent, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+        Text(
+            symbol,
+            color = if (enabled) accent else c.textDim,
+            fontWeight = FontWeight.Bold,
+            fontSize = 22.sp,
+        )
     }
 }
 
@@ -100,14 +110,15 @@ internal fun AppStepper(
     format: (Int) -> String = { it.toString() },
     onChange: (Int) -> Unit,
 ) {
+    val c = AppTheme.colors
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, color = Color.White, fontSize = 15.sp, modifier = Modifier.weight(1f))
+        Text(label, color = c.textPrimary, fontSize = 15.sp, modifier = Modifier.weight(1f))
         AppStepButton("−", accent) { onChange((value - step).coerceAtLeast(min)) }
         Box(Modifier.width(64.dp), contentAlignment = Alignment.Center) {
-            Text(format(value), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            Text(format(value), color = c.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
         }
         AppStepButton("+", accent) { onChange((value + step).coerceAtMost(max)) }
     }
@@ -121,6 +132,7 @@ internal fun SwitchRow(
     accent: Color,
     onCheckedChange: (Boolean) -> Unit,
 ) {
+    val c = AppTheme.colors
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -128,13 +140,13 @@ internal fun SwitchRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 label,
-                color = Color.White,
+                color = c.textPrimary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
             )
             if (desc != null) {
                 Spacer(Modifier.height(4.dp))
-                Text(desc, color = TEXT_DIM, fontSize = 13.sp)
+                Text(desc, color = c.textDim, fontSize = 13.sp)
             }
         }
         Spacer(Modifier.width(12.dp))
@@ -142,10 +154,10 @@ internal fun SwitchRow(
             checked = checked,
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = ON_ACCENT,
+                checkedThumbColor = c.onAccent,
                 checkedTrackColor = accent,
                 uncheckedThumbColor = Color(0xFFCFD3D6),
-                uncheckedTrackColor = TRACK,
+                uncheckedTrackColor = c.track,
             ),
         )
     }

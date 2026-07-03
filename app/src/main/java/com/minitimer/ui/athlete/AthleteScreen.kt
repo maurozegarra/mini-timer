@@ -39,9 +39,7 @@ import com.minitimer.AthleteViewModel
 import com.minitimer.i18n.Strings
 import com.minitimer.model.Training
 import com.minitimer.model.hasContent
-import com.minitimer.ui.theme.ON_ACCENT
-import com.minitimer.ui.theme.SURFACE
-import com.minitimer.ui.theme.TEXT_DIM
+import com.minitimer.ui.theme.AppTheme
 
 /** Router de la sección Athlete según el estado de navegación del ViewModel. */
 @Composable
@@ -67,8 +65,8 @@ private fun TrainingsList(vm: AthleteViewModel, accent: Color, t: Strings) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                Text(t.emptyTrainings, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
-                Text(t.savedHint, color = TEXT_DIM, fontSize = 14.sp)
+                Text(t.emptyTrainings, color = AppTheme.colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+                Text(t.savedHint, color = AppTheme.colors.textDim, fontSize = 14.sp)
             }
         } else {
             LazyColumn(
@@ -122,7 +120,7 @@ private fun TrainingCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
-            .background(SURFACE)
+            .background(AppTheme.colors.surface)
             .clickable(enabled = canPlay, onClick = onPlay)
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -130,20 +128,20 @@ private fun TrainingCard(
         Column(Modifier.weight(1f)) {
             Text(
                 training.name.ifBlank { t.noName },
-                color = Color.White,
+                color = AppTheme.colors.textPrimary,
                 fontWeight = FontWeight.Bold,
                 fontSize = 18.sp,
             )
             Text(
                 "${training.workouts.size} ${t.workout} · $exercises ${t.exercise}",
-                color = TEXT_DIM,
+                color = AppTheme.colors.textDim,
                 fontSize = 13.sp,
             )
         }
 
         Box {
             IconButton(onClick = { menu = true }) {
-                Icon(Icons.Filled.MoreVert, contentDescription = null, tint = TEXT_DIM)
+                Icon(Icons.Filled.MoreVert, contentDescription = null, tint = AppTheme.colors.textDim)
             }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                 DropdownMenuItem(text = { Text(t.edit) }, onClick = { menu = false; onEdit() })
@@ -156,14 +154,14 @@ private fun TrainingCard(
             modifier = Modifier
                 .size(48.dp)
                 .clip(CircleShape)
-                .background(if (canPlay) accent else SURFACE)
+                .background(if (canPlay) accent else AppTheme.colors.surface)
                 .clickable(enabled = canPlay, onClick = onPlay),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 Icons.Filled.PlayArrow,
                 contentDescription = t.start,
-                tint = if (canPlay) ON_ACCENT else TEXT_DIM,
+                tint = if (canPlay) AppTheme.colors.onAccent else AppTheme.colors.textDim,
             )
         }
     }

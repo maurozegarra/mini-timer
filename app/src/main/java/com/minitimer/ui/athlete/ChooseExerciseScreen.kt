@@ -37,10 +37,7 @@ import androidx.compose.ui.unit.sp
 import com.minitimer.AthleteViewModel
 import com.minitimer.i18n.Strings
 import com.minitimer.model.ExerciseDef
-import com.minitimer.ui.theme.SURFACE
-import com.minitimer.ui.theme.TEXT_DIM
-import com.minitimer.ui.theme.TEXT_FADED
-import com.minitimer.ui.theme.TRACK
+import com.minitimer.ui.theme.AppTheme
 
 @Composable
 fun ChooseExerciseScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
@@ -54,15 +51,15 @@ fun ChooseExerciseScreen(vm: AthleteViewModel, accent: Color, t: Strings) {
         OutlinedTextField(
             value = query,
             onValueChange = { query = it },
-            placeholder = { Text(t.searchHint, color = TEXT_FADED) },
-            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = TEXT_DIM) },
+            placeholder = { Text(t.searchHint, color = AppTheme.colors.textFaded) },
+            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = AppTheme.colors.textDim) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = accent,
-                unfocusedBorderColor = TRACK,
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White,
+                unfocusedBorderColor = AppTheme.colors.track,
+                focusedTextColor = AppTheme.colors.textPrimary,
+                unfocusedTextColor = AppTheme.colors.textPrimary,
                 cursorColor = accent,
             ),
         )
@@ -95,14 +92,14 @@ private fun ExercisePickRow(def: ExerciseDef, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .background(SURFACE)
+            .background(AppTheme.colors.surface)
             .clickable(onClick = onClick)
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         ExerciseGlyph(name = def.name, color = 0xFF2E9E5BL, sizeDp = 38, exerciseId = def.id)
         Spacer(Modifier.width(12.dp))
-        Text(def.name, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+        Text(def.name, color = AppTheme.colors.textPrimary, fontSize = 16.sp, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -112,7 +109,7 @@ private fun CreateCustomRow(name: String, accent: Color, t: Strings, onClick: ()
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .background(SURFACE)
+            .background(AppTheme.colors.surface)
             .clickable(onClick = onClick)
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,

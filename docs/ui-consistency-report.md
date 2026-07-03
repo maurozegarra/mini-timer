@@ -116,11 +116,10 @@ Compartidos en `ui/CommonComponents.kt`: botón primario/secundario
 
 Se eliminaron las duplicaciones: `StepCircle` (Athlete) y `StepBox` (editor, solo
 diferían en el fondo) ahora usan `AppStepButton`; `Stepper` (Athlete) delega en
-`AppStepper`; los botones de `OffsetStepperRow` (Ajustes) y de `WeightStepper`
-(editor) usan `AppStepButton`.
-
-Excepción intencional: el stepper de volumen en Ajustes conserva su estilo de
-iconos (`FilledTonalIconButton` con `+`/`−`) por ser un control de porcentaje.
+`AppStepper`; los botones de `OffsetStepperRow` (Ajustes), `WeightStepper` (editor)
+y el stepper de volumen (Ajustes) usan `AppStepButton`. Este último mantiene su
+lógica propia (paso 5%, límites 0–100, preview de audio y botones deshabilitados
+en los extremos vía el nuevo parámetro `enabled` de `AppStepButton`).
 
 ---
 

@@ -26,10 +26,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -41,8 +39,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.InputChipDefaults
-import androidx.compose.material3.FilledTonalIconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
@@ -57,7 +53,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import android.content.Intent
@@ -78,12 +73,9 @@ import com.minitimer.model.HEADSET_ONLY
 import com.minitimer.model.SPEAKER_AND_HEADSET
 import com.minitimer.model.VIBRATION_PATTERNS
 import com.minitimer.ui.theme.Dims
+import com.minitimer.ui.theme.AppTheme
 import com.minitimer.ui.theme.DONE_RED
 import com.minitimer.ui.theme.JetBrainsMono
-import com.minitimer.ui.theme.ON_ACCENT
-import com.minitimer.ui.theme.SURFACE
-import com.minitimer.ui.theme.TEXT_DIM
-import com.minitimer.ui.theme.TRACK
 import com.minitimer.util.formatRemaining
 import com.minitimer.util.incLabel
 import kotlin.math.roundToInt
@@ -96,7 +88,7 @@ import kotlin.math.roundToInt
 fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
     val s = vm.settings
     val t = I18n.get(s.language)
-    val accent = Color(s.accent)
+    val accent = AppTheme.colors.accent
     var presetH by remember { mutableStateOf(0) }
     var presetM by remember { mutableStateOf(5) }
     var presetS by remember { mutableStateOf(0) }
@@ -134,6 +126,7 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(AppTheme.colors.bg)
             .verticalScroll(rememberScrollState())
             .padding(top = 8.dp, bottom = 48.dp),
     ) {
@@ -159,7 +152,7 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
                             .clip(CircleShape)
                             .background(Color(c))
                             .then(
-                                if (selected) Modifier.border(2.dp, Color.White, CircleShape)
+                                if (selected) Modifier.border(2.dp, AppTheme.colors.textPrimary, CircleShape)
                                 else Modifier
                             )
                             .clickable { vm.setAccent(c) }
@@ -194,9 +187,9 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
                         },
                         shape = RoundedCornerShape(20.dp),
                         colors = InputChipDefaults.inputChipColors(
-                            containerColor = TRACK,
+                            containerColor = AppTheme.colors.track,
                             labelColor = accent,
-                            trailingIconColor = Color.White,
+                            trailingIconColor = AppTheme.colors.textPrimary,
                         ),
                         border = null,
                     )
@@ -220,9 +213,9 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = accent,
-                    contentColor = ON_ACCENT,
-                    disabledContainerColor = TRACK,
-                    disabledContentColor = TEXT_DIM,
+                    contentColor = AppTheme.colors.onAccent,
+                    disabledContainerColor = AppTheme.colors.track,
+                    disabledContentColor = AppTheme.colors.textDim,
                 ),
                 contentPadding = PaddingValues(vertical = 14.dp),
             ) {
@@ -263,14 +256,14 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(TRACK)
+                    .background(AppTheme.colors.track)
                     .clickable { showSoundDialog = true }
                     .padding(horizontal = 16.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     s.alarmSoundName ?: t.defaultSound,
-                    color = Color.White,
+                    color = AppTheme.colors.textPrimary,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.weight(1f),
@@ -278,7 +271,7 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
                 Icon(
                     Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = null,
-                    tint = TEXT_DIM,
+                    tint = AppTheme.colors.textDim,
                 )
             }
             GroupDivider()
@@ -289,44 +282,21 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
             ) {
                 Text(
                     t.alarmVolume,
-                    color = Color.White,
+                    color = AppTheme.colors.textPrimary,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.weight(1f),
                 )
-                FilledTonalIconButton(
-                    onClick = {
-                        vm.setAlarmVolume(((volPct - 5).coerceAtLeast(0)) / 100f)
-                        vm.previewCurrentAlarmVolume()
-                    },
-                    enabled = volPct > 0,
-                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = TRACK,
-                        contentColor = Color.White,
-                    ),
-                ) {
-                    Icon(Icons.Filled.Remove, contentDescription = "Decrease volume")
+                AppStepButton("−", accent, enabled = volPct > 0) {
+                    vm.setAlarmVolume(((volPct - 5).coerceAtLeast(0)) / 100f)
+                    vm.previewCurrentAlarmVolume()
                 }
-                Text(
-                    "$volPct%",
-                    color = accent,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.width(64.dp),
-                )
-                FilledTonalIconButton(
-                    onClick = {
-                        vm.setAlarmVolume(((volPct + 5).coerceAtMost(100)) / 100f)
-                        vm.previewCurrentAlarmVolume()
-                    },
-                    enabled = volPct < 100,
-                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = accent,
-                        contentColor = ON_ACCENT,
-                    ),
-                ) {
-                    Icon(Icons.Filled.Add, contentDescription = "Increase volume")
+                Box(Modifier.width(64.dp), contentAlignment = Alignment.Center) {
+                    Text("$volPct%", color = AppTheme.colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                }
+                AppStepButton("+", accent, enabled = volPct < 100) {
+                    vm.setAlarmVolume(((volPct + 5).coerceAtMost(100)) / 100f)
+                    vm.previewCurrentAlarmVolume()
                 }
             }
             GroupDivider()
@@ -405,7 +375,7 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
                 ItemLabel(t.ringPosition)
                 Text(
                     t.ringPositionDesc,
-                    color = TEXT_DIM,
+                    color = AppTheme.colors.textDim,
                     fontSize = 13.sp,
                 )
                 Spacer(Modifier.height(12.dp))
@@ -444,7 +414,7 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(TRACK)
+                    .background(AppTheme.colors.track)
                     .clickable { folderPicker.launch(null) }
                     .padding(horizontal = 16.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -452,24 +422,24 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         t.backupFolder,
-                        color = Color.White,
+                        color = AppTheme.colors.textPrimary,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Medium,
                     )
                     Text(
                         folderName ?: t.backupNotSet,
-                        color = TEXT_DIM,
+                        color = AppTheme.colors.textDim,
                         fontSize = 13.sp,
                     )
                 }
                 Icon(
                     Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = null,
-                    tint = TEXT_DIM,
+                    tint = AppTheme.colors.textDim,
                 )
             }
             Spacer(Modifier.height(8.dp))
-            Text(t.backupAutoDesc, color = TEXT_DIM, fontSize = 13.sp)
+            Text(t.backupAutoDesc, color = AppTheme.colors.textDim, fontSize = 13.sp)
             GroupDivider()
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -478,7 +448,7 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         t.lastBackup,
-                        color = Color.White,
+                        color = AppTheme.colors.textPrimary,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -488,7 +458,7 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
                                 DateFormat.MEDIUM, DateFormat.SHORT, t.locale,
                             ).format(Date(it))
                         } ?: t.never,
-                        color = TEXT_DIM,
+                        color = AppTheme.colors.textDim,
                         fontSize = 13.sp,
                     )
                 }
@@ -542,9 +512,9 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
     if (showRestoreDialog) {
         AlertDialog(
             onDismissRequest = { showRestoreDialog = false },
-            containerColor = SURFACE,
-            title = { Text(t.restoreTitle, color = Color.White, fontWeight = FontWeight.SemiBold) },
-            text = { Text(t.restoreMessage, color = TEXT_DIM) },
+            containerColor = AppTheme.colors.surface,
+            title = { Text(t.restoreTitle, color = AppTheme.colors.textPrimary, fontWeight = FontWeight.SemiBold) },
+            text = { Text(t.restoreMessage, color = AppTheme.colors.textDim) },
             confirmButton = {
                 TextButton(onClick = {
                     val json = BackupManager.readBackup(context)
@@ -560,7 +530,7 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
             },
             dismissButton = {
                 TextButton(onClick = { showRestoreDialog = false }) {
-                    Text(t.cancel, color = TEXT_DIM)
+                    Text(t.cancel, color = AppTheme.colors.textDim)
                 }
             },
         )
@@ -589,8 +559,8 @@ private fun AlarmSoundPickerDialog(
 
     AlertDialog(
         onDismissRequest = { stopAndDismiss() },
-        containerColor = SURFACE,
-        title = { Text(title, color = Color.White, fontWeight = FontWeight.SemiBold) },
+        containerColor = AppTheme.colors.surface,
+        title = { Text(title, color = AppTheme.colors.textPrimary, fontWeight = FontWeight.SemiBold) },
         text = {
             LazyColumn(modifier = Modifier.heightIn(max = 360.dp)) {
                 items(sounds) { sound ->
@@ -619,7 +589,7 @@ private fun AlarmSoundPickerDialog(
                         )
                         Text(
                             sound.name,
-                            color = Color.White,
+                            color = AppTheme.colors.textPrimary,
                             fontSize = 15.sp,
                             modifier = Modifier.weight(1f),
                         )
@@ -680,7 +650,7 @@ private fun RadioRow(
         Spacer(Modifier.width(4.dp))
         Text(
             label,
-            color = Color.White,
+            color = AppTheme.colors.textPrimary,
             fontSize = 15.sp,
             modifier = Modifier.weight(1f),
         )
@@ -701,15 +671,15 @@ private fun OffsetStepperRow(
     ) {
         Text(
             axis,
-            color = Color.White,
+            color = AppTheme.colors.textPrimary,
             fontSize = 15.sp,
             modifier = Modifier.weight(1f),
         )
-        AppStepButton("−", accent, onMinus)
+        AppStepButton("−", accent) { onMinus() }
         Box(Modifier.width(64.dp), contentAlignment = Alignment.Center) {
-            Text("$value", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            Text("$value", color = AppTheme.colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
         }
-        AppStepButton("+", accent, onPlus)
+        AppStepButton("+", accent) { onPlus() }
     }
 }
 
@@ -731,7 +701,7 @@ private fun SettingsGroup(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(Dims.card))
-            .background(SURFACE)
+            .background(AppTheme.colors.surface)
             .padding(16.dp),
         content = content,
     )
@@ -742,7 +712,7 @@ private fun SettingsGroup(
 private fun ItemLabel(text: String) {
     Text(
         text,
-        color = Color.White,
+        color = AppTheme.colors.textPrimary,
         fontSize = 15.sp,
         fontWeight = FontWeight.SemiBold,
         modifier = Modifier.padding(bottom = 10.dp),
@@ -753,7 +723,7 @@ private fun ItemLabel(text: String) {
 @Composable
 private fun GroupDivider() {
     HorizontalDivider(
-        color = TRACK,
+        color = AppTheme.colors.track,
         thickness = 1.dp,
         modifier = Modifier.padding(vertical = 16.dp),
     )
@@ -770,10 +740,10 @@ private fun Chip(label: String, selected: Boolean, accent: Color, onClick: () ->
         },
         shape = RoundedCornerShape(20.dp),
         colors = FilterChipDefaults.filterChipColors(
-            containerColor = TRACK,
-            labelColor = Color(0xFFCFD3D6),
+            containerColor = AppTheme.colors.track,
+            labelColor = AppTheme.colors.textDim,
             selectedContainerColor = accent,
-            selectedLabelColor = ON_ACCENT,
+            selectedLabelColor = AppTheme.colors.onAccent,
         ),
         border = null,
     )
