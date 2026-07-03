@@ -115,6 +115,11 @@ class ClockOverlayService : Service() {
     private fun observe() {
         job = scope.launch {
             launch { ClockBus.config.collect { refresh() } }
+            launch {
+                ClockBus.resetPos.collect { req ->
+                    if (req != null) resetPanelPos(req.index)
+                }
+            }
             // Tick de 1s: hora con segundos, volumen y batería en vivo.
             launch {
                 while (true) {
@@ -123,6 +128,27 @@ class ClockOverlayService : Service() {
                 }
             }
         }
+    }
+
+    /** Reubica el panel [index] a su posición inicial (debajo del reloj del sistema). */
+    private fun resetPanelPos(index: Int) {
+        val pw = panels[index]
+        if (pw != null) {
+            pw.resetToDefault()
+        } else {
+            val (x, y) = defaultPos(index)
+            store.saveOsdPos(index, x, y)
+        }
+    }
+
+    /** Posición inicial sin vista: esquina superior izquierda, debajo de la barra. */
+    private fun defaultPos(index: Int): Pair<Int, Int> {
+        val top = statusBarHeightFallback()
+        val margin = dp(4)
+        val gap = dp(6)
+        val x = margin
+        val y = top + margin + index * (dp(40) + gap)
+        return x to y
     }
 
     private fun canOverlay(): Boolean = Settings.canDrawOverlays(this)
@@ -303,6 +329,17 @@ class ClockOverlayService : Service() {
                 })
                 start()
             }
+        }
+
+        /** Anima el panel a su posición inicial: pegado a la izquierda, debajo de
+         *  la barra de estado (junto al reloj del sistema). El panel 2 queda un
+         *  poco más abajo para no solaparse con el panel 1. */
+        fun resetToDefault() {
+            val b = dragBounds(container)
+            val gap = dp(6)
+            val targetX = b[0]
+            val targetY = (b[1] + index * (container.height + gap)).coerceIn(b[1], b[3])
+            animateSnap(targetX, targetY)
         }
 
         /** Reubica el panel dentro de la zona segura si quedó fuera. */

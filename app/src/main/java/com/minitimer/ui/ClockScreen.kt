@@ -366,6 +366,37 @@ fun ClockScreen(vm: TimerViewModel) {
                 }
             }
         }
+
+        // Posición: restaurar a la posición inicial (debajo del reloj del sistema).
+        SettingsGroup(t.clockPosition, accent) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        t.clockResetPos,
+                        color = AppTheme.colors.textPrimary,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(t.clockResetPosDesc, color = AppTheme.colors.textDim, fontSize = 13.sp)
+                }
+                Spacer(Modifier.width(12.dp))
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (panel.enabled) accent else AppTheme.colors.track)
+                        .clickable(enabled = panel.enabled) { vm.resetClockPanelPos(panelIndex) }
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                ) {
+                    Text(
+                        t.reset,
+                        color = if (panel.enabled) AppTheme.colors.onAccent else AppTheme.colors.textDim,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                    )
+                }
+            }
+        }
     }
 }
 

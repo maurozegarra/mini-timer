@@ -511,6 +511,11 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         ClockOverlayService.sync(getApplication(), config.clock)
     }
 
+    /** Restaura la posición inicial del panel [index] (debajo del reloj del sistema). */
+    fun resetClockPanelPos(index: Int) {
+        ClockBus.requestResetPos(index)
+    }
+
     // ---------- Alarma independiente por pestaña ----------
     /** Devuelve el bloque de alarma de la mini-app [scope]. */
     fun alarmFor(scope: AlarmScope): AlarmConfig = when (scope) {
