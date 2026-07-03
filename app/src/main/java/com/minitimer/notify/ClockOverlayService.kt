@@ -130,14 +130,12 @@ class ClockOverlayService : Service() {
         }
     }
 
-    /** Reubica el panel [index] a su posición inicial (debajo del reloj del sistema).
-     *  Si el otro panel está visible, lo alinea a su misma altura para que ambos
-     *  queden en la misma horizontal. */
+    /** Reubica el panel [index] a su posición inicial (debajo del reloj del
+     *  sistema): a la izquierda si es Panel 1, a la derecha si es Panel 2. */
     private fun resetPanelPos(index: Int) {
         val pw = panels[index]
         if (pw != null) {
-            val alignY = panels[1 - index]?.currentY()
-            pw.resetToDefault(alignY)
+            pw.resetToDefault()
         } else {
             val (x, y) = defaultPos(index)
             store.saveOsdPos(index, x, y)
@@ -306,8 +304,6 @@ class ClockOverlayService : Service() {
             }
         }
 
-        fun currentY(): Int = lp.y
-
         private var snapAnim: ValueAnimator? = null
 
         /** Anima el panel desde su posición actual hasta ([targetX], [targetY])
@@ -348,12 +344,12 @@ class ClockOverlayService : Service() {
         }
 
         /** Anima el panel a su posición inicial: debajo de la barra de estado.
-         *  Panel 1 a la izquierda, Panel 2 a la derecha. Si [alignY] no es null,
-         *  usa esa altura (para alinearse con el otro panel). */
-        fun resetToDefault(alignY: Int? = null) {
+         *  Panel 1 a la izquierda, Panel 2 a la derecha. Siempre va a la altura
+         *  por defecto (b[1]), sin depender de dónde esté el otro panel. */
+        fun resetToDefault() {
             val b = dragBounds(container)
             val targetX = if (index == 0) b[0] else b[2]
-            val targetY = (alignY ?: b[1]).coerceIn(b[1], b[3])
+            val targetY = b[1]
             animateSnap(targetX, targetY)
         }
 
