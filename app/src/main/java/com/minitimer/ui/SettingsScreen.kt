@@ -69,13 +69,16 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material.icons.filled.FitnessCenter
+import com.minitimer.AlarmScope
 import com.minitimer.AthleteViewModel
 import com.minitimer.SettingsSection
 import com.minitimer.TimerViewModel
 import com.minitimer.data.BackupManager
 import com.minitimer.i18n.I18n
 import com.minitimer.i18n.Strings
-import com.minitimer.model.Settings
+import com.minitimer.model.AlarmConfig
+import com.minitimer.model.AppConfig
 import java.text.DateFormat
 import java.util.Date
 import com.minitimer.model.ACCENT_COLORS
@@ -101,13 +104,13 @@ import kotlin.math.roundToInt
 )
 @Composable
 fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
-    val s = vm.settings
-    val t = I18n.get(s.language)
+    val c = vm.config
+    val t = I18n.get(c.general.language)
     val accent = AppTheme.colors.accent
     var presetH by remember { mutableStateOf(0) }
     var presetM by remember { mutableStateOf(5) }
     var presetS by remember { mutableStateOf(0) }
-    var showSoundDialog by remember { mutableStateOf(false) }
+    var soundDialogScope by remember { mutableStateOf<AlarmScope?>(null) }
 
     val context = LocalContext.current
     var folderName by remember { mutableStateOf(BackupManager.folderName(context)) }
@@ -146,13 +149,13 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
             .padding(top = 8.dp, bottom = 48.dp),
     ) {
         when (vm.settingsSection) {
-        null -> SettingsCategoryList(vm = vm, s = s, t = t, accent = accent, folderName = folderName)
+        null -> SettingsCategoryList(vm = vm, c = c, t = t, accent = accent, folderName = folderName)
 
         SettingsSection.APPEARANCE -> SettingsGroup(t.groupAppearance, accent) {
             ItemLabel(t.language)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Chip("Español", s.language == "es", accent) { vm.setLanguage("es") }
-                Chip("English", s.language == "en", accent) { vm.setLanguage("en") }
+                Chip("Español", c.general.language == "es", accent) { vm.setLanguage("es") }
+                Chip("English", c.general.language == "en", accent) { vm.setLanguage("en") }
             }
             GroupDivider()
             ItemLabel(t.color)
@@ -161,216 +164,117 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                ACCENT_COLORS.forEach { c ->
-                    val selected = s.accent == c
+                ACCENT_COLORS.forEach { col ->
+                    val selected = c.general.accent == col
                     Box(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(CircleShape)
-                            .background(Color(c))
+                            .background(Color(col))
                             .then(
                                 if (selected) Modifier.border(2.dp, AppTheme.colors.textPrimary, CircleShape)
                                 else Modifier
                             )
-                            .clickable { vm.setAccent(c) }
+                            .clickable { vm.setAccent(col) }
                     )
                 }
             }
             GroupDivider()
             ItemLabel(t.theme)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Chip(t.themeAuto, s.themeMode == THEME_AUTO, accent) { vm.setThemeMode(THEME_AUTO) }
-                Chip(t.themeLight, s.themeMode == THEME_LIGHT, accent) { vm.setThemeMode(THEME_LIGHT) }
-                Chip(t.themeDark, s.themeMode == THEME_DARK, accent) { vm.setThemeMode(THEME_DARK) }
+                Chip(t.themeAuto, c.general.themeMode == THEME_AUTO, accent) { vm.setThemeMode(THEME_AUTO) }
+                Chip(t.themeLight, c.general.themeMode == THEME_LIGHT, accent) { vm.setThemeMode(THEME_LIGHT) }
+                Chip(t.themeDark, c.general.themeMode == THEME_DARK, accent) { vm.setThemeMode(THEME_DARK) }
             }
         }
 
-        SettingsSection.TIMER -> SettingsGroup(t.groupTimer, accent) {
-            ItemLabel(t.presets)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                s.presets.forEach { sec ->
-                    InputChip(
-                        selected = false,
-                        onClick = { vm.removePreset(sec) },
-                        label = {
-                            Text(
-                                formatRemaining(sec * 1000L),
-                                color = accent,
-                                fontFamily = JetBrainsMono,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 14.sp,
-                            )
-                        },
-                        trailingIcon = {
-                            Icon(
-                                Icons.Filled.Close,
-                                contentDescription = "Remove",
-                                modifier = Modifier.size(16.dp),
-                            )
-                        },
-                        shape = RoundedCornerShape(20.dp),
-                        colors = InputChipDefaults.inputChipColors(
-                            containerColor = AppTheme.colors.track,
-                            labelColor = accent,
-                            trailingIconColor = AppTheme.colors.textPrimary,
-                        ),
-                        border = null,
-                    )
-                }
-            }
-            Spacer(Modifier.height(12.dp))
-            WheelTimePicker(
-                h = presetH,
-                m = presetM,
-                s = presetS,
-                accent = accent,
-                t = t,
-                onChange = { h, m, sec -> presetH = h; presetM = m; presetS = sec },
-            )
-            Spacer(Modifier.height(12.dp))
-            val presetSec = presetH * 3600 + presetM * 60 + presetS
-            Button(
-                onClick = { vm.addPresetSeconds(presetSec) },
-                enabled = presetSec > 0,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = accent,
-                    contentColor = AppTheme.colors.onAccent,
-                    disabledContainerColor = AppTheme.colors.track,
-                    disabledContentColor = AppTheme.colors.textDim,
-                ),
-                contentPadding = PaddingValues(vertical = 14.dp),
-            ) {
-                Text(t.add, fontWeight = FontWeight.Bold)
-            }
-            GroupDivider()
-            ItemLabel(t.autoDismiss)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                AUTO_DISMISS_OPTIONS.forEach { v ->
-                    Chip(if (v == 0) t.off else "${v}s", s.autoDismiss == v, accent) {
-                        vm.setAutoDismiss(v)
-                    }
-                }
-            }
-            GroupDivider()
-            ItemLabel(t.addTimeTitle)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                ADD_INCREMENT_OPTIONS.forEach { v ->
-                    Chip(incLabel(v), s.addIncrementSec == v, accent) {
-                        vm.setAddIncrement(v)
-                    }
-                }
-            }
-            GroupDivider()
-            SwitchRow(
-                label = t.padPlayerClock,
-                desc = t.padPlayerClockDesc,
-                checked = s.padPlayerClock,
-                accent = accent,
-                onCheckedChange = { vm.setPadPlayerClock(it) },
-            )
-        }
-
-        SettingsSection.ALARM -> SettingsGroup(t.groupAlarm, accent) {
-            ItemLabel(t.alarmSound)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(AppTheme.colors.track)
-                    .clickable { showSoundDialog = true }
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    s.alarmSoundName ?: t.defaultSound,
-                    color = AppTheme.colors.textPrimary,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.weight(1f),
-                )
-                Icon(
-                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = AppTheme.colors.textDim,
-                )
-            }
-            GroupDivider()
-            val volPct = (s.alarmVolume * 100).roundToInt()
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    t.alarmVolume,
-                    color = AppTheme.colors.textPrimary,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.weight(1f),
-                )
-                AppStepButton("−", accent, enabled = volPct > 0) {
-                    vm.setAlarmVolume(((volPct - 5).coerceAtLeast(0)) / 100f)
-                    vm.previewCurrentAlarmVolume()
-                }
-                Box(Modifier.width(64.dp), contentAlignment = Alignment.Center) {
-                    Text("$volPct%", color = AppTheme.colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-                }
-                AppStepButton("+", accent, enabled = volPct < 100) {
-                    vm.setAlarmVolume(((volPct + 5).coerceAtMost(100)) / 100f)
-                    vm.previewCurrentAlarmVolume()
-                }
-            }
-            GroupDivider()
-            ItemLabel(t.headsetTitle)
-            RadioRow(
-                label = t.headsetBoth,
-                selected = s.headsetMode == SPEAKER_AND_HEADSET,
-                accent = accent,
-            ) { vm.setHeadsetMode(SPEAKER_AND_HEADSET) }
-            RadioRow(
-                label = t.headsetOnly,
-                selected = s.headsetMode == HEADSET_ONLY,
-                accent = accent,
-            ) { vm.setHeadsetMode(HEADSET_ONLY) }
-            GroupDivider()
-            SwitchRow(
-                label = t.ignoreSilent,
-                desc = t.ignoreSilentDesc,
-                checked = s.ignoreSilent,
-                accent = accent,
-                onCheckedChange = { vm.setIgnoreSilent(it) },
-            )
-            GroupDivider()
-            SwitchRow(
-                label = t.vibration,
-                desc = null,
-                checked = s.vibrationEnabled,
-                accent = accent,
-                onCheckedChange = { vm.setVibrationEnabled(it) },
-            )
-            if (s.vibrationEnabled) {
-                Spacer(Modifier.height(12.dp))
+        SettingsSection.TIMER -> {
+            SettingsGroup(t.groupTimer, accent) {
+                ItemLabel(t.presets)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    VIBRATION_PATTERNS.forEachIndexed { index, pattern ->
-                        Chip(
-                            pattern.name,
-                            s.vibrationPattern == index,
-                            accent,
-                        ) {
-                            vm.setVibrationPattern(index)
-                            vm.previewVibration(index)
+                    c.timer.presets.forEach { sec ->
+                        InputChip(
+                            selected = false,
+                            onClick = { vm.removePreset(sec) },
+                            label = {
+                                Text(
+                                    formatRemaining(sec * 1000L),
+                                    color = accent,
+                                    fontFamily = JetBrainsMono,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp,
+                                )
+                            },
+                            trailingIcon = {
+                                Icon(
+                                    Icons.Filled.Close,
+                                    contentDescription = "Remove",
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            },
+                            shape = RoundedCornerShape(20.dp),
+                            colors = InputChipDefaults.inputChipColors(
+                                containerColor = AppTheme.colors.track,
+                                labelColor = accent,
+                                trailingIconColor = AppTheme.colors.textPrimary,
+                            ),
+                            border = null,
+                        )
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                WheelTimePicker(
+                    h = presetH,
+                    m = presetM,
+                    s = presetS,
+                    accent = accent,
+                    t = t,
+                    onChange = { h, m, sec -> presetH = h; presetM = m; presetS = sec },
+                )
+                Spacer(Modifier.height(12.dp))
+                val presetSec = presetH * 3600 + presetM * 60 + presetS
+                Button(
+                    onClick = { vm.addPresetSeconds(presetSec) },
+                    enabled = presetSec > 0,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = accent,
+                        contentColor = AppTheme.colors.onAccent,
+                        disabledContainerColor = AppTheme.colors.track,
+                        disabledContentColor = AppTheme.colors.textDim,
+                    ),
+                    contentPadding = PaddingValues(vertical = 14.dp),
+                ) {
+                    Text(t.add, fontWeight = FontWeight.Bold)
+                }
+                GroupDivider()
+                ItemLabel(t.autoDismiss)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    AUTO_DISMISS_OPTIONS.forEach { v ->
+                        Chip(if (v == 0) t.off else "${v}s", c.timer.autoDismiss == v, accent) {
+                            vm.setAutoDismiss(v)
+                        }
+                    }
+                }
+                GroupDivider()
+                ItemLabel(t.addTimeTitle)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    ADD_INCREMENT_OPTIONS.forEach { v ->
+                        Chip(incLabel(v), c.timer.addIncrementSec == v, accent) {
+                            vm.setAddIncrement(v)
                         }
                     }
                 }
             }
+            AlarmSection(vm, AlarmScope.TIMER, t, accent) { soundDialogScope = AlarmScope.TIMER }
         }
 
         SettingsSection.OVERLAY -> SettingsGroup(t.groupOverlay, accent) {
             SwitchRow(
                 label = t.showNowBar,
                 desc = t.showNowBarDesc,
-                checked = s.showNowBar,
+                checked = c.timer.showNowBar,
                 accent = accent,
                 onCheckedChange = { vm.setShowNowBar(it) },
             )
@@ -378,7 +282,7 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
             SwitchRow(
                 label = t.showOverlay,
                 desc = t.showOverlayDesc,
-                checked = s.showOverlay,
+                checked = c.timer.showOverlay,
                 accent = accent,
                 onCheckedChange = { vm.setShowOverlay(it) },
             )
@@ -386,12 +290,12 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
             SwitchRow(
                 label = t.showRing,
                 desc = t.showRingDesc,
-                checked = s.showRing,
+                checked = c.timer.showRing,
                 accent = accent,
                 onCheckedChange = { vm.setShowRing(it) },
             )
             // Posición del anillo: solo relevante si el anillo está activo.
-            if (s.showRing) {
+            if (c.timer.showRing) {
                 GroupDivider()
                 ItemLabel(t.ringPosition)
                 Text(
@@ -427,6 +331,19 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
                     }
                 }
             }
+        }
+
+        SettingsSection.ATHLETE -> {
+            SettingsGroup(t.tabAthlete, accent) {
+                SwitchRow(
+                    label = t.padPlayerClock,
+                    desc = t.padPlayerClockDesc,
+                    checked = c.athlete.padPlayerClock,
+                    accent = accent,
+                    onCheckedChange = { vm.setPadPlayerClock(it) },
+                )
+            }
+            AlarmSection(vm, AlarmScope.ATHLETE, t, accent) { soundDialogScope = AlarmScope.ATHLETE }
         }
 
         SettingsSection.BACKUP -> SettingsGroup(t.groupBackup, accent) {
@@ -497,7 +414,7 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
             SwitchRow(
                 label = t.developerMode,
                 desc = t.developerModeDesc,
-                checked = s.developerMode,
+                checked = c.general.developerMode,
                 accent = accent,
                 onCheckedChange = { vm.setDeveloperMode(it) },
             )
@@ -505,16 +422,17 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
         }
     }
 
-    if (showSoundDialog) {
+    val dialogScope = soundDialogScope
+    if (dialogScope != null) {
         AlarmSoundPickerDialog(
             vm = vm,
+            scope = dialogScope,
             accent = accent,
-            currentUri = s.alarmSoundUri,
             title = t.alarmSound,
             selectLabel = t.select,
             cancelLabel = t.cancel,
             defaultLabel = t.defaultSound,
-            onDismiss = { showSoundDialog = false },
+            onDismiss = { soundDialogScope = null },
         )
     }
 
@@ -550,8 +468,8 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
 @Composable
 private fun AlarmSoundPickerDialog(
     vm: TimerViewModel,
+    scope: AlarmScope,
     accent: Color,
-    currentUri: String?,
     title: String,
     selectLabel: String,
     cancelLabel: String,
@@ -559,7 +477,8 @@ private fun AlarmSoundPickerDialog(
     onDismiss: () -> Unit,
 ) {
     val sounds = remember { vm.loadAlarmSounds() }
-    var selectedUri by remember { mutableStateOf(currentUri) }
+    val previewVol = vm.alarmFor(scope).volume
+    var selectedUri by remember { mutableStateOf(vm.alarmFor(scope).soundUri) }
 
     fun stopAndDismiss() {
         vm.stopPreview()
@@ -580,7 +499,7 @@ private fun AlarmSoundPickerDialog(
                             .clip(RoundedCornerShape(12.dp))
                             .clickable {
                                 selectedUri = sound.uri
-                                vm.previewSound(sound.uri)
+                                vm.previewTone(sound.uri, previewVol)
                             }
                             .padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -589,7 +508,7 @@ private fun AlarmSoundPickerDialog(
                             selected = selected,
                             onClick = {
                                 selectedUri = sound.uri
-                                vm.previewSound(sound.uri)
+                                vm.previewTone(sound.uri, previewVol)
                             },
                             colors = RadioButtonDefaults.colors(
                                 selectedColor = accent,
@@ -602,7 +521,7 @@ private fun AlarmSoundPickerDialog(
                             fontSize = 15.sp,
                             modifier = Modifier.weight(1f),
                         )
-                        IconButton(onClick = { vm.previewSound(sound.uri) }) {
+                        IconButton(onClick = { vm.previewTone(sound.uri, previewVol) }) {
                             Icon(
                                 Icons.Filled.PlayArrow,
                                 contentDescription = "Play",
@@ -618,7 +537,7 @@ private fun AlarmSoundPickerDialog(
                 onClick = {
                     val name = sounds.firstOrNull { it.uri == selectedUri }?.name
                         ?: defaultLabel
-                    vm.setAlarmSound(selectedUri, name)
+                    vm.setAlarm(scope, vm.alarmFor(scope).copy(soundUri = selectedUri, soundName = name))
                     stopAndDismiss()
                 },
             ) {
@@ -631,6 +550,116 @@ private fun AlarmSoundPickerDialog(
             }
         },
     )
+}
+
+/**
+ * Bloque de alarma reutilizable e INDEPENDIENTE por pestaña. Lee y escribe la
+ * [AlarmConfig] de [scope] vía [vm]; el preview suena EXACTAMENTE como la alarma
+ * real de esa pestaña ("lo que pruebas es lo que suena").
+ */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun AlarmSection(
+    vm: TimerViewModel,
+    scope: AlarmScope,
+    t: Strings,
+    accent: Color,
+    onPickSound: () -> Unit,
+) {
+    val alarm = vm.alarmFor(scope)
+    SettingsGroup(t.groupAlarm, accent) {
+        ItemLabel(t.alarmSound)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(AppTheme.colors.track)
+                .clickable { onPickSound() }
+                .padding(horizontal = 16.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                alarm.soundName ?: t.defaultSound,
+                color = AppTheme.colors.textPrimary,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.weight(1f),
+            )
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = AppTheme.colors.textDim,
+            )
+        }
+        GroupDivider()
+        val volPct = (alarm.volume * 100).roundToInt()
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                t.alarmVolume,
+                color = AppTheme.colors.textPrimary,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f),
+            )
+            AppStepButton("−", accent, enabled = volPct > 0) {
+                vm.setAlarm(scope, alarm.copy(volume = ((volPct - 5).coerceAtLeast(0)) / 100f))
+                vm.previewVolume(vm.alarmFor(scope))
+            }
+            Box(Modifier.width(64.dp), contentAlignment = Alignment.Center) {
+                Text("$volPct%", color = AppTheme.colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            }
+            AppStepButton("+", accent, enabled = volPct < 100) {
+                vm.setAlarm(scope, alarm.copy(volume = ((volPct + 5).coerceAtMost(100)) / 100f))
+                vm.previewVolume(vm.alarmFor(scope))
+            }
+        }
+        GroupDivider()
+        ItemLabel(t.headsetTitle)
+        RadioRow(
+            label = t.headsetBoth,
+            selected = alarm.headsetMode == SPEAKER_AND_HEADSET,
+            accent = accent,
+        ) { vm.setAlarm(scope, alarm.copy(headsetMode = SPEAKER_AND_HEADSET)) }
+        RadioRow(
+            label = t.headsetOnly,
+            selected = alarm.headsetMode == HEADSET_ONLY,
+            accent = accent,
+        ) { vm.setAlarm(scope, alarm.copy(headsetMode = HEADSET_ONLY)) }
+        GroupDivider()
+        SwitchRow(
+            label = t.ignoreSilent,
+            desc = t.ignoreSilentDesc,
+            checked = alarm.ignoreSilent,
+            accent = accent,
+            onCheckedChange = { vm.setAlarm(scope, alarm.copy(ignoreSilent = it)) },
+        )
+        GroupDivider()
+        SwitchRow(
+            label = t.vibration,
+            desc = null,
+            checked = alarm.vibrationEnabled,
+            accent = accent,
+            onCheckedChange = { vm.setAlarm(scope, alarm.copy(vibrationEnabled = it)) },
+        )
+        if (alarm.vibrationEnabled) {
+            Spacer(Modifier.height(12.dp))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                VIBRATION_PATTERNS.forEachIndexed { index, pattern ->
+                    Chip(
+                        pattern.name,
+                        alarm.vibrationPattern == index,
+                        accent,
+                    ) {
+                        vm.setAlarm(scope, alarm.copy(vibrationPattern = index))
+                        vm.previewVibration(index)
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -692,34 +721,30 @@ private fun OffsetStepperRow(
     }
 }
 
-/** Lista principal de categorías (patrón lista + subpantalla). */
+/** Lista principal de categorías, agrupada por mini-app (lista + subpantalla). */
 @Composable
 private fun SettingsCategoryList(
     vm: TimerViewModel,
-    s: Settings,
+    c: AppConfig,
     t: Strings,
     accent: Color,
     folderName: String?,
 ) {
-    val langName = if (s.language == "es") "Español" else "English"
-    val themeName = when (s.themeMode) {
+    val langName = if (c.general.language == "es") "Español" else "English"
+    val themeName = when (c.general.themeMode) {
         THEME_LIGHT -> t.themeLight
         THEME_DARK -> t.themeDark
         else -> t.themeAuto
     }
-    val autoDismissLabel = if (s.autoDismiss == 0) t.off else "${s.autoDismiss}s"
+    val autoDismissLabel = if (c.timer.autoDismiss == 0) t.off else "${c.timer.autoDismiss}s"
     val overlaySummary = listOfNotNull(
-        if (s.showNowBar) t.showNowBar else null,
-        if (s.showOverlay) t.showOverlay else null,
-        if (s.showRing) t.showRing else null,
+        if (c.timer.showNowBar) t.showNowBar else null,
+        if (c.timer.showOverlay) t.showOverlay else null,
+        if (c.timer.showRing) t.showRing else null,
     ).joinToString(" · ").ifBlank { t.off }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(Dims.card))
-            .background(AppTheme.colors.surface),
-    ) {
+    CategoryHeader(t.groupGeneral, accent)
+    CategoryCard {
         SettingsCategoryRow(
             icon = Icons.Filled.Palette,
             title = t.groupAppearance,
@@ -727,24 +752,6 @@ private fun SettingsCategoryList(
             accent = accent,
             first = true,
         ) { vm.settingsSection = SettingsSection.APPEARANCE }
-        SettingsCategoryRow(
-            icon = Icons.Filled.Timer,
-            title = t.groupTimer,
-            subtitle = "${t.autoDismiss}: $autoDismissLabel · ${incLabel(s.addIncrementSec)}",
-            accent = accent,
-        ) { vm.settingsSection = SettingsSection.TIMER }
-        SettingsCategoryRow(
-            icon = Icons.Filled.Notifications,
-            title = t.groupAlarm,
-            subtitle = "${s.alarmSoundName ?: t.defaultSound} · ${(s.alarmVolume * 100).roundToInt()}%",
-            accent = accent,
-        ) { vm.settingsSection = SettingsSection.ALARM }
-        SettingsCategoryRow(
-            icon = Icons.Filled.Layers,
-            title = t.groupOverlay,
-            subtitle = overlaySummary,
-            accent = accent,
-        ) { vm.settingsSection = SettingsSection.OVERLAY }
         SettingsCategoryRow(
             icon = Icons.Filled.Backup,
             title = t.groupBackup,
@@ -754,9 +761,37 @@ private fun SettingsCategoryList(
         SettingsCategoryRow(
             icon = Icons.Filled.Code,
             title = t.groupDeveloper,
-            subtitle = if (s.developerMode) t.on else t.off,
+            subtitle = if (c.general.developerMode) t.on else t.off,
             accent = accent,
         ) { vm.settingsSection = SettingsSection.DEVELOPER }
+    }
+
+    CategoryHeader(t.groupTimer, accent)
+    CategoryCard {
+        SettingsCategoryRow(
+            icon = Icons.Filled.Timer,
+            title = t.groupTimer,
+            subtitle = "${t.autoDismiss}: $autoDismissLabel · ${incLabel(c.timer.addIncrementSec)}",
+            accent = accent,
+            first = true,
+        ) { vm.settingsSection = SettingsSection.TIMER }
+        SettingsCategoryRow(
+            icon = Icons.Filled.Layers,
+            title = t.groupOverlay,
+            subtitle = overlaySummary,
+            accent = accent,
+        ) { vm.settingsSection = SettingsSection.OVERLAY }
+    }
+
+    CategoryHeader(t.tabAthlete, accent)
+    CategoryCard {
+        SettingsCategoryRow(
+            icon = Icons.Filled.FitnessCenter,
+            title = t.tabAthlete,
+            subtitle = c.athlete.alarm.soundName ?: t.defaultSound,
+            accent = accent,
+            first = true,
+        ) { vm.settingsSection = SettingsSection.ATHLETE }
     }
 
     Spacer(Modifier.height(28.dp))
@@ -771,6 +806,30 @@ private fun SettingsCategoryList(
     ) {
         Text(t.reset, fontWeight = FontWeight.SemiBold)
     }
+}
+
+/** Encabezado de un grupo de categorías en la lista de Ajustes. */
+@Composable
+private fun CategoryHeader(text: String, accent: Color) {
+    Text(
+        text,
+        color = accent,
+        fontSize = 13.sp,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(start = 4.dp, top = 20.dp, bottom = 8.dp),
+    )
+}
+
+/** Tarjeta contenedora de filas de categoría (Material 3). */
+@Composable
+private fun CategoryCard(content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(Dims.card))
+            .background(AppTheme.colors.surface),
+        content = content,
+    )
 }
 
 /** Fila de categoría en la lista principal de Ajustes. */

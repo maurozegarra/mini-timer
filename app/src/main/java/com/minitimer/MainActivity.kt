@@ -36,12 +36,12 @@ class MainActivity : ComponentActivity() {
         ensureOverlayPermission()
         setContent {
             val vm: TimerViewModel = viewModel()
-            val dark = when (vm.settings.themeMode) {
+            val dark = when (vm.config.general.themeMode) {
                 THEME_LIGHT -> false
                 THEME_DARK -> true
                 else -> isSystemInDarkTheme()
             }
-            MiniTimerTheme(accent = vm.settings.accent, darkTheme = dark) {
+            MiniTimerTheme(accent = vm.config.general.accent, darkTheme = dark) {
                 TimerApp(vm = vm)
             }
         }

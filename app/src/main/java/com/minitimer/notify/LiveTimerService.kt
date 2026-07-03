@@ -207,7 +207,7 @@ class LiveTimerService : Service() {
         val endAt = TimerBus.endAt.value
         val running = !done && !paused
 
-        val t = I18n.get(SettingsStore(this).load().language)
+        val t = I18n.get(SettingsStore(this).loadConfig().general.language)
 
         // Restante en vivo derivado de endAt (estable).
         val remainingMs = if (endAt > 0L) {

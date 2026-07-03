@@ -325,7 +325,7 @@ class WorkoutPlayerService : Service() {
     }
 
     private fun buildNotification(): Notification {
-        val t = I18n.get(SettingsStore(this).load().language)
+        val t = I18n.get(SettingsStore(this).loadConfig().general.language)
         val step = steps.getOrNull(index)
         val title = stepTitleText(step, t)
         val manual = step?.manual == true
@@ -374,7 +374,7 @@ class WorkoutPlayerService : Service() {
     }
 
     private fun buildCompletedNotification(): Notification {
-        val t = I18n.get(SettingsStore(this).load().language)
+        val t = I18n.get(SettingsStore(this).loadConfig().general.language)
         val pi = PendingIntent.getActivity(
             this,
             0,

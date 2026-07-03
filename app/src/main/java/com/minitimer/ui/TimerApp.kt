@@ -134,8 +134,8 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
-    val t = I18n.get(vm.settings.language)
-    val accent = Color(vm.settings.accent)
+    val t = I18n.get(vm.config.general.language)
+    val accent = Color(vm.config.general.accent)
 
     // Mantener la pantalla encendida siempre que la app esté abierta (en primer plano).
     val view = LocalView.current
@@ -210,8 +210,8 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                             val settingsTitle = when (vm.settingsSection) {
                                 SettingsSection.APPEARANCE -> t.groupAppearance
                                 SettingsSection.TIMER -> t.groupTimer
-                                SettingsSection.ALARM -> t.groupAlarm
                                 SettingsSection.OVERLAY -> t.groupOverlay
+                                SettingsSection.ATHLETE -> t.tabAthlete
                                 SettingsSection.BACKUP -> t.groupBackup
                                 SettingsSection.DEVELOPER -> t.groupDeveloper
                                 null -> t.settings
@@ -342,7 +342,7 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                     subtitle = t.comingSoon,
                 )
             }
-            if (vm.settings.developerMode) {
+            if (vm.config.general.developerMode) {
                 Text(
                     "#$screenNo",
                     color = AppTheme.colors.textFaded.copy(alpha = 0.6f),
@@ -511,7 +511,7 @@ private fun TimerListScreen(
                 accent = accent,
                 t = t,
                 blocked = active != null && active != item.id,
-                incSec = vm.settings.addIncrementSec,
+                incSec = vm.config.timer.addIncrementSec,
                 dragging = dragging,
                 dragOffset = if (dragging) dragOffset else 0f,
                 onHeight = { h -> if (rowHeightPx == 0f) rowHeightPx = h.toFloat() },
@@ -771,7 +771,7 @@ private fun NewTimerSheet(
                 .padding(bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            if (vm.settings.developerMode) {
+            if (vm.config.general.developerMode) {
                 Text(
                     "#3",
                     color = AppTheme.colors.textFaded.copy(alpha = 0.6f),
@@ -808,7 +808,7 @@ private fun NewTimerSheet(
                 t = t,
                 onChange = { h, m, s -> vm.setDraftTime(h, m, s) },
             )
-            val presetSecs = vm.settings.presets
+            val presetSecs = vm.config.timer.presets
             if (presetSecs.isNotEmpty()) {
                 Spacer(Modifier.height(20.dp))
                 val currentSec = vm.setH * 3600 + vm.setM * 60 + vm.setS
@@ -958,7 +958,7 @@ private fun TimerDetailBody(
             if (!isDone) {
                 Spacer(Modifier.height(18.dp))
                 Text(
-                    incLabel(vm.settings.addIncrementSec),
+                    incLabel(vm.config.timer.addIncrementSec),
                     color = accent,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,

@@ -242,13 +242,13 @@ class TimerOverlay(private val context: Context) {
         }
         infoView?.text = buildInfo()
         // Botones de la tarjeta expandida como TEXTO (no íconos).
-        val t = I18n.get(SettingsStore(context).load().language)
+        val t = I18n.get(SettingsStore(context).loadConfig().general.language)
         btnCancel?.text = t.cancel
         btnPause?.text = if (paused) t.resume else t.pause
     }
 
     private fun buildInfo(): String {
-        val t = I18n.get(SettingsStore(context).load().language)
+        val t = I18n.get(SettingsStore(context).loadConfig().general.language)
         val total = TimerBus.totalMs.value
         val endAt = TimerBus.endAt.value
         val durationLabel = formatDurationShort(total)

@@ -9,39 +9,77 @@ const val THEME_AUTO = 0
 const val THEME_LIGHT = 1
 const val THEME_DARK = 2
 
-/** Ajustes configurables, equivalentes a los de la versión web. */
-data class Settings(
-    val accent: Long = 0xFFFF5252,
-    val language: String = "en",
-    val presets: List<Int> = listOf(60, 180, 300, 600, 900, 1800),
-    val autoDismiss: Int = 3,
-    val ignoreSilent: Boolean = true,
-    /** URI del tono de alarma elegido; null = sonido de alarma por defecto del sistema. */
-    val alarmSoundUri: String? = null,
+/**
+ * Configuración de alarma/sonido. Es un bloque reutilizable e INDEPENDIENTE por
+ * mini-app (cada pestaña tiene su propia instancia): sonido, volumen, vibración,
+ * y comportamiento frente a silencio/audífonos.
+ */
+data class AlarmConfig(
+    /** URI del tono elegido; null = sonido de alarma por defecto del sistema. */
+    val soundUri: String? = null,
     /** Nombre legible del tono elegido, para mostrarlo en ajustes. */
-    val alarmSoundName: String? = null,
-    /** Salida de audio con audífonos: [HEADSET_ONLY] o [SPEAKER_AND_HEADSET]. */
-    val headsetMode: Int = HEADSET_ONLY,
-    /** Vibrar al terminar el temporizador. */
+    val soundName: String? = null,
+    /** Volumen de la alarma, 0f..1f (curva perceptual en dB al reproducir). */
+    val volume: Float = 0.25f,
+    /** Vibrar al sonar. */
     val vibrationEnabled: Boolean = false,
     /** Índice del patrón de vibración en [VIBRATION_PATTERNS]. */
     val vibrationPattern: Int = 0,
-    /** Volumen de la alarma, 0f..1f (relativo al volumen del stream). */
-    val alarmVolume: Float = 0.25f,
+    /** Sonar aunque el equipo esté en silencio / No molestar. */
+    val ignoreSilent: Boolean = true,
+    /** Salida de audio con audífonos: [HEADSET_ONLY] o [SPEAKER_AND_HEADSET]. */
+    val headsetMode: Int = HEADSET_ONLY,
+)
+
+/** Ajustes generales, comunes a TODA la app (no dependen de la pestaña). */
+data class GeneralConfig(
+    val accent: Long = 0xFFFF5252,
+    val language: String = "en",
+    /** Tema: [THEME_AUTO] (sigue el sistema), [THEME_LIGHT] o [THEME_DARK]. */
+    val themeMode: Int = THEME_AUTO,
+    /** Modo desarrollador: muestra el número de cada pantalla. */
+    val developerMode: Boolean = false,
+)
+
+/** Ajustes específicos de la pestaña Timer. */
+data class TimerConfig(
+    val presets: List<Int> = listOf(60, 180, 300, 600, 900, 1800),
+    val autoDismiss: Int = 3,
+    /** Incremento (en segundos) del botón "+tiempo" de cada tarjeta. */
+    val addIncrementSec: Int = 30,
     /** Mostrar el anillo de progreso sobre la cámara (overlay). */
     val showRing: Boolean = false,
     /** Mostrar la cápsula/tarjeta flotante (overlay). */
     val showOverlay: Boolean = false,
     /** Promover la notificación como chip / Now Bar. */
     val showNowBar: Boolean = true,
-    /** Incremento (en segundos) del botón "+tiempo" de cada tarjeta. */
-    val addIncrementSec: Int = 30,
-    /** Modo desarrollador: muestra el número de cada pantalla. */
-    val developerMode: Boolean = false,
+    /** Alarma propia de la pestaña Timer. */
+    val alarm: AlarmConfig = AlarmConfig(),
+)
+
+/** Ajustes específicos de la pestaña Athlete. */
+data class AthleteConfig(
     /** Reloj del player con ceros a la izquierda: "00:30" en vez de "30". */
     val padPlayerClock: Boolean = false,
-    /** Tema: [THEME_AUTO] (sigue el sistema), [THEME_LIGHT] o [THEME_DARK]. */
-    val themeMode: Int = THEME_AUTO,
+    /** Alarma propia de la pestaña Athlete. */
+    val alarm: AlarmConfig = AlarmConfig(),
+)
+
+/** Ajustes específicos de la pestaña Water (placeholder; se ampliará). */
+data class WaterConfig(
+    /** Alarma propia de la pestaña Water. */
+    val alarm: AlarmConfig = AlarmConfig(),
+)
+
+/**
+ * Configuración completa de la app: un bloque general + uno por cada mini-app
+ * (pestaña). Añadir una pestaña nueva = añadir su data class aquí.
+ */
+data class AppConfig(
+    val general: GeneralConfig = GeneralConfig(),
+    val timer: TimerConfig = TimerConfig(),
+    val athlete: AthleteConfig = AthleteConfig(),
+    val water: WaterConfig = WaterConfig(),
 )
 
 /** Opciones (en segundos) para el incremento del botón "+tiempo". */

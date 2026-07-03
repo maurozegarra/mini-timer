@@ -91,10 +91,11 @@ class AthleteViewModel(app: Application) : AndroidViewModel(app) {
         customExercises.addAll(store.loadCustomExercises())
     }
 
-    private fun lang(): String = SettingsStore(getApplication()).load().language
+    private fun lang(): String = SettingsStore(getApplication()).loadConfig().general.language
 
     /** Preferencia de reloj del player: ceros a la izquierda ("00:30" vs "30"). */
-    fun padPlayerClock(): Boolean = SettingsStore(getApplication()).load().padPlayerClock
+    fun padPlayerClock(): Boolean =
+        SettingsStore(getApplication()).loadConfig().athlete.padPlayerClock
 
     // ---------- Catálogo de ejercicios ----------
 

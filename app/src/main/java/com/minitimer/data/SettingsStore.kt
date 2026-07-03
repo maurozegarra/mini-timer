@@ -2,8 +2,13 @@ package com.minitimer.data
 
 import android.content.Context
 import com.minitimer.Phase
-import com.minitimer.model.Settings
+import com.minitimer.model.AlarmConfig
+import com.minitimer.model.AppConfig
+import com.minitimer.model.AthleteConfig
+import com.minitimer.model.GeneralConfig
+import com.minitimer.model.TimerConfig
 import com.minitimer.model.TimerItem
+import com.minitimer.model.WaterConfig
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -13,57 +18,181 @@ class SettingsStore(context: Context) {
     private val prefs = context.applicationContext
         .getSharedPreferences("mini_timer", Context.MODE_PRIVATE)
 
-    fun load(): Settings {
-        val defaults = Settings()
-        val presetsCsv = prefs.getString(KEY_PRESETS, null)
-        val presets = presetsCsv
+    /**
+     * Carga la configuración completa. Orden: (1) esquema nuevo JSON por sección;
+     * (2) migración one-time desde las claves planas antiguas (usuario existente);
+     * (3) valores por defecto (instalación limpia).
+     */
+    fun loadConfig(): AppConfig {
+        val generalJson = prefs.getString(KEY_CFG_GENERAL, null)
+        if (generalJson != null) {
+            return AppConfig(
+                general = generalFromJson(generalJson),
+                timer = timerFromJson(prefs.getString(KEY_CFG_TIMER, null)),
+                athlete = athleteFromJson(prefs.getString(KEY_CFG_ATHLETE, null)),
+                water = waterFromJson(prefs.getString(KEY_CFG_WATER, null)),
+            )
+        }
+        if (prefs.contains(KEY_ACCENT) || prefs.contains(KEY_LANGUAGE)) {
+            val migrated = migrateLegacy()
+            saveConfig(migrated)
+            return migrated
+        }
+        return AppConfig()
+    }
+
+    fun saveConfig(c: AppConfig) {
+        prefs.edit()
+            .putString(KEY_CFG_GENERAL, generalToJson(c.general).toString())
+            .putString(KEY_CFG_TIMER, timerToJson(c.timer).toString())
+            .putString(KEY_CFG_ATHLETE, athleteToJson(c.athlete).toString())
+            .putString(KEY_CFG_WATER, waterToJson(c.water).toString())
+            .also { clearLegacyKeys(it) }
+            .apply()
+    }
+
+    // ---------- Migración desde el esquema plano antiguo ----------
+
+    private fun migrateLegacy(): AppConfig {
+        val d = AlarmConfig()
+        val legacyAlarm = AlarmConfig(
+            soundUri = prefs.getString(KEY_ALARM_URI, d.soundUri),
+            soundName = prefs.getString(KEY_ALARM_NAME, d.soundName),
+            volume = prefs.getFloat(KEY_ALARM_VOLUME, d.volume),
+            vibrationEnabled = prefs.getBoolean(KEY_VIBRATION_ENABLED, d.vibrationEnabled),
+            vibrationPattern = prefs.getInt(KEY_VIBRATION_PATTERN, d.vibrationPattern),
+            ignoreSilent = prefs.getBoolean(KEY_IGNORE_SILENT, d.ignoreSilent),
+            headsetMode = prefs.getInt(KEY_HEADSET_MODE, d.headsetMode),
+        )
+        val presets = prefs.getString(KEY_PRESETS, null)
             ?.split(",")
             ?.mapNotNull { it.trim().toIntOrNull() }
             ?.takeIf { it.isNotEmpty() }
-            ?: defaults.presets
-        return Settings(
-            accent = prefs.getLong(KEY_ACCENT, defaults.accent),
-            language = prefs.getString(KEY_LANGUAGE, defaults.language) ?: defaults.language,
-            presets = presets,
-            autoDismiss = prefs.getInt(KEY_AUTO_DISMISS, defaults.autoDismiss),
-            ignoreSilent = prefs.getBoolean(KEY_IGNORE_SILENT, defaults.ignoreSilent),
-            alarmSoundUri = prefs.getString(KEY_ALARM_URI, defaults.alarmSoundUri),
-            alarmSoundName = prefs.getString(KEY_ALARM_NAME, defaults.alarmSoundName),
-            headsetMode = prefs.getInt(KEY_HEADSET_MODE, defaults.headsetMode),
-            vibrationEnabled = prefs.getBoolean(KEY_VIBRATION_ENABLED, defaults.vibrationEnabled),
-            vibrationPattern = prefs.getInt(KEY_VIBRATION_PATTERN, defaults.vibrationPattern),
-            alarmVolume = prefs.getFloat(KEY_ALARM_VOLUME, defaults.alarmVolume),
-            showRing = prefs.getBoolean(KEY_SHOW_RING, defaults.showRing),
-            showOverlay = prefs.getBoolean(KEY_SHOW_OVERLAY, defaults.showOverlay),
-            showNowBar = prefs.getBoolean(KEY_SHOW_NOW_BAR, defaults.showNowBar),
-            addIncrementSec = prefs.getInt(KEY_ADD_INC, defaults.addIncrementSec),
-            developerMode = prefs.getBoolean(KEY_DEV_MODE, defaults.developerMode),
-            padPlayerClock = prefs.getBoolean(KEY_PAD_CLOCK, defaults.padPlayerClock),
-            themeMode = prefs.getInt(KEY_THEME_MODE, defaults.themeMode),
+            ?: TimerConfig().presets
+        val tg = TimerConfig()
+        val gd = GeneralConfig()
+        return AppConfig(
+            general = GeneralConfig(
+                accent = prefs.getLong(KEY_ACCENT, gd.accent),
+                language = prefs.getString(KEY_LANGUAGE, gd.language) ?: gd.language,
+                themeMode = prefs.getInt(KEY_THEME_MODE, gd.themeMode),
+                developerMode = prefs.getBoolean(KEY_DEV_MODE, gd.developerMode),
+            ),
+            timer = TimerConfig(
+                presets = presets,
+                autoDismiss = prefs.getInt(KEY_AUTO_DISMISS, tg.autoDismiss),
+                addIncrementSec = prefs.getInt(KEY_ADD_INC, tg.addIncrementSec),
+                showRing = prefs.getBoolean(KEY_SHOW_RING, tg.showRing),
+                showOverlay = prefs.getBoolean(KEY_SHOW_OVERLAY, tg.showOverlay),
+                showNowBar = prefs.getBoolean(KEY_SHOW_NOW_BAR, tg.showNowBar),
+                alarm = legacyAlarm,
+            ),
+            // Athlete compartía la misma alarma antes: se copia para conservarla.
+            athlete = AthleteConfig(
+                padPlayerClock = prefs.getBoolean(KEY_PAD_CLOCK, AthleteConfig().padPlayerClock),
+                alarm = legacyAlarm,
+            ),
+            water = WaterConfig(),
         )
     }
 
-    fun save(s: Settings) {
-        prefs.edit()
-            .putLong(KEY_ACCENT, s.accent)
-            .putString(KEY_LANGUAGE, s.language)
-            .putString(KEY_PRESETS, s.presets.joinToString(","))
-            .putInt(KEY_AUTO_DISMISS, s.autoDismiss)
-            .putBoolean(KEY_IGNORE_SILENT, s.ignoreSilent)
-            .putString(KEY_ALARM_URI, s.alarmSoundUri)
-            .putString(KEY_ALARM_NAME, s.alarmSoundName)
-            .putInt(KEY_HEADSET_MODE, s.headsetMode)
-            .putBoolean(KEY_VIBRATION_ENABLED, s.vibrationEnabled)
-            .putInt(KEY_VIBRATION_PATTERN, s.vibrationPattern)
-            .putFloat(KEY_ALARM_VOLUME, s.alarmVolume)
-            .putBoolean(KEY_SHOW_RING, s.showRing)
-            .putBoolean(KEY_SHOW_OVERLAY, s.showOverlay)
-            .putBoolean(KEY_SHOW_NOW_BAR, s.showNowBar)
-            .putInt(KEY_ADD_INC, s.addIncrementSec)
-            .putBoolean(KEY_DEV_MODE, s.developerMode)
-            .putBoolean(KEY_PAD_CLOCK, s.padPlayerClock)
-            .putInt(KEY_THEME_MODE, s.themeMode)
-            .apply()
+    // ---------- (De)serialización JSON de la configuración ----------
+
+    private fun alarmToJson(a: AlarmConfig) = JSONObject()
+        .put("soundUri", a.soundUri ?: JSONObject.NULL)
+        .put("soundName", a.soundName ?: JSONObject.NULL)
+        .put("volume", a.volume.toDouble())
+        .put("vibrationEnabled", a.vibrationEnabled)
+        .put("vibrationPattern", a.vibrationPattern)
+        .put("ignoreSilent", a.ignoreSilent)
+        .put("headsetMode", a.headsetMode)
+
+    private fun alarmFromJson(o: JSONObject?): AlarmConfig {
+        val d = AlarmConfig()
+        if (o == null) return d
+        return AlarmConfig(
+            soundUri = if (o.has("soundUri") && !o.isNull("soundUri")) o.getString("soundUri") else null,
+            soundName = if (o.has("soundName") && !o.isNull("soundName")) o.getString("soundName") else null,
+            volume = o.optDouble("volume", d.volume.toDouble()).toFloat(),
+            vibrationEnabled = o.optBoolean("vibrationEnabled", d.vibrationEnabled),
+            vibrationPattern = o.optInt("vibrationPattern", d.vibrationPattern),
+            ignoreSilent = o.optBoolean("ignoreSilent", d.ignoreSilent),
+            headsetMode = o.optInt("headsetMode", d.headsetMode),
+        )
+    }
+
+    private fun generalToJson(g: GeneralConfig) = JSONObject()
+        .put("accent", g.accent)
+        .put("language", g.language)
+        .put("themeMode", g.themeMode)
+        .put("developerMode", g.developerMode)
+
+    private fun generalFromJson(json: String?): GeneralConfig {
+        val d = GeneralConfig()
+        val o = json?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return d
+        return GeneralConfig(
+            accent = o.optLong("accent", d.accent),
+            language = o.optString("language", d.language),
+            themeMode = o.optInt("themeMode", d.themeMode),
+            developerMode = o.optBoolean("developerMode", d.developerMode),
+        )
+    }
+
+    private fun timerToJson(tc: TimerConfig) = JSONObject()
+        .put("presets", JSONArray(tc.presets))
+        .put("autoDismiss", tc.autoDismiss)
+        .put("addIncrementSec", tc.addIncrementSec)
+        .put("showRing", tc.showRing)
+        .put("showOverlay", tc.showOverlay)
+        .put("showNowBar", tc.showNowBar)
+        .put("alarm", alarmToJson(tc.alarm))
+
+    private fun timerFromJson(json: String?): TimerConfig {
+        val d = TimerConfig()
+        val o = json?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return d
+        val presets = o.optJSONArray("presets")?.let { arr ->
+            (0 until arr.length()).map { arr.getInt(it) }
+        }?.takeIf { it.isNotEmpty() } ?: d.presets
+        return TimerConfig(
+            presets = presets,
+            autoDismiss = o.optInt("autoDismiss", d.autoDismiss),
+            addIncrementSec = o.optInt("addIncrementSec", d.addIncrementSec),
+            showRing = o.optBoolean("showRing", d.showRing),
+            showOverlay = o.optBoolean("showOverlay", d.showOverlay),
+            showNowBar = o.optBoolean("showNowBar", d.showNowBar),
+            alarm = alarmFromJson(o.optJSONObject("alarm")),
+        )
+    }
+
+    private fun athleteToJson(ac: AthleteConfig) = JSONObject()
+        .put("padPlayerClock", ac.padPlayerClock)
+        .put("alarm", alarmToJson(ac.alarm))
+
+    private fun athleteFromJson(json: String?): AthleteConfig {
+        val d = AthleteConfig()
+        val o = json?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return d
+        return AthleteConfig(
+            padPlayerClock = o.optBoolean("padPlayerClock", d.padPlayerClock),
+            alarm = alarmFromJson(o.optJSONObject("alarm")),
+        )
+    }
+
+    private fun waterToJson(wc: WaterConfig) = JSONObject()
+        .put("alarm", alarmToJson(wc.alarm))
+
+    private fun waterFromJson(json: String?): WaterConfig {
+        val d = WaterConfig()
+        val o = json?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return d
+        return WaterConfig(alarm = alarmFromJson(o.optJSONObject("alarm")))
+    }
+
+    private fun clearLegacyKeys(e: android.content.SharedPreferences.Editor) {
+        e.remove(KEY_ACCENT).remove(KEY_LANGUAGE).remove(KEY_PRESETS)
+            .remove(KEY_AUTO_DISMISS).remove(KEY_IGNORE_SILENT).remove(KEY_ALARM_URI)
+            .remove(KEY_ALARM_NAME).remove(KEY_HEADSET_MODE).remove(KEY_VIBRATION_ENABLED)
+            .remove(KEY_VIBRATION_PATTERN).remove(KEY_ALARM_VOLUME).remove(KEY_SHOW_RING)
+            .remove(KEY_SHOW_OVERLAY).remove(KEY_SHOW_NOW_BAR).remove(KEY_ADD_INC)
+            .remove(KEY_DEV_MODE).remove(KEY_PAD_CLOCK).remove(KEY_THEME_MODE)
     }
 
     // ---------- Lista de timers (sobrevive a la muerte del proceso) ----------
@@ -171,6 +300,13 @@ class SettingsStore(context: Context) {
         // la cámara con las dimensiones actuales del anillo (38x32dp).
         const val RING_OFFSET_Y_DEFAULT = 3
 
+        // Esquema nuevo: un JSON por sección.
+        const val KEY_CFG_GENERAL = "cfg_general"
+        const val KEY_CFG_TIMER = "cfg_timer"
+        const val KEY_CFG_ATHLETE = "cfg_athlete"
+        const val KEY_CFG_WATER = "cfg_water"
+
+        // Claves planas antiguas (solo se leen en la migración one-time).
         const val KEY_ACCENT = "accent"
         const val KEY_LANGUAGE = "language"
         const val KEY_PRESETS = "presets"
