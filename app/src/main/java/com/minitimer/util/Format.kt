@@ -1,5 +1,6 @@
 package com.minitimer.util
 
+import android.text.format.DateFormat
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -60,7 +61,11 @@ fun formatDurationShort(ms: Long): String {
  * Última finalización con formato relativo:
  * - Hoy: solo la hora ("6:35:01 PM").
  * - Ayer: "Ayer 6:35:01 PM".
- * - Antes: "Hace X días 28 jun 2026 6:35:01 PM".
+ * - Antes: "Hace X días 28 jun 6:35:01 PM".
+ *
+ * El año se omite si la fecha cae dentro de los últimos 12 meses móviles
+ * (hoy − 1 año en adelante); solo se muestra si es más antigua. El patrón sin
+ * año respeta el orden día/mes del idioma vía [DateFormat.getBestDateTimePattern].
  */
 fun formatLastFinished(
     epochMillis: Long,
@@ -77,8 +82,17 @@ fun formatLastFinished(
         days <= 0L -> time
         days == 1L -> "$yesterdayLabel $time"
         else -> {
-            val date = dt.toLocalDate()
-                .format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale))
+            val d = dt.toLocalDate()
+            val withinYear = !d.isBefore(LocalDate.now(zone).minusYears(1))
+            val dateFmt = if (withinYear) {
+                DateTimeFormatter.ofPattern(
+                    DateFormat.getBestDateTimePattern(locale, "MMMd"),
+                    locale,
+                )
+            } else {
+                DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale)
+            }
+            val date = d.format(dateFmt)
             "${String.format(locale, daysAgoTemplate, days)} $date $time"
         }
     }
