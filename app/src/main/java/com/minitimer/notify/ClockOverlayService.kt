@@ -319,6 +319,14 @@ class ClockOverlayService : Service() {
                     lp.gravity = Gravity.TOP or Gravity.START
                     lp.x = (anchor.left - dp(PAD_H)).coerceAtLeast(0)
                 }
+                panel.alignToSystemClock -> {
+                    // Align activo pero el anchor aún no se ha medido (recién
+                    // activado, o accesibilidad conectando). NO saltar al anclaje
+                    // manual del lado opuesto: eso provocaba un parpadeo lado-a-lado
+                    // porque bind() llama a applyPosition() cada segundo. Mantenemos
+                    // la X actual hasta que llegue la medición del reloj del sistema.
+                    lp.gravity = Gravity.TOP or Gravity.START
+                }
                 index == 0 -> {
                     lp.gravity = Gravity.TOP or Gravity.START
                     lp.x = (sa.left + margin + dp(offX)).coerceAtLeast(0)
