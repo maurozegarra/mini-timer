@@ -22,7 +22,6 @@ import android.view.Gravity
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowManager
-import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.res.ResourcesCompat
@@ -231,26 +230,16 @@ class ClockOverlayService : Service() {
     // Una ventana overlay por panel: franja fija con hora + indicadores.
     // ---------------------------------------------------------------------
     private inner class PanelWindow(private val index: Int) {
-        // container = ventana RAÍZ de ancho completo (MATCH_PARENT), un FrameLayout.
-        // Dentro vive la "píldora" (caja con fondo, WRAP_CONTENT) anclada a un borde
-        // con su layout_gravity. FrameLayout mantiene fijo el borde de anclaje aunque
-        // cambie el ancho del contenido: así el borde derecho NO se desplaza al
-        // aparecer/desaparecer [AC], batería, etc., sin medir ni re-attachar.
-        private lateinit var container: FrameLayout
-        private lateinit var pill: LinearLayout
+        // Un solo contenedor WRAP_CONTENT. El anclaje se delega al WindowManager.
+        private lateinit var container: LinearLayout
         private lateinit var mainView: TextView
         private lateinit var memoView: TextView
         private val lp = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            // NOT_TOUCHABLE: el panel es solo informativo (sin arrastre), así los
-            // toques atraviesan la franja y llegan a la app de abajo (evita tapar
-            // íconos accionables que queden bajo el overlay).
-            // FLAG_LAYOUT_NO_LIMITS: permite colocar el panel sobre la barra de estado
-            // (Y por encima del inset). La ventana es de ancho completo y la píldora
-            // se ancla con layout_gravity + márgenes, por lo que el borde de anclaje
-            // queda fijo aunque cambie el ancho del contenido.
+            // NOT_TOUCHABLE: el panel es informativo, toques atraviesan.
+            // FLAG_LAYOUT_NO_LIMITS: permite dibujar sobre la barra de estado.
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
@@ -262,10 +251,6 @@ class ClockOverlayService : Service() {
             val typeface = runCatching {
                 ResourcesCompat.getFont(this@ClockOverlayService, R.font.jetbrains_mono_semibold)
             }.getOrNull()
-            // Usamos maxLines = 1 (no setSingleLine): setSingleLine activa el
-            // BoringLayout, que con esta fuente monoespaciada recorta el último
-            // glifo (los segundos) al medir el ancho. maxLines mide con
-            // StaticLayout y respeta el ancho real del texto.
             mainView = TextView(this@ClockOverlayService).apply {
                 maxLines = 1
                 setTypeface(typeface)
@@ -274,30 +259,18 @@ class ClockOverlayService : Service() {
                 maxLines = 1
                 setTypeface(typeface)
             }
-            pill = LinearLayout(this@ClockOverlayService).apply {
+            container = LinearLayout(this@ClockOverlayService).apply {
                 orientation = LinearLayout.VERTICAL
-                // Panel derecho: alinea sus líneas (medidores y memo) al borde
-                // derecho para que queden pegadas al lado en que se ancla.
+                // Alinea el texto interno hacia el lado del anclaje
                 gravity = if (index == 1) Gravity.END else Gravity.START
                 addView(mainView)
                 addView(memoView)
             }
-            // FrameLayout de ancho completo: la píldora (WRAP_CONTENT) se pega al
-            // borde con su layout_gravity, que fija applyPosition().
-            container = FrameLayout(this@ClockOverlayService).apply {
-                addView(pill, FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.WRAP_CONTENT,
-                    FrameLayout.LayoutParams.WRAP_CONTENT,
-                ))
-            }
-            lp.gravity = Gravity.TOP or Gravity.START
+            // Anclaje base de la ventana
+            lp.gravity = Gravity.TOP or (if (index == 1) Gravity.END else Gravity.START)
             applyStyle(panel)
             return try {
                 wm?.addView(container, lp)
-                // Los overlays reciben los insets reales (barra de estado) de
-                // forma ASÍNCRONA tras el layout: reposicionamos cuando lleguen
-                // para anclar el panel bajo la barra (o donde el usuario lo haya
-                // ajustado con los controles +/-).
                 container.setOnApplyWindowInsetsListener { _, insets ->
                     applyPosition()
                     insets
@@ -325,47 +298,30 @@ class ClockOverlayService : Service() {
             val panel = ClockBus.config.value.panel(index)
             val anchor = ClockBus.clockAnchor.value
             lp.y = (sa.top + dp(BASE_Y_DP) + dp(offY)).coerceAtLeast(0)
-            // Ancho EXPLÍCITO en px = ancho de pantalla. MATCH_PARENT con
-            // FLAG_LAYOUT_NO_LIMITS encoge la ventana al contenido, dejando al
-            // FrameLayout sin espacio libre y anulando la gravity RIGHT (la píldora
-            // quedaba pegada a la izquierda y crecía a la derecha). Con ancho fijo el
-            // FrameLayout ocupa toda la pantalla y el borde derecho ancla de verdad.
-            lp.x = 0
-            lp.width = resources.displayMetrics.widthPixels
-            val flp = pill.layoutParams as FrameLayout.LayoutParams
             when {
                 panel.alignToSystemClock && anchor != null -> {
-                    // Alineado al reloj del sistema: PRECEDENCIA total sobre la X
-                    // manual. La píldora empieza donde el reloj (restando su padding
-                    // lateral) e IGNORA offX; por eso el control X se deshabilita en
-                    // Ajustes mientras la alineación está activa.
-                    flp.gravity = Gravity.TOP or Gravity.LEFT
-                    flp.leftMargin = (anchor.left - dp(PAD_H)).coerceAtLeast(0)
-                    flp.rightMargin = 0
+                    // Alineado al reloj: anclaje START, texto empieza donde el reloj
+                    lp.gravity = Gravity.TOP or Gravity.START
+                    lp.x = (anchor.left - dp(PAD_H)).coerceAtLeast(0)
                 }
                 panel.alignToSystemClock -> {
-                    // Align activo pero el anchor aún no se ha medido (recién
-                    // activado, o accesibilidad conectando). NO saltar al anclaje
-                    // manual del lado opuesto: eso provocaba un parpadeo lado-a-lado.
-                    // Mantenemos el margen actual hasta que llegue la medición.
-                    flp.gravity = Gravity.TOP or Gravity.LEFT
+                    // Align activo pero sin medida aún: mantener anclaje
+                    lp.gravity = Gravity.TOP or Gravity.START
                 }
                 index == 0 -> {
-                    // Panel izquierdo: anclado por su borde IZQUIERDO.
-                    flp.gravity = Gravity.TOP or Gravity.LEFT
-                    flp.leftMargin = (sa.left + margin + dp(offX)).coerceAtLeast(0)
-                    flp.rightMargin = 0
+                    // Panel 1 (izquierdo): anclaje START, se ajusta con offX
+                    lp.gravity = Gravity.TOP or Gravity.START
+                    lp.x = (sa.left + margin + dp(offX)).coerceAtLeast(0)
                 }
                 else -> {
-                    // Panel derecho: anclado por su borde DERECHO. Con gravity RIGHT
-                    // la píldora crece hacia la IZQUIERDA al ensancharse el contenido,
-                    // así el BORDE DERECHO queda FIJO (sin medir ni recalcular x).
-                    flp.gravity = Gravity.TOP or Gravity.RIGHT
-                    flp.rightMargin = (sa.right + margin - dp(offX)).coerceAtLeast(0)
-                    flp.leftMargin = 0
+                    // Panel 2 (derecho): anclaje END. Al establecer Gravity.END, el
+                    // WindowManager ancla el lado derecho de la ventana. lp.x se usa
+                    // ahora como distancia desde el borde derecho real de la pantalla.
+                    // NO recalcular el ancho, la ventana crece hacia la izquierda.
+                    lp.gravity = Gravity.TOP or Gravity.END
+                    lp.x = (sa.right + margin - dp(offX)).coerceAtLeast(0)
                 }
             }
-            pill.layoutParams = flp
             try {
                 wm?.updateViewLayout(container, lp)
             } catch (_: Exception) {
@@ -387,9 +343,9 @@ class ClockOverlayService : Service() {
             memoView.textSize = (sizeSp - 3f).coerceAtLeast(10f)
             val padH = dp(PAD_H)
             val padV = dp(4)
-            pill.setPadding(padH, padV, padH, padV)
+            container.setPadding(padH, padV, padH, padV)
             val bgAlpha = (panel.bgAlpha.coerceIn(0f, 1f) * 255).roundToInt()
-            pill.background = if (bgAlpha == 0) {
+            container.background = if (bgAlpha == 0) {
                 null
             } else {
                 GradientDrawable().apply {
@@ -400,7 +356,7 @@ class ClockOverlayService : Service() {
         }
 
         /** Vincula el contenido de texto (hora/indicadores/memo) y el color. El
-         *  FrameLayout reubica la píldora al cambiar el ancho, sin recolocar aquí. */
+         *  WindowManager reubica la ventana al cambiar el ancho, sin recolocar aquí. */
         fun bind(panel: OsdPanel, now: Date, vol: Int, batt: Int, charging: String?) {
             val color = resolveColor(panel)
             mainView.setTextColor(color)
