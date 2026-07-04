@@ -312,10 +312,12 @@ class ClockOverlayService : Service() {
             lp.y = (sa.top + dp(BASE_Y_DP) + dp(offY)).coerceAtLeast(0)
             when {
                 panel.alignToSystemClock && anchor != null -> {
-                    // Alineado al reloj del sistema: el texto empieza en el reloj
-                    // (restando el padding lateral). offX es un ajuste fino.
+                    // Alineado al reloj del sistema: PRECEDENCIA total sobre la X
+                    // manual. El texto empieza donde el reloj (restando el padding
+                    // lateral) e IGNORA offX; por eso el control X se deshabilita en
+                    // Ajustes mientras la alineación está activa.
                     lp.gravity = Gravity.TOP or Gravity.START
-                    lp.x = (anchor.left - dp(PAD_H) + dp(offX)).coerceAtLeast(0)
+                    lp.x = (anchor.left - dp(PAD_H)).coerceAtLeast(0)
                 }
                 index == 0 -> {
                     lp.gravity = Gravity.TOP or Gravity.START

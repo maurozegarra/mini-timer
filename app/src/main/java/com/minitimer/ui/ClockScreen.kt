@@ -298,13 +298,13 @@ fun ClockScreen(vm: TimerViewModel) {
             Spacer(Modifier.height(12.dp))
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("X", color = AppTheme.colors.textPrimary, fontSize = 15.sp, modifier = Modifier.weight(1f))
-                AppStepButton("−", accent, enabled = panel.enabled) {
+                AppStepButton("−", accent, enabled = panel.enabled && !panel.alignToSystemClock) {
                     vm.nudgeClockPanel(panelIndex, portrait, -1, 0)
                 }
                 Box(Modifier.width(64.dp), contentAlignment = Alignment.Center) {
                     Text("$offX", color = AppTheme.colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
                 }
-                AppStepButton("+", accent, enabled = panel.enabled) {
+                AppStepButton("+", accent, enabled = panel.enabled && !panel.alignToSystemClock) {
                     vm.nudgeClockPanel(panelIndex, portrait, 1, 0)
                 }
             }
