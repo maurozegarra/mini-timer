@@ -208,6 +208,74 @@ fun ClockScreen(vm: TimerViewModel) {
             )
         }
 
+        // Posición: offsets finos por orientación (sin arrastre). Cada orientación
+        // (vertical/horizontal) guarda su propio ajuste; +X derecha, +Y abajo.
+        SettingsGroup(t.clockPosition, accent) {
+            val portrait = LocalConfiguration.current.orientation !=
+                Configuration.ORIENTATION_LANDSCAPE
+            val (offX, offY) = vm.clockOffset(panelIndex, portrait)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    t.clockPosOrientation,
+                    color = AppTheme.colors.textPrimary,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    if (portrait) t.clockPosPortrait else t.clockPosLandscape,
+                    color = accent,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(t.clockPosHint, color = AppTheme.colors.textDim, fontSize = 13.sp)
+            Spacer(Modifier.height(12.dp))
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("X", color = AppTheme.colors.textPrimary, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                AppStepButton("−", accent, enabled = panel.enabled) {
+                    vm.nudgeClockPanel(panelIndex, portrait, -1, 0)
+                }
+                Box(Modifier.width(64.dp), contentAlignment = Alignment.Center) {
+                    Text("$offX", color = AppTheme.colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                }
+                AppStepButton("+", accent, enabled = panel.enabled) {
+                    vm.nudgeClockPanel(panelIndex, portrait, 1, 0)
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("Y", color = AppTheme.colors.textPrimary, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                AppStepButton("−", accent, enabled = panel.enabled) {
+                    vm.nudgeClockPanel(panelIndex, portrait, 0, -1)
+                }
+                Box(Modifier.width(64.dp), contentAlignment = Alignment.Center) {
+                    Text("$offY", color = AppTheme.colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                }
+                AppStepButton("+", accent, enabled = panel.enabled) {
+                    vm.nudgeClockPanel(panelIndex, portrait, 0, 1)
+                }
+            }
+            if (panel.enabled && (offX != 0 || offY != 0)) {
+                Spacer(Modifier.height(12.dp))
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(accent)
+                        .clickable { vm.resetClockPanel(panelIndex, portrait) }
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                ) {
+                    Text(
+                        t.clockResetPos,
+                        color = AppTheme.colors.onAccent,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                    )
+                }
+            }
+        }
+
         // Mantener activo: excluir de optimización de batería.
         SettingsGroup(t.clockKeepAlive, accent) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -365,74 +433,6 @@ fun ClockScreen(vm: TimerViewModel) {
                 AppStepButton("+", accent, enabled = transpPct < 100) {
                     val v = (transpPct + 10).coerceAtMost(100)
                     upd(panel.copy(bgAlpha = 1f - v / 100f))
-                }
-            }
-        }
-
-        // Posición: offsets finos por orientación (sin arrastre). Cada orientación
-        // (vertical/horizontal) guarda su propio ajuste; +X derecha, +Y abajo.
-        SettingsGroup(t.clockPosition, accent) {
-            val portrait = LocalConfiguration.current.orientation !=
-                Configuration.ORIENTATION_LANDSCAPE
-            val (offX, offY) = vm.clockOffset(panelIndex, portrait)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    t.clockPosOrientation,
-                    color = AppTheme.colors.textPrimary,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    if (portrait) t.clockPosPortrait else t.clockPosLandscape,
-                    color = accent,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
-            Spacer(Modifier.height(4.dp))
-            Text(t.clockPosHint, color = AppTheme.colors.textDim, fontSize = 13.sp)
-            Spacer(Modifier.height(12.dp))
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("X", color = AppTheme.colors.textPrimary, fontSize = 15.sp, modifier = Modifier.weight(1f))
-                AppStepButton("−", accent, enabled = panel.enabled) {
-                    vm.nudgeClockPanel(panelIndex, portrait, -1, 0)
-                }
-                Box(Modifier.width(64.dp), contentAlignment = Alignment.Center) {
-                    Text("$offX", color = AppTheme.colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-                }
-                AppStepButton("+", accent, enabled = panel.enabled) {
-                    vm.nudgeClockPanel(panelIndex, portrait, 1, 0)
-                }
-            }
-            Spacer(Modifier.height(8.dp))
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Y", color = AppTheme.colors.textPrimary, fontSize = 15.sp, modifier = Modifier.weight(1f))
-                AppStepButton("−", accent, enabled = panel.enabled) {
-                    vm.nudgeClockPanel(panelIndex, portrait, 0, -1)
-                }
-                Box(Modifier.width(64.dp), contentAlignment = Alignment.Center) {
-                    Text("$offY", color = AppTheme.colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-                }
-                AppStepButton("+", accent, enabled = panel.enabled) {
-                    vm.nudgeClockPanel(panelIndex, portrait, 0, 1)
-                }
-            }
-            if (panel.enabled && (offX != 0 || offY != 0)) {
-                Spacer(Modifier.height(12.dp))
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(accent)
-                        .clickable { vm.resetClockPanel(panelIndex, portrait) }
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                ) {
-                    Text(
-                        t.clockResetPos,
-                        color = AppTheme.colors.onAccent,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
-                    )
                 }
             }
         }
