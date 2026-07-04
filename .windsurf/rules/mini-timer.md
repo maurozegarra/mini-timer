@@ -36,8 +36,9 @@ description: Convenciones de comportamiento para el proyecto mini-timer
 - No generar `mini-timer-debug.apk` ni APKs prestickman.
 
 # Flujo de build
-- Orden: compilar, copiar el APK a `releases/`, hacer commit y push.
-- Confirmar siempre el push con el usuario (no auto-ejecutar el push).
+- Confirmar UNA sola vez al INICIAR el desarrollo de una tarea. Tras esa confirmación, ejecutar todo seguido sin pedir más confirmaciones: desarrollo -> compilación -> commit -> push.
+- Orden del build: compilar, copiar el APK a `releases/`, hacer commit y push.
+- NO pedir confirmación para el push (auto-ejecutarlo dentro del flujo ya confirmado). Priorizar agilidad.
 
 # Reinstalar vs actualizar (al probar)
 - Preferir el camino corto: instalar el APK encima (update), sin desinstalar.
