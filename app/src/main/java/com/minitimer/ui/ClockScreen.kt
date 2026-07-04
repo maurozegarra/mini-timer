@@ -14,7 +14,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,19 +26,28 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -59,6 +67,7 @@ import com.minitimer.model.OSD_TEXT_SIZE_MAX
 import com.minitimer.model.OSD_TEXT_SIZE_MIN
 import com.minitimer.model.OSD_TEXT_SIZE_STEP
 import com.minitimer.model.OsdPanel
+import com.minitimer.ui.athlete.ColorDot
 import com.minitimer.ui.theme.AppTheme
 import kotlin.math.roundToInt
 
@@ -427,28 +436,54 @@ fun ClockScreen(vm: TimerViewModel) {
             }
             if (!panel.autoDarkColor) {
                 GroupDivider()
-                ItemLabel(t.clockTextColor)
+                var showColors by remember { mutableStateOf(false) }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    OSD_TEXT_COLORS.forEach { col ->
-                        val selected = panel.textColor == col
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(Color(col))
-                                .then(
-                                    if (selected) {
-                                        Modifier.border(2.dp, AppTheme.colors.textPrimary, CircleShape)
-                                    } else {
-                                        Modifier
-                                    },
-                                )
-                                .clickable { upd(panel.copy(textColor = col)) },
-                        )
+                    Text(
+                        t.clockTextColor,
+                        color = AppTheme.colors.textPrimary,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f),
+                    )
+                    ColorDot(
+                        color = panel.textColor,
+                        size = 26,
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .clickable { showColors = true },
+                    )
+                }
+                if (showColors) {
+                    ModalBottomSheet(
+                        onDismissRequest = { showColors = false },
+                        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                        containerColor = AppTheme.colors.bg,
+                    ) {
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(5),
+                            modifier = Modifier.fillMaxWidth().padding(20.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                        ) {
+                            items(OSD_TEXT_COLORS) { col ->
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(col))
+                                        .clickable { upd(panel.copy(textColor = col)); showColors = false },
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    if (col == panel.textColor) {
+                                        Icon(Icons.Filled.Check, contentDescription = null, tint = Color.White)
+                                    }
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(16.dp))
                     }
                 }
             }
