@@ -204,10 +204,10 @@ class ClockOverlayService : Service() {
         val parts = mutableListOf<String>()
         if (panel.showDate) parts += dateFmt(panel).format(now)
         if (panel.showTime) parts += timeFmt(panel).format(now)
-        if (panel.showCharging && charging != null) parts += charging
-        // Volumen y batería son "medidores": se agrupan con un separador medio (·)
-        // para diferenciarlos visualmente del resto (hora/fecha) sin pegarlos.
+        // Carga, volumen y batería son "medidores": se agrupan con un separador
+        // medio (·) en el orden [AC] · [vol] · [batt]. [AC] solo aparece si carga.
         val meters = mutableListOf<String>()
+        if (panel.showCharging && charging != null) meters += charging
         if (panel.showVolume) meters += "[$vol]"
         if (panel.showBattery) meters += "[$batt%]"
         if (meters.isNotEmpty()) parts += meters.joinToString(METER_SEP)
@@ -251,12 +251,16 @@ class ClockOverlayService : Service() {
             val typeface = runCatching {
                 ResourcesCompat.getFont(this@ClockOverlayService, R.font.jetbrains_mono_semibold)
             }.getOrNull()
+            // Usamos maxLines = 1 (no setSingleLine): setSingleLine activa el
+            // BoringLayout, que con esta fuente monoespaciada recorta el último
+            // glifo (los segundos) al medir el ancho. maxLines mide con
+            // StaticLayout y respeta el ancho real del texto.
             mainView = TextView(this@ClockOverlayService).apply {
-                setSingleLine(true)
+                maxLines = 1
                 setTypeface(typeface)
             }
             memoView = TextView(this@ClockOverlayService).apply {
-                setSingleLine(true)
+                maxLines = 1
                 setTypeface(typeface)
             }
             container = LinearLayout(this@ClockOverlayService).apply {

@@ -588,8 +588,8 @@ private fun osdMainText(panel: OsdPanel, nowMs: Long, vol: Int, batt: Int, charg
         }
         parts += SimpleDateFormat(pattern, locale).format(Date(nowMs))
     }
-    if (panel.showCharging && charging != null) parts += charging
     val meters = mutableListOf<String>()
+    if (panel.showCharging && charging != null) meters += charging
     if (panel.showVolume) meters += "[$vol]"
     if (panel.showBattery) meters += "[$batt%]"
     if (meters.isNotEmpty()) parts += meters.joinToString(ClockOverlayService.METER_SEP)
