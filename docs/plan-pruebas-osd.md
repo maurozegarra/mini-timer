@@ -46,4 +46,44 @@ Convenciones:
 
 | Versión | Fecha | Casos verificados | Notas |
 |---------|-------|-------------------|-------|
-| 1.0.171 | - | C1–C3 (Align original, referencia buena) | APK de referencia extraído del historial | 
+| 1.0.171 | - | C1–C3 (Align original, referencia buena) | APK de referencia extraído del historial |
+| 1.0.187 | 2026-07-04 | E1/E2 = **FALLA** | Ver "Bug abierto E1/E2" abajo |
+
+## Bug abierto: E1/E2 — borde derecho de P2 no queda fijo
+
+Síntoma (confirmado por el usuario): el panel derecho se comporta como si estuviera
+anclado por la IZQUIERDA. Al aparecer `[AC]` el contenido se ensancha y el borde derecho
+se desplaza a la derecha; al quitarlo, "regresa a su sitio". O sea: el lado que se mantiene
+fijo es el izquierdo, no el derecho.
+
+### Intentos que NO funcionaron
+1. Ventana `WRAP_CONTENT` + recalcular `x = bordeDerecho - anchoMedido` en cada `bind()`
+   (medición manual con `container.measure`).
+2. Re-attach (detach+attach) del panel al detectar cambio de ancho. Falla por timing:
+   la ventana recién re-añadida aún no tiene insets/medición al recolocar.
+3. `FrameLayout` de ancho `MATCH_PARENT` + píldora anclada con `layout_gravity = RIGHT`.
+4. Igual que (3) pero forzando `lp.width = displayMetrics.widthPixels` (ancho explícito en px)
+   para evitar que `FLAG_LAYOUT_NO_LIMITS` encoja la ventana. **Sigue fallando** (v1.0.187).
+
+### Hipótesis pendientes de comprobar CON DATOS (no a ciegas)
+- H1: La ventana NO ocupa el ancho completo real (aunque se fije en px), por lo que el
+  `FrameLayout` no tiene espacio libre y `gravity RIGHT` equivale a LEFT. Posible interacción
+  de `FLAG_LAYOUT_NO_LIMITS` / `FLAG_LAYOUT_IN_SCREEN` con el ancho de la ventana overlay.
+- H2: `displayMetrics.widthPixels` en el Service devuelve un ancho distinto al del espacio de
+  coordenadas de la ventana (cutout / gesture / multiventana), dejando el borde fuera de sitio.
+- H3: El re-layout al cambiar el texto no vuelve a aplicar la `gravity` de la píldora.
+
+### Próximo paso recomendado (obtener DATOS primero)
+Añadir logging TEMPORAL en `ClockOverlayService.applyPosition()` y en un
+`OnLayoutChangeListener` del `container`:
+`Log.d("OSD", "win=${container.width} pill=${pill.width} frameGravity=${flp.gravity} x=${lp.x} y=${lp.y} screenW=${resources.displayMetrics.widthPixels} saRight=${sa.right}")`
+Enchufar/desenchufar y leer con `adb logcat -s OSD`. Con eso se sabe si `container.width`
+es el ancho de pantalla (descarta/confirma H1) y si la píldora se reposiciona.
+
+### Alternativa robusta si H1 se confirma
+Quitar `FLAG_LAYOUT_NO_LIMITS` y comprobar si con ventana normal el ancho `MATCH_PARENT`
+funciona y `gravity RIGHT` ancla. Coste: el panel no podría dibujarse SOBRE la barra de
+estado (perdería el `BASE_Y_DP` negativo); habría que decidir si ese "sobre la barra" se
+mantiene como feature o se sacrifica por el anclaje correcto.
+
+Estado del código al pausar: v1.0.187, enfoque `FrameLayout` ancho completo + ancho explícito.
