@@ -82,19 +82,24 @@ Instrumentación TEMPORAL en `ClockOverlayService.kt` (activada por `DIAG = true
 companion; tag de log `OSD_DIAG`). Registra la **geometría REAL en pantalla** y así
 convierte el bug en datos medibles en vez de conjeturas.
 
-Qué loguea:
+Qué loguea (a logcat con tag `OSD_DIAG` **y** a un archivo `osd_diag.log`):
 - **`OnLayoutChangeListener`** del `container`: en cada re-layout (p. ej. al ensancharse por
   `[AC]`) imprime `winW`, `onScreenX` (posición absoluta con `getLocationOnScreen`),
   `leftEdge`, `rightEdge` (= onScreenX + winW), `lpGravity`, `lpX`, `lpY`, `screenW`.
 - **Cambio de carga** en `updateContent()`: imprime la transición `'[X]' -> '[Y]'` para
   correlacionar el enchufar/desenchufar con los re-layouts.
 
-Cómo capturar (el usuario tiene la carpeta `android-studio` con `platform-tools`):
-1. Instalar el APK de diagnóstico (v1.0.189), activar el OSD con el panel derecho (P2) y
-   dejar visibles carga + batería.
-2. En PC: `adb logcat -c` (limpia) y luego `adb logcat -s OSD_DIAG`.
-3. Enchufar el cargador, esperar 2s, desenchufar, esperar 2s. Repetir 2–3 veces.
-4. Copiar las líneas `OSD_DIAG` y pegarlas aquí.
+Salida a archivo (SIN PC): la app escribe con timestamp a
+`Android/data/com.minitimer/files/osd_diag.log` (vía `getExternalFilesDir`, sin permisos).
+La notificación del overlay incluye un botón **"Compartir log OSD"** (solo en builds DIAG)
+que abre el selector para enviar el archivo por WhatsApp / correo / subirlo aquí.
+
+Cómo capturar (solo con el teléfono):
+1. Instalar el APK de diagnóstico, activar el OSD con el panel derecho (P2) y dejar visibles
+   carga + batería.
+2. Enchufar el cargador, esperar 2s, desenchufar, esperar 2s. Repetir 2–3 veces.
+3. Abrir la notificación del OSD (persistente) y pulsar **"Compartir log OSD"**; enviar el
+   archivo. (Alternativa con PC: `adb logcat -s OSD_DIAG`.)
 
 Cómo LEER el resultado (qué confirma cada cosa):
 - Si `rightEdge` **cambia** entre el estado con `[AC]` y sin `[AC]` → el anclaje derecho NO

@@ -12,8 +12,8 @@ android {
         applicationId = "com.minitimer"
         minSdk = 26
         targetSdk = 36
-        versionCode = 189
-        versionName = "1.0.189"
+        versionCode = 190
+        versionName = "1.0.190"
     }
 
     buildTypes {

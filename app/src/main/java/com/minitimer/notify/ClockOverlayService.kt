@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -25,6 +26,7 @@ import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.core.content.FileProvider
 import androidx.core.content.res.ResourcesCompat
 import com.minitimer.ClockBus
 import com.minitimer.MainActivity
@@ -40,6 +42,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -69,6 +72,25 @@ class ClockOverlayService : Service() {
     // DIAG E1/E2: última etiqueta de carga vista, para loguear solo los cambios.
     private var lastChargingDiag: String? = "?"
 
+    /** DIAG E1/E2: archivo de log accesible por el usuario (compartible desde la
+     *  notificación). En `getExternalFilesDir` no requiere permisos. */
+    private fun diagFile(): File? =
+        getExternalFilesDir(null)?.let { File(it, DIAG_FILE) }
+
+    /** DIAG E1/E2: escribe a logcat y ANEXA al archivo con timestamp. */
+    private fun diag(msg: String) {
+        if (!DIAG) return
+        Log.d(DIAG_TAG, msg)
+        runCatching {
+            val ts = SimpleDateFormat("HH:mm:ss.SSS", Locale.US).format(Date())
+            diagFile()?.appendText("$ts  $msg\n")
+        }
+    }
+
+    private fun appVersion(): String =
+        runCatching { packageManager.getPackageInfo(packageName, 0).versionName ?: "?" }
+            .getOrDefault("?")
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
@@ -76,6 +98,9 @@ class ClockOverlayService : Service() {
     override fun onCreate() {
         super.onCreate()
         locale = I18n.get(store.loadConfig().general.language).locale
+        // DIAG E1/E2: evita que el log crezca sin límite entre sesiones.
+        runCatching { diagFile()?.let { if (it.length() > 200_000) it.delete() } }
+        diag("=== session start (v${appVersion()}) ===")
         ensureChannel()
         // Si el sistema no permite iniciar el FGS (p. ej. arranque restringido en
         // segundo plano), degradar con elegancia en vez de crashear.
@@ -177,7 +202,7 @@ class ClockOverlayService : Service() {
         // DIAG E1/E2: registrar cuando cambia el estado de carga (enchufar/quitar),
         // que es el disparador que ensancha/estrecha el panel derecho.
         if (DIAG && charging != lastChargingDiag) {
-            Log.d(DIAG_TAG, "charging: '$lastChargingDiag' -> '$charging'")
+            diag("charging: '$lastChargingDiag' -> '$charging'")
             lastChargingDiag = charging
         }
         val cfg = ClockBus.config.value
@@ -294,8 +319,7 @@ class ClockOverlayService : Service() {
                         val loc = IntArray(2)
                         v.getLocationOnScreen(loc)
                         val screenW = resources.displayMetrics.widthPixels
-                        Log.d(
-                            DIAG_TAG,
+                        diag(
                             "layout idx=$index text='${mainView.text}' " +
                                 "winW=${r - l} onScreenX=${loc[0]} " +
                                 "leftEdge=${loc[0]} rightEdge=${loc[0] + (r - l)} " +
@@ -455,7 +479,37 @@ class ClockOverlayService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             builder.setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
         }
+        // DIAG E1/E2 (temporal): acción para compartir el archivo de log del OSD
+        // sin necesidad de PC. Quitar junto con la instrumentación DIAG.
+        if (DIAG) {
+            runCatching { addShareLogAction(builder) }
+        }
         return builder.build()
+    }
+
+    /** DIAG E1/E2: añade a la notificación un botón que abre el selector de
+     *  compartir con el archivo `osd_diag.log` (vía FileProvider). */
+    private fun addShareLogAction(builder: Notification.Builder) {
+        val file = diagFile() ?: return
+        if (!file.exists()) file.createNewFile()
+        val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            putExtra(Intent.EXTRA_SUBJECT, "OSD diag log (v${appVersion()})")
+            clipData = ClipData.newRawUri("log", uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        val chooser = Intent.createChooser(send, "Compartir log OSD").apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        val pi = PendingIntent.getActivity(
+            this,
+            3,
+            chooser,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        builder.addAction(Notification.Action.Builder(null, "Compartir log OSD", pi).build())
     }
 
     private fun ensureChannel() {
@@ -503,6 +557,7 @@ class ClockOverlayService : Service() {
          *  Capturar con: adb logcat -s OSD_DIAG */
         const val DIAG = true
         const val DIAG_TAG = "OSD_DIAG"
+        const val DIAG_FILE = "osd_diag.log"
 
         /** Padding horizontal (dp) del contenedor del panel; el texto empieza a
          *  esta distancia del borde. Se usa al alinear con el reloj del sistema. */
