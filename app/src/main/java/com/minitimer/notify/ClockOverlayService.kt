@@ -307,7 +307,7 @@ class ClockOverlayService : Service() {
             val margin = dp(4)
             val panel = ClockBus.config.value.panel(index)
             val anchor = ClockBus.clockAnchor.value
-            lp.y = (sa.top + dp(offY)).coerceAtLeast(0)
+            lp.y = (sa.top + dp(BASE_Y_DP) + dp(offY)).coerceAtLeast(0)
             when {
                 panel.alignToSystemClock && anchor != null -> {
                     // Alineado al reloj del sistema: el texto empieza en el reloj
@@ -477,6 +477,10 @@ class ClockOverlayService : Service() {
         /** Padding horizontal (dp) del contenedor del panel; el texto empieza a
          *  esta distancia del borde. Se usa al alinear con el reloj del sistema. */
         private const val PAD_H = 10
+
+        /** Desplazamiento vertical base (dp) para ambos paneles: sube la franja para
+         *  que quede a la altura deseada. Este valor es el nuevo Y = 0 (offset 0). */
+        private const val BASE_Y_DP = -12
 
         /** Separador entre medidores ([AC]·[vol]·[batt]). Middot pegado (sin
          *  espacios) porque en fuente monoespaciada cada espacio ocupa una celda
