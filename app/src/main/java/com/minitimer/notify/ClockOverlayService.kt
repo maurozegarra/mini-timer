@@ -172,7 +172,24 @@ class ClockOverlayService : Service() {
         val charging = chargingLabel()
         val cfg = ClockBus.config.value
         for (i in 0..1) {
-            panels[i]?.bind(cfg.panel(i), now, vol, batt, charging)
+            val widthChanged = panels[i]?.bind(cfg.panel(i), now, vol, batt, charging) ?: false
+            // Workaround: si cambió el ancho del panel derecho (aparece/desaparece
+            // [AC], batería, volumen...), lo deshabilitamos y habilitamos (re-attach),
+            // que es lo que lo reubica correctamente en su borde derecho.
+            if (widthChanged) reattach(i, now, vol, batt, charging)
+        }
+    }
+
+    /** Re-crea la ventana de un panel (detach + attach) y la revincula. Un attach
+     *  fresco recalcula la posición tras el layout, dejando el borde en su sitio. */
+    private fun reattach(index: Int, now: Date, vol: Int, batt: Int, charging: String?) {
+        val panel = ClockBus.config.value.panel(index)
+        if (!panel.enabled || !canOverlay()) return
+        hidePanel(index)
+        val pw = PanelWindow(index)
+        if (pw.attach(panel)) {
+            panels[index] = pw
+            pw.bind(panel, now, vol, batt, charging)
         }
     }
 
@@ -230,25 +247,23 @@ class ClockOverlayService : Service() {
     // Una ventana overlay por panel: franja fija con hora + indicadores.
     // ---------------------------------------------------------------------
     private inner class PanelWindow(private val index: Int) {
-        // container = ventana RAÍZ de ancho completo (MATCH_PARENT). Dentro vive
-        // la "píldora" (caja con fondo). La píldora se ancla a un borde con la
-        // gravity del layout (START/END) + padding lateral, así el borde queda
-        // FIJO cuando cambia el ancho del contenido, sin recalcular x por frame.
         private lateinit var container: LinearLayout
-        private lateinit var pill: LinearLayout
         private lateinit var mainView: TextView
         private lateinit var memoView: TextView
+        // Ancho del contenido en el último bind. El panel derecho manual se ancla
+        // por su borde derecho; cuando el ancho cambia (aparece/desaparece [AC],
+        // batería, volumen, dígitos de la hora) hay que reubicarlo re-attachándolo.
+        private var lastContentWidth = -1
         private val lp = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             // NOT_TOUCHABLE: el panel es solo informativo (sin arrastre), así los
             // toques atraviesan la franja y llegan a la app de abajo (evita tapar
             // íconos accionables que queden bajo el overlay).
             // FLAG_LAYOUT_NO_LIMITS: permite colocar el panel sobre la barra de estado
-            // (Y por encima del inset). La ventana es de ancho completo y la píldora
-            // se ancla al borde con la gravity del contenedor + padding, por lo que el
-            // borde derecho queda fijo aunque cambie el ancho del contenido.
+            // (Y por encima del inset). El posicionamiento correcto se logra en un
+            // attach fresco; por eso el panel derecho se re-attacha al cambiar de ancho.
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
@@ -272,19 +287,13 @@ class ClockOverlayService : Service() {
                 maxLines = 1
                 setTypeface(typeface)
             }
-            pill = LinearLayout(this@ClockOverlayService).apply {
+            container = LinearLayout(this@ClockOverlayService).apply {
                 orientation = LinearLayout.VERTICAL
                 // Panel derecho: alinea sus líneas (medidores y memo) al borde
                 // derecho para que queden pegadas al lado en que se ancla.
                 gravity = if (index == 1) Gravity.END else Gravity.START
                 addView(mainView)
                 addView(memoView)
-            }
-            // Contenedor raíz de ancho completo: la píldora (WRAP_CONTENT) se
-            // pega al borde con la gravity que fija applyPosition().
-            container = LinearLayout(this@ClockOverlayService).apply {
-                orientation = LinearLayout.HORIZONTAL
-                addView(pill)
             }
             lp.gravity = Gravity.TOP or Gravity.START
             applyStyle(panel)
@@ -324,29 +333,37 @@ class ClockOverlayService : Service() {
             when {
                 panel.alignToSystemClock && anchor != null -> {
                     // Alineado al reloj del sistema: PRECEDENCIA total sobre la X
-                    // manual. La píldora empieza donde el reloj (restando su padding
+                    // manual. El texto empieza donde el reloj (restando el padding
                     // lateral) e IGNORA offX; por eso el control X se deshabilita en
                     // Ajustes mientras la alineación está activa.
-                    container.gravity = Gravity.TOP or Gravity.START
-                    container.setPadding((anchor.left - dp(PAD_H)).coerceAtLeast(0), 0, 0, 0)
+                    lp.gravity = Gravity.TOP or Gravity.START
+                    lp.x = (anchor.left - dp(PAD_H)).coerceAtLeast(0)
                 }
                 panel.alignToSystemClock -> {
                     // Align activo pero el anchor aún no se ha medido (recién
                     // activado, o accesibilidad conectando). NO saltar al anclaje
                     // manual del lado opuesto: eso provocaba un parpadeo lado-a-lado.
-                    // Mantenemos el padding actual hasta que llegue la medición.
-                    container.gravity = Gravity.TOP or Gravity.START
+                    // Mantenemos la X actual hasta que llegue la medición.
+                    lp.gravity = Gravity.TOP or Gravity.START
                 }
                 index == 0 -> {
-                    container.gravity = Gravity.TOP or Gravity.START
-                    container.setPadding((sa.left + margin + dp(offX)).coerceAtLeast(0), 0, 0, 0)
+                    lp.gravity = Gravity.TOP or Gravity.START
+                    lp.x = (sa.left + margin + dp(offX)).coerceAtLeast(0)
                 }
                 else -> {
-                    // Panel derecho: gravity END + padding a la derecha. La píldora
-                    // (WRAP_CONTENT) crece hacia la IZQUIERDA cuando el contenido se
-                    // ensancha, así el BORDE DERECHO queda FIJO sin recalcular ancho.
-                    container.gravity = Gravity.TOP or Gravity.END
-                    container.setPadding(0, 0, (sa.right + margin - dp(offX)).coerceAtLeast(0), 0)
+                    // Panel derecho: x = bordeDerecho - ancho medido. En un attach
+                    // fresco el ancho ya está bien medido (container.post/insets),
+                    // así el borde derecho queda en su sitio. Cuando cambia el ancho
+                    // del contenido se hace un re-attach (ver reattach()).
+                    container.measure(
+                        View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                        View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                    )
+                    val w = container.measuredWidth
+                    val screenW = resources.displayMetrics.widthPixels
+                    val rightEdge = screenW - sa.right - margin + dp(offX)
+                    lp.gravity = Gravity.TOP or Gravity.START
+                    lp.x = (rightEdge - w).coerceAtLeast(0)
                 }
             }
             try {
@@ -370,9 +387,9 @@ class ClockOverlayService : Service() {
             memoView.textSize = (sizeSp - 3f).coerceAtLeast(10f)
             val padH = dp(PAD_H)
             val padV = dp(4)
-            pill.setPadding(padH, padV, padH, padV)
+            container.setPadding(padH, padV, padH, padV)
             val bgAlpha = (panel.bgAlpha.coerceIn(0f, 1f) * 255).roundToInt()
-            pill.background = if (bgAlpha == 0) {
+            container.background = if (bgAlpha == 0) {
                 null
             } else {
                 GradientDrawable().apply {
@@ -382,8 +399,13 @@ class ClockOverlayService : Service() {
             }
         }
 
-        /** Vincula el contenido de texto (hora/indicadores/memo) y el color. */
-        fun bind(panel: OsdPanel, now: Date, vol: Int, batt: Int, charging: String?) {
+        /**
+         * Vincula el contenido de texto (hora/indicadores/memo) y el color.
+         * Devuelve true si el ANCHO del panel derecho manual cambió respecto al
+         * bind anterior: en ese caso el servicio lo re-attacha para reubicar el
+         * borde derecho (workaround simple y fiable frente a recalcular x en vivo).
+         */
+        fun bind(panel: OsdPanel, now: Date, vol: Int, batt: Int, charging: String?): Boolean {
             val color = resolveColor(panel)
             mainView.setTextColor(color)
             memoView.setTextColor(color)
@@ -391,9 +413,17 @@ class ClockOverlayService : Service() {
             val showMemo = panel.showMemo && panel.memo.isNotBlank()
             memoView.visibility = if (showMemo) View.VISIBLE else View.GONE
             if (showMemo) memoView.text = panel.memo
-            // Ya no recalculamos la posición aquí: la ventana es de ancho completo
-            // y la píldora se ancla al borde con la gravity del contenedor, así el
-            // borde derecho queda fijo automáticamente aunque cambie el ancho.
+            // Solo el panel derecho manual se ancla por su borde derecho; el
+            // izquierdo y el alineado crecen sin mover su borde de referencia.
+            if (index != 1 || panel.alignToSystemClock) return false
+            container.measure(
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+            )
+            val w = container.measuredWidth
+            val changed = lastContentWidth != -1 && w != lastContentWidth
+            lastContentWidth = w
+            return changed
         }
 
     }
