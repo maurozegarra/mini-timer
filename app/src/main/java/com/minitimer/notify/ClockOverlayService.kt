@@ -285,6 +285,16 @@ class ClockOverlayService : Service() {
                 }
                 container.requestApplyInsets()
                 container.post { applyPosition() }
+                // Panel derecho: cuando cambia el ANCHO del contenido (aparece/
+                // desaparece [AC], etc.) el layout ya asentó las medidas; re-anclamos
+                // al borde derecho con el ancho real. Solo si el ancho cambió, para
+                // no reposicionar en cada layout.
+                if (index == 1) {
+                    container.addOnLayoutChangeListener {
+                            _, left, _, right, _, oldLeft, _, oldRight, _ ->
+                        if (right - left != oldRight - oldLeft) applyPosition()
+                    }
+                }
                 true
             } catch (_: Exception) {
                 false
@@ -317,14 +327,20 @@ class ClockOverlayService : Service() {
                 index == 0 ->
                     (sa.left + margin + dp(offX)).coerceAtLeast(0)
                 else -> {
-                    // Panel derecho: ancla el BORDE DERECHO. Medimos el ancho actual
-                    // del contenido y calculamos x = bordeDerecho - ancho, para que
-                    // el borde no se mueva al cambiar el contenido (p. ej. [AC]).
-                    container.measure(
-                        View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
-                        View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
-                    )
-                    val w = container.measuredWidth
+                    // Panel derecho: ancla el BORDE DERECHO. Usamos el ancho REAL ya
+                    // medido por el layout (container.width); si aún no hay layout, lo
+                    // medimos como respaldo. La reposición al cambiar el contenido
+                    // (p. ej. aparece/desaparece [AC]) la dispara el
+                    // OnLayoutChangeListener de attach, con el ancho ya asentado.
+                    val w = if (container.width > 0) {
+                        container.width
+                    } else {
+                        container.measure(
+                            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                        )
+                        container.measuredWidth
+                    }
                     val screenW = resources.displayMetrics.widthPixels
                     val rightEdge = screenW - sa.right - margin + dp(offX)
                     (rightEdge - w).coerceAtLeast(0)
@@ -372,9 +388,6 @@ class ClockOverlayService : Service() {
             val showMemo = panel.showMemo && panel.memo.isNotBlank()
             memoView.visibility = if (showMemo) View.VISIBLE else View.GONE
             if (showMemo) memoView.text = panel.memo
-            // El ancho del contenido cambia (p. ej. aparece/desaparece [AC]); tras
-            // remedir, re-anclamos para que el borde de anclaje no se desplace.
-            container.post { applyPosition() }
         }
 
     }
