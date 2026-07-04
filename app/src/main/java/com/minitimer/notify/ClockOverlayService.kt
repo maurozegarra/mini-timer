@@ -240,11 +240,13 @@ class ClockOverlayService : Service() {
             // NOT_TOUCHABLE: el panel es solo informativo (sin arrastre), así los
             // toques atraviesan la franja y llegan a la app de abajo (evita tapar
             // íconos accionables que queden bajo el overlay).
-            // Sin FLAG_LAYOUT_NO_LIMITS a propósito: con esa bandera WindowManager NO
-            // re-ancla una ventana WRAP_CONTENT con gravedad END al encoger el
-            // contenido (el panel derecho se desalineaba al desaparecer [AC]).
+            // FLAG_LAYOUT_NO_LIMITS: permite colocar el panel sobre la barra de estado
+            // (Y por encima del inset). Con esta bandera WindowManager NO re-ancla solo
+            // una ventana WRAP_CONTENT, por eso el panel derecho recalcula su x en
+            // bind() a partir del ancho medido, manteniendo fijo el borde derecho.
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT,
         )
@@ -320,12 +322,19 @@ class ClockOverlayService : Service() {
                     lp.x = (sa.left + margin + dp(offX)).coerceAtLeast(0)
                 }
                 else -> {
-                    // Panel derecho: gravedad END; WindowManager fija el borde derecho
-                    // y lo re-ancla nativamente al cambiar el ancho del contenido
-                    // (p. ej. aparece/desaparece [AC]). lp.x = distancia desde la
-                    // derecha; +offX lo acerca al borde.
-                    lp.gravity = Gravity.TOP or Gravity.END
-                    lp.x = (sa.right + margin - dp(offX)).coerceAtLeast(0)
+                    // Panel derecho: gravedad START con x explícita = bordeDerecho -
+                    // ancho medido. bind() vuelve a llamar aquí en cada actualización
+                    // de contenido, así el BORDE DERECHO queda fijo aunque cambie el
+                    // ancho (aparece/desaparece [AC], memo, etc.).
+                    container.measure(
+                        View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                        View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                    )
+                    val w = container.measuredWidth
+                    val screenW = resources.displayMetrics.widthPixels
+                    val rightEdge = screenW - sa.right - margin + dp(offX)
+                    lp.gravity = Gravity.TOP or Gravity.START
+                    lp.x = (rightEdge - w).coerceAtLeast(0)
                 }
             }
             try {
@@ -370,6 +379,10 @@ class ClockOverlayService : Service() {
             val showMemo = panel.showMemo && panel.memo.isNotBlank()
             memoView.visibility = if (showMemo) View.VISIBLE else View.GONE
             if (showMemo) memoView.text = panel.memo
+            // Panel derecho: el ancho del contenido cambia (p. ej. [AC], memo); con
+            // FLAG_LAYOUT_NO_LIMITS WindowManager no re-ancla solo, así que
+            // recalculamos x aquí para mantener fijo el borde derecho.
+            if (index == 1) applyPosition()
         }
 
     }
