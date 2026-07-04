@@ -39,6 +39,11 @@ private const val OSD_OFFSET_LIMIT = 300
  *  agrupan estas categorías; la alarma vive dentro de cada pestaña. */
 enum class SettingsSection { APPEARANCE, TIMER, OVERLAY, ATHLETE, BACKUP, DEVELOPER }
 
+/** Raíz de Ajustes: General (global, transversal a la app) o la config propia
+ *  de una pestaña. Cada pestaña es una app independiente; General solo se abre
+ *  desde Timer. */
+enum class SettingsRoot { GENERAL, TIMER, ATHLETE }
+
 /** Mini-app (pestaña) dueña de un bloque de alarma independiente. */
 enum class AlarmScope { TIMER, ATHLETE, WATER }
 
@@ -58,6 +63,16 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Sección de Ajustes abierta (null = lista de categorías). */
     var settingsSection by mutableStateOf<SettingsSection?>(null)
+
+    /** Raíz de Ajustes abierta: General (global) o la config propia de una pestaña. */
+    var settingsRoot by mutableStateOf(SettingsRoot.GENERAL)
+
+    /** Abre Ajustes en la raíz [root], mostrando su lista de categorías. */
+    fun openSettings(root: SettingsRoot) {
+        settingsRoot = root
+        settingsSection = null
+        showSettings = true
+    }
 
     /** Id del timer cuya pantalla de detalle está abierta; null si ninguna. */
     var detailId by mutableStateOf<Long?>(null)

@@ -38,8 +38,9 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -109,6 +110,7 @@ import androidx.compose.ui.unit.sp
 import com.minitimer.AthleteViewModel
 import com.minitimer.Phase
 import com.minitimer.R
+import com.minitimer.SettingsRoot
 import com.minitimer.SettingsSection
 import com.minitimer.TimerViewModel
 import com.minitimer.data.ExerciseCatalog
@@ -214,7 +216,11 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                                 SettingsSection.ATHLETE -> t.tabAthlete
                                 SettingsSection.BACKUP -> t.groupBackup
                                 SettingsSection.DEVELOPER -> t.groupDeveloper
-                                null -> t.settings
+                                null -> when (vm.settingsRoot) {
+                                    SettingsRoot.GENERAL -> t.groupGeneral
+                                    SettingsRoot.TIMER -> t.groupTimer
+                                    SettingsRoot.ATHLETE -> t.tabAthlete
+                                }
                             }
                             Text(settingsTitle, color = AppTheme.colors.textPrimary, fontWeight = FontWeight.SemiBold)
                         }
@@ -277,6 +283,11 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                                 tint = if (athleteRunning) Color.White else AppTheme.colors.textPrimary,
                             )
                         }
+                    } else if (selectedTab == 0) {
+                        // Solo en Timer: engranaje (outline) que abre la config General (global).
+                        IconButton(onClick = { vm.openSettings(SettingsRoot.GENERAL) }) {
+                            Icon(Icons.Outlined.Settings, contentDescription = "General", tint = AppTheme.colors.textDim)
+                        }
                     }
                 },
                 actions = {
@@ -297,9 +308,13 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                                 }
                             }
                         }
-                        else -> IconButton(onClick = { vm.settingsSection = null; vm.showSettings = true }) {
-                            Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = AppTheme.colors.textDim)
+                        selectedTab == 0 -> IconButton(onClick = { vm.openSettings(SettingsRoot.TIMER) }) {
+                            Icon(Icons.Filled.Tune, contentDescription = "Timer settings", tint = AppTheme.colors.textDim)
                         }
+                        selectedTab == 1 -> IconButton(onClick = { vm.openSettings(SettingsRoot.ATHLETE) }) {
+                            Icon(Icons.Filled.Tune, contentDescription = "Athlete settings", tint = AppTheme.colors.textDim)
+                        }
+                        else -> {}
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
