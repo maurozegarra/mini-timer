@@ -205,8 +205,12 @@ class ClockOverlayService : Service() {
         if (panel.showDate) parts += dateFmt(panel).format(now)
         if (panel.showTime) parts += timeFmt(panel).format(now)
         if (panel.showCharging && charging != null) parts += charging
-        if (panel.showVolume) parts += "[$vol]"
-        if (panel.showBattery) parts += "[$batt%]"
+        // Volumen y batería son "medidores": se agrupan con un separador medio (·)
+        // para diferenciarlos visualmente del resto (hora/fecha) sin pegarlos.
+        val meters = mutableListOf<String>()
+        if (panel.showVolume) meters += "[$vol]"
+        if (panel.showBattery) meters += "[$batt%]"
+        if (meters.isNotEmpty()) parts += meters.joinToString(METER_SEP)
         return parts.joinToString("  ")
     }
 
@@ -233,7 +237,11 @@ class ClockOverlayService : Service() {
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            // NOT_TOUCHABLE: el panel es solo informativo (sin arrastre), así los
+            // toques atraviesan la franja y llegan a la app de abajo (evita tapar
+            // íconos accionables que queden bajo el overlay).
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT,
@@ -455,6 +463,10 @@ class ClockOverlayService : Service() {
         /** Padding horizontal (dp) del contenedor del panel; el texto empieza a
          *  esta distancia del borde. Se usa al alinear con el reloj del sistema. */
         private const val PAD_H = 10
+
+        /** Separador entre medidores (volumen · batería). Debe coincidir con el
+         *  preview de Ajustes para que se vea igual que el overlay real. */
+        const val METER_SEP = " · "
 
         /** Arranca o refresca el servicio si algún panel está activo; si no, lo detiene. */
         fun sync(context: Context, config: ClockConfig) {

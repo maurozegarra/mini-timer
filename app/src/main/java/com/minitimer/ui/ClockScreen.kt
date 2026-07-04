@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.minitimer.TimerViewModel
 import com.minitimer.notify.ClockAlignAccessibilityService
+import com.minitimer.notify.ClockOverlayService
 import com.minitimer.i18n.I18n
 import com.minitimer.model.OSD_TEXT_COLORS
 import com.minitimer.model.OSD_TEXT_SIZE_MAX
@@ -588,8 +589,10 @@ private fun osdMainText(panel: OsdPanel, nowMs: Long, vol: Int, batt: Int, charg
         parts += SimpleDateFormat(pattern, locale).format(Date(nowMs))
     }
     if (panel.showCharging && charging != null) parts += charging
-    if (panel.showVolume) parts += "[$vol]"
-    if (panel.showBattery) parts += "[$batt%]"
+    val meters = mutableListOf<String>()
+    if (panel.showVolume) meters += "[$vol]"
+    if (panel.showBattery) meters += "[$batt%]"
+    if (meters.isNotEmpty()) parts += meters.joinToString(ClockOverlayService.METER_SEP)
     return parts.joinToString("  ").ifBlank { " " }
 }
 
