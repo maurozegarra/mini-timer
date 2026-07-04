@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="clock_align_acc_label">Mini Timer · Alinear reloj</string>
-    <string name="clock_align_acc_desc">Permite que el panel del reloj flotante siga la posición exacta de la hora de la barra de estado. Mini Timer solo lee la posición del reloj del sistema; no recopila ni envía ningún contenido de pantalla.</string>
+    <string name="clock_align_acc_label">Mini Timer · Align clock</string>
+    <string name="clock_align_acc_desc">Lets the floating clock panel follow the exact position of the status bar time. Mini Timer only reads the system clock position; it does not collect or send any screen content.</string>
 </resources>

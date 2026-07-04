@@ -53,6 +53,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -64,9 +65,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.minitimer.TimerViewModel
 import com.minitimer.notify.ClockAlignAccessibilityService
 import com.minitimer.i18n.I18n
@@ -145,6 +149,19 @@ fun ClockScreen(vm: TimerViewModel) {
     fun openAccessibilitySettings() {
         runCatching { accLauncher.launch(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
     }
+    // El permiso de Accesibilidad puede revocarse fuera de la app; re-evaluamos al
+    // volver a primer plano para que el estado (y el check de Align) sea coherente.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) accTick++
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    // Align efectivo = intención del usuario Y permiso concedido. Si no hay permiso,
+    // el check NO debe aparecer activo y el control X no debe quedar bloqueado.
+    val alignActive = panel.alignToSystemClock && accessibilityOn
 
     Column(
         modifier = Modifier
@@ -232,7 +249,7 @@ fun ClockScreen(vm: TimerViewModel) {
                 SwitchRow(
                     label = t.clockAlign,
                     desc = t.clockAlignDesc,
-                    checked = panel.alignToSystemClock,
+                    checked = alignActive,
                     accent = accent,
                     onCheckedChange = { on ->
                         if (on && !accessibilityOn) openAccessibilitySettings()
@@ -264,14 +281,6 @@ fun ClockScreen(vm: TimerViewModel) {
                             )
                         }
                     }
-                } else if (panel.alignToSystemClock) {
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        t.clockAlignActive,
-                        color = accent,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
                 }
                 GroupDivider()
             }
@@ -298,13 +307,13 @@ fun ClockScreen(vm: TimerViewModel) {
             Spacer(Modifier.height(12.dp))
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("X", color = AppTheme.colors.textPrimary, fontSize = 15.sp, modifier = Modifier.weight(1f))
-                AppStepButton("−", accent, enabled = panel.enabled && !panel.alignToSystemClock) {
+                AppStepButton("−", accent, enabled = panel.enabled && !alignActive) {
                     vm.nudgeClockPanel(panelIndex, portrait, -1, 0)
                 }
                 Box(Modifier.width(64.dp), contentAlignment = Alignment.Center) {
                     Text("$offX", color = AppTheme.colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
                 }
-                AppStepButton("+", accent, enabled = panel.enabled && !panel.alignToSystemClock) {
+                AppStepButton("+", accent, enabled = panel.enabled && !alignActive) {
                     vm.nudgeClockPanel(panelIndex, portrait, 1, 0)
                 }
             }
