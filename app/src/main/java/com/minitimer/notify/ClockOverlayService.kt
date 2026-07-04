@@ -325,6 +325,13 @@ class ClockOverlayService : Service() {
             val panel = ClockBus.config.value.panel(index)
             val anchor = ClockBus.clockAnchor.value
             lp.y = (sa.top + dp(BASE_Y_DP) + dp(offY)).coerceAtLeast(0)
+            // Ancho EXPLÍCITO en px = ancho de pantalla. MATCH_PARENT con
+            // FLAG_LAYOUT_NO_LIMITS encoge la ventana al contenido, dejando al
+            // FrameLayout sin espacio libre y anulando la gravity RIGHT (la píldora
+            // quedaba pegada a la izquierda y crecía a la derecha). Con ancho fijo el
+            // FrameLayout ocupa toda la pantalla y el borde derecho ancla de verdad.
+            lp.x = 0
+            lp.width = resources.displayMetrics.widthPixels
             val flp = pill.layoutParams as FrameLayout.LayoutParams
             when {
                 panel.alignToSystemClock && anchor != null -> {
