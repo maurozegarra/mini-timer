@@ -265,6 +265,9 @@ class ClockOverlayService : Service() {
             }
             container = LinearLayout(this@ClockOverlayService).apply {
                 orientation = LinearLayout.VERTICAL
+                // Panel derecho: alinea sus líneas (medidores y memo) al borde
+                // derecho para que queden pegadas al lado en que se ancla.
+                gravity = if (index == 1) Gravity.END else Gravity.START
                 addView(mainView)
                 addView(memoView)
             }
@@ -360,6 +363,9 @@ class ClockOverlayService : Service() {
             val showMemo = panel.showMemo && panel.memo.isNotBlank()
             memoView.visibility = if (showMemo) View.VISIBLE else View.GONE
             if (showMemo) memoView.text = panel.memo
+            // El ancho del contenido cambia (p. ej. aparece/desaparece [AC]); tras
+            // remedir, re-anclamos para que el borde de anclaje no se desplace.
+            container.post { applyPosition() }
         }
 
     }
@@ -468,9 +474,10 @@ class ClockOverlayService : Service() {
          *  esta distancia del borde. Se usa al alinear con el reloj del sistema. */
         private const val PAD_H = 10
 
-        /** Separador entre medidores (volumen · batería). Debe coincidir con el
-         *  preview de Ajustes para que se vea igual que el overlay real. */
-        const val METER_SEP = " · "
+        /** Separador entre medidores ([AC]·[vol]·[batt]). Middot pegado (sin
+         *  espacios) porque en fuente monoespaciada cada espacio ocupa una celda
+         *  completa y se veía demasiado ancho. Debe coincidir con el preview. */
+        const val METER_SEP = "·"
 
         /** Arranca o refresca el servicio si algún panel está activo; si no, lo detiene. */
         fun sync(context: Context, config: ClockConfig) {
