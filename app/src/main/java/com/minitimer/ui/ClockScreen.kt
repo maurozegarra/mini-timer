@@ -9,6 +9,11 @@ import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -277,22 +282,27 @@ fun ClockScreen(vm: TimerViewModel) {
         }
 
         // Mantener activo: excluir de optimización de batería.
-        SettingsGroup(t.clockKeepAlive, accent) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        t.clockBattOpt,
-                        color = AppTheme.colors.textPrimary,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(t.clockBattOptDesc, color = AppTheme.colors.textDim, fontSize = 13.sp)
-                }
-                Spacer(Modifier.width(12.dp))
-                if (ignoringBattery) {
-                    Text(t.clockBattExcluded, color = accent, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                } else {
+        // Una vez concedido el permiso, el grupo se desvanece (fade + encoger +
+        // escalar), como el "no me quiero ir, señor Stark".
+        AnimatedVisibility(
+            visible = !ignoringBattery,
+            exit = fadeOut(tween(800)) +
+                scaleOut(targetScale = 0.8f, animationSpec = tween(800)) +
+                shrinkVertically(tween(800)),
+        ) {
+            SettingsGroup(t.clockKeepAlive, accent) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            t.clockBattOpt,
+                            color = AppTheme.colors.textPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(t.clockBattOptDesc, color = AppTheme.colors.textDim, fontSize = 13.sp)
+                    }
+                    Spacer(Modifier.width(12.dp))
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(12.dp))
