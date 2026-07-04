@@ -47,7 +47,9 @@ Convenciones:
 | Versión | Fecha | Casos verificados | Notas |
 |---------|-------|-------------------|-------|
 | 1.0.171 | - | C1–C3 (Align original, referencia buena) | APK de referencia extraído del historial |
-| 1.0.187 | 2026-07-04 | E1/E2 = **FALLA** | Ver "Bug abierto E1/E2" abajo |
+| 1.0.187 | 2026-07-04 | E1/E2 = **FALLA** | Intento con FrameLayout de ancho explícito |
+| 1.0.188 | 2026-07-04 | E1/E2 = **FALLA** | Anclaje nativo vía `Gravity.END` (WRAP_CONTENT) |
+| 1.0.189 | 2026-07-04 | E1/E2 = pendiente (build de DIAGNÓSTICO) | Instrumentación de logging, ver sección abajo |
 
 ## Bug abierto: E1/E2 — borde derecho de P2 no queda fijo
 
@@ -63,27 +65,52 @@ fijo es el izquierdo, no el derecho.
    la ventana recién re-añadida aún no tiene insets/medición al recolocar.
 3. `FrameLayout` de ancho `MATCH_PARENT` + píldora anclada con `layout_gravity = RIGHT`.
 4. Igual que (3) pero forzando `lp.width = displayMetrics.widthPixels` (ancho explícito en px)
-   para evitar que `FLAG_LAYOUT_NO_LIMITS` encoja la ventana. **Sigue fallando** (v1.0.187).
+   para evitar que `FLAG_LAYOUT_NO_LIMITS` encoja la ventana (v1.0.187). **Falla.**
+5. Anclaje nativo del `WindowManager`: `lp.gravity = TOP or END` con la ventana `WRAP_CONTENT`
+   (el OS debería sujetar el borde derecho automáticamente) (v1.0.188). **Falla.**
 
 ### Hipótesis pendientes de comprobar CON DATOS (no a ciegas)
-- H1: La ventana NO ocupa el ancho completo real (aunque se fije en px), por lo que el
-  `FrameLayout` no tiene espacio libre y `gravity RIGHT` equivale a LEFT. Posible interacción
-  de `FLAG_LAYOUT_NO_LIMITS` / `FLAG_LAYOUT_IN_SCREEN` con el ancho de la ventana overlay.
+- H1: La ventana no ocupa/ancla al ancho real esperado; `FLAG_LAYOUT_NO_LIMITS` /
+  `FLAG_LAYOUT_IN_SCREEN` interfieren en el eje horizontal y neutralizan `Gravity.END`.
 - H2: `displayMetrics.widthPixels` en el Service devuelve un ancho distinto al del espacio de
   coordenadas de la ventana (cutout / gesture / multiventana), dejando el borde fuera de sitio.
-- H3: El re-layout al cambiar el texto no vuelve a aplicar la `gravity` de la píldora.
+- H3: El re-layout al cambiar el texto no re-aplica el anclaje (el sistema mantiene la X previa).
 
-### Próximo paso recomendado (obtener DATOS primero)
-Añadir logging TEMPORAL en `ClockOverlayService.applyPosition()` y en un
-`OnLayoutChangeListener` del `container`:
-`Log.d("OSD", "win=${container.width} pill=${pill.width} frameGravity=${flp.gravity} x=${lp.x} y=${lp.y} screenW=${resources.displayMetrics.widthPixels} saRight=${sa.right}")`
-Enchufar/desenchufar y leer con `adb logcat -s OSD`. Con eso se sabe si `container.width`
-es el ancho de pantalla (descarta/confirma H1) y si la píldora se reposiciona.
+## Herramienta de diagnóstico E1/E2 (v1.0.189)
+
+Instrumentación TEMPORAL en `ClockOverlayService.kt` (activada por `DIAG = true` en el
+companion; tag de log `OSD_DIAG`). Registra la **geometría REAL en pantalla** y así
+convierte el bug en datos medibles en vez de conjeturas.
+
+Qué loguea:
+- **`OnLayoutChangeListener`** del `container`: en cada re-layout (p. ej. al ensancharse por
+  `[AC]`) imprime `winW`, `onScreenX` (posición absoluta con `getLocationOnScreen`),
+  `leftEdge`, `rightEdge` (= onScreenX + winW), `lpGravity`, `lpX`, `lpY`, `screenW`.
+- **Cambio de carga** en `updateContent()`: imprime la transición `'[X]' -> '[Y]'` para
+  correlacionar el enchufar/desenchufar con los re-layouts.
+
+Cómo capturar (el usuario tiene la carpeta `android-studio` con `platform-tools`):
+1. Instalar el APK de diagnóstico (v1.0.189), activar el OSD con el panel derecho (P2) y
+   dejar visibles carga + batería.
+2. En PC: `adb logcat -c` (limpia) y luego `adb logcat -s OSD_DIAG`.
+3. Enchufar el cargador, esperar 2s, desenchufar, esperar 2s. Repetir 2–3 veces.
+4. Copiar las líneas `OSD_DIAG` y pegarlas aquí.
+
+Cómo LEER el resultado (qué confirma cada cosa):
+- Si `rightEdge` **cambia** entre el estado con `[AC]` y sin `[AC]` → el anclaje derecho NO
+  sujeta (confirma H1/H3). El valor que se mantenga constante (leftEdge o rightEdge) revela
+  por qué borde está anclando realmente el sistema.
+- Si `winW` no crece al aparecer `[AC]` → el problema es de medición del contenido, no de
+  anclaje.
+- Comparar `screenW` con `rightEdge` sin `[AC]`: dice si el borde derecho está donde debería
+  (≈ `screenW − saRight − margin`).
 
 ### Alternativa robusta si H1 se confirma
-Quitar `FLAG_LAYOUT_NO_LIMITS` y comprobar si con ventana normal el ancho `MATCH_PARENT`
-funciona y `gravity RIGHT` ancla. Coste: el panel no podría dibujarse SOBRE la barra de
-estado (perdería el `BASE_Y_DP` negativo); habría que decidir si ese "sobre la barra" se
-mantiene como feature o se sacrifica por el anclaje correcto.
+Quitar `FLAG_LAYOUT_NO_LIMITS` y comprobar si con ventana normal el `Gravity.END` ancla.
+Coste: el panel no podría dibujarse SOBRE la barra de estado (perdería el `BASE_Y_DP`
+negativo); decidir si ese "sobre la barra" se mantiene como feature o se sacrifica.
 
-Estado del código al pausar: v1.0.187, enfoque `FrameLayout` ancho completo + ancho explícito.
+### Bitácora de datos capturados
+_(pegar aquí la salida de `adb logcat -s OSD_DIAG` cuando esté disponible)_
+
+Estado del código: v1.0.189, build de diagnóstico (anclaje `Gravity.END` + logging `OSD_DIAG`).

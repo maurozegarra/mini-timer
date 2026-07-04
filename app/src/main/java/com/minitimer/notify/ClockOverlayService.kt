@@ -18,6 +18,7 @@ import android.os.BatteryManager
 import android.os.Build
 import android.os.IBinder
 import android.provider.Settings
+import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.view.WindowInsets
@@ -64,6 +65,9 @@ class ClockOverlayService : Service() {
 
     private val panels = arrayOfNulls<PanelWindow>(2)
     private var locale: Locale = Locale.getDefault()
+
+    // DIAG E1/E2: última etiqueta de carga vista, para loguear solo los cambios.
+    private var lastChargingDiag: String? = "?"
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -170,6 +174,12 @@ class ClockOverlayService : Service() {
         val vol = audio?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: 0
         val batt = battery?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: 0
         val charging = chargingLabel()
+        // DIAG E1/E2: registrar cuando cambia el estado de carga (enchufar/quitar),
+        // que es el disparador que ensancha/estrecha el panel derecho.
+        if (DIAG && charging != lastChargingDiag) {
+            Log.d(DIAG_TAG, "charging: '$lastChargingDiag' -> '$charging'")
+            lastChargingDiag = charging
+        }
         val cfg = ClockBus.config.value
         for (i in 0..1) {
             panels[i]?.bind(cfg.panel(i), now, vol, batt, charging)
@@ -274,6 +284,25 @@ class ClockOverlayService : Service() {
                 container.setOnApplyWindowInsetsListener { _, insets ->
                     applyPosition()
                     insets
+                }
+                // DIAG E1/E2: cada vez que el sistema re-mide/coloca el panel (p. ej.
+                // al ensancharse por [AC]), registra la geometría REAL en pantalla.
+                // Es la fuente de verdad: si rightEdge cambia entre estados, el
+                // anclaje derecho no está sujetando.
+                if (DIAG) {
+                    container.addOnLayoutChangeListener { v, l, _, r, _, _, _, _, _ ->
+                        val loc = IntArray(2)
+                        v.getLocationOnScreen(loc)
+                        val screenW = resources.displayMetrics.widthPixels
+                        Log.d(
+                            DIAG_TAG,
+                            "layout idx=$index text='${mainView.text}' " +
+                                "winW=${r - l} onScreenX=${loc[0]} " +
+                                "leftEdge=${loc[0]} rightEdge=${loc[0] + (r - l)} " +
+                                "lpGravity=${lp.gravity} lpX=${lp.x} lpY=${lp.y} " +
+                                "screenW=$screenW",
+                        )
+                    }
                 }
                 container.requestApplyInsets()
                 container.post { applyPosition() }
@@ -468,6 +497,12 @@ class ClockOverlayService : Service() {
     companion object {
         private const val CHANNEL_ID = "mini_timer_clock_osd"
         private const val NOTIF_ID = 43
+
+        /** DIAG E1/E2: activa el logging de geometría del panel. Poner en false o
+         *  eliminar el bloque cuando el bug del borde derecho quede resuelto.
+         *  Capturar con: adb logcat -s OSD_DIAG */
+        const val DIAG = true
+        const val DIAG_TAG = "OSD_DIAG"
 
         /** Padding horizontal (dp) del contenedor del panel; el texto empieza a
          *  esta distancia del borde. Se usa al alinear con el reloj del sistema. */
