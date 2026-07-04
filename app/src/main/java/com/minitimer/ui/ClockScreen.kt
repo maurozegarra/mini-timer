@@ -3,9 +3,7 @@ package com.minitimer.ui
 import android.content.ComponentName
 import android.content.Intent
 import android.content.res.Configuration
-import android.media.AudioManager
 import android.net.Uri
-import android.os.BatteryManager
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -17,7 +15,6 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,10 +38,8 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -58,7 +53,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.minitimer.TimerViewModel
 import com.minitimer.notify.ClockAlignAccessibilityService
-import com.minitimer.notify.ClockOverlayService
 import com.minitimer.i18n.I18n
 import com.minitimer.model.OSD_TEXT_COLORS
 import com.minitimer.model.OSD_TEXT_SIZE_MAX
@@ -66,10 +60,6 @@ import com.minitimer.model.OSD_TEXT_SIZE_MIN
 import com.minitimer.model.OSD_TEXT_SIZE_STEP
 import com.minitimer.model.OsdPanel
 import com.minitimer.ui.theme.AppTheme
-import kotlinx.coroutines.delay
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import kotlin.math.roundToInt
 
 private const val MEMO_MAX = 40
@@ -90,15 +80,6 @@ fun ClockScreen(vm: TimerViewModel) {
     var panelIndex by remember { mutableIntStateOf(0) }
     val panel = c.clock.panel(panelIndex)
     fun upd(p: OsdPanel) = vm.setClockPanel(panelIndex, p)
-
-    // Reloj en vivo para la vista previa (se actualiza cada segundo).
-    var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            nowMs = System.currentTimeMillis()
-            delay(1_000)
-        }
-    }
 
     val overlayLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
@@ -377,16 +358,6 @@ fun ClockScreen(vm: TimerViewModel) {
             }
         }
 
-        // Vista previa en vivo.
-        Text(
-            "${t.clockPreview} · ${t.clockPanel} ${panelIndex + 1}",
-            color = accent,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(start = 4.dp, top = 20.dp, bottom = 8.dp),
-        )
-        OsdPreview(panel, nowMs, t.locale, context)
-
         // Contenido.
         SettingsGroup(t.clockContent, accent) {
             SwitchRow(t.clockTime, null, panel.showTime, accent) { upd(panel.copy(showTime = it)) }
@@ -508,92 +479,6 @@ fun ClockScreen(vm: TimerViewModel) {
             }
         }
     }
-}
-
-/** Vista previa fiel del OSD: mismo contenido/tamaño/color que se pintará. */
-@Composable
-private fun OsdPreview(
-    panel: OsdPanel,
-    nowMs: Long,
-    locale: Locale,
-    context: android.content.Context,
-) {
-    val audio = remember { context.getSystemService(AudioManager::class.java) }
-    val battery = remember { context.getSystemService(BatteryManager::class.java) }
-    val vol = audio?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: 0
-    val batt = battery?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: 0
-    val charging = previewChargingLabel(context)
-    val sizeSp = panel.textSizeSp.sp
-    val textColor = if (panel.autoDarkColor) {
-        if (isSystemInDarkTheme()) Color.White else Color.Black
-    } else {
-        Color(panel.textColor)
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xFF14181B))
-            .padding(vertical = 20.dp, horizontal = 12.dp),
-    ) {
-        Column(
-            modifier = Modifier
-                .clip(RoundedCornerShape(10.dp))
-                .background(Color.Black.copy(alpha = panel.bgAlpha.coerceIn(0f, 1f)))
-                .padding(horizontal = 10.dp, vertical = 4.dp),
-        ) {
-            Text(
-                osdMainText(panel, nowMs, vol, batt, charging, locale),
-                color = textColor,
-                fontSize = sizeSp,
-                fontWeight = FontWeight.SemiBold,
-            )
-            if (panel.showMemo && panel.memo.isNotBlank()) {
-                Text(
-                    panel.memo,
-                    color = textColor,
-                    fontSize = (sizeSp.value - 3f).coerceAtLeast(10f).sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
-        }
-    }
-}
-
-/** Etiqueta de carga para la vista previa ([AC]/[USB]/[Wireless]); null si no carga. */
-private fun previewChargingLabel(context: android.content.Context): String? {
-    val plugged = context.registerReceiver(
-        null,
-        android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED),
-    )?.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) ?: 0
-    return when (plugged) {
-        BatteryManager.BATTERY_PLUGGED_AC -> "[AC]"
-        BatteryManager.BATTERY_PLUGGED_USB -> "[USB]"
-        BatteryManager.BATTERY_PLUGGED_WIRELESS -> "[Wireless]"
-        else -> null
-    }
-}
-
-/** Construye la línea principal del OSD (fecha, hora, [carga], [volumen], [batería]). */
-private fun osdMainText(panel: OsdPanel, nowMs: Long, vol: Int, batt: Int, charging: String?, locale: Locale): String {
-    val parts = mutableListOf<String>()
-    if (panel.showDate) parts += SimpleDateFormat("EEE d MMM", locale).format(Date(nowMs))
-    if (panel.showTime) {
-        val pattern = when {
-            panel.use24h && panel.showSeconds -> "H:mm:ss"
-            panel.use24h -> "H:mm"
-            panel.showSeconds -> "h:mm:ss"
-            else -> "h:mm"
-        }
-        parts += SimpleDateFormat(pattern, locale).format(Date(nowMs))
-    }
-    val meters = mutableListOf<String>()
-    if (panel.showCharging && charging != null) meters += charging
-    if (panel.showVolume) meters += "[$vol]"
-    if (panel.showBattery) meters += "[$batt%]"
-    if (meters.isNotEmpty()) parts += meters.joinToString(ClockOverlayService.METER_SEP)
-    return parts.joinToString("  ").ifBlank { " " }
 }
 
 /** ¿Está activo el servicio de accesibilidad de alineación de Mini Timer? */

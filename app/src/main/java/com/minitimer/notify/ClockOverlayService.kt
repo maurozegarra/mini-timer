@@ -271,7 +271,7 @@ class ClockOverlayService : Service() {
                 addView(mainView)
                 addView(memoView)
             }
-            lp.gravity = Gravity.TOP or if (index == 0) Gravity.START else Gravity.END
+            lp.gravity = Gravity.TOP or Gravity.START
             applyStyle(panel)
             return try {
                 wm?.addView(container, lp)
@@ -305,20 +305,29 @@ class ClockOverlayService : Service() {
             val margin = dp(4)
             val panel = ClockBus.config.value.panel(index)
             val anchor = ClockBus.clockAnchor.value
-            if (panel.alignToSystemClock && anchor != null) {
-                // Alineado al reloj del sistema: el borde del texto sigue al reloj
-                // (restando el padding lateral del contenedor). El offset X pasa a
-                // ser un ajuste fino sobre esa posición; la Y conserva su anclaje.
-                lp.gravity = Gravity.TOP or Gravity.START
-                lp.x = (anchor.left - dp(PAD_H) + dp(offX)).coerceAtLeast(0)
-                lp.y = (sa.top + dp(offY)).coerceAtLeast(0)
-            } else {
-                lp.gravity = Gravity.TOP or if (index == 0) Gravity.START else Gravity.END
-                lp.y = (sa.top + dp(offY)).coerceAtLeast(0)
-                lp.x = if (index == 0) {
+            // Gravedad START siempre y x explícita: así controlamos el borde exacto
+            // sin depender de que WindowManager re-ancle una ventana WRAP_CONTENT.
+            lp.gravity = Gravity.TOP or Gravity.START
+            lp.y = (sa.top + dp(offY)).coerceAtLeast(0)
+            lp.x = when {
+                panel.alignToSystemClock && anchor != null ->
+                    // Alineado al reloj del sistema: el texto empieza en el reloj
+                    // (restando el padding lateral). offX es un ajuste fino.
+                    (anchor.left - dp(PAD_H) + dp(offX)).coerceAtLeast(0)
+                index == 0 ->
                     (sa.left + margin + dp(offX)).coerceAtLeast(0)
-                } else {
-                    (sa.right + margin - dp(offX)).coerceAtLeast(0)
+                else -> {
+                    // Panel derecho: ancla el BORDE DERECHO. Medimos el ancho actual
+                    // del contenido y calculamos x = bordeDerecho - ancho, para que
+                    // el borde no se mueva al cambiar el contenido (p. ej. [AC]).
+                    container.measure(
+                        View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                        View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                    )
+                    val w = container.measuredWidth
+                    val screenW = resources.displayMetrics.widthPixels
+                    val rightEdge = screenW - sa.right - margin + dp(offX)
+                    (rightEdge - w).coerceAtLeast(0)
                 }
             }
             try {
