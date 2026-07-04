@@ -240,9 +240,11 @@ class ClockOverlayService : Service() {
             // NOT_TOUCHABLE: el panel es solo informativo (sin arrastre), así los
             // toques atraviesan la franja y llegan a la app de abajo (evita tapar
             // íconos accionables que queden bajo el overlay).
+            // Sin FLAG_LAYOUT_NO_LIMITS a propósito: con esa bandera WindowManager NO
+            // re-ancla una ventana WRAP_CONTENT con gravedad END al encoger el
+            // contenido (el panel derecho se desalineaba al desaparecer [AC]).
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT,
         )
@@ -285,16 +287,6 @@ class ClockOverlayService : Service() {
                 }
                 container.requestApplyInsets()
                 container.post { applyPosition() }
-                // Panel derecho: cuando cambia el ANCHO del contenido (aparece/
-                // desaparece [AC], etc.) el layout ya asentó las medidas; re-anclamos
-                // al borde derecho con el ancho real. Solo si el ancho cambió, para
-                // no reposicionar en cada layout.
-                if (index == 1) {
-                    container.addOnLayoutChangeListener {
-                            _, left, _, right, _, oldLeft, _, oldRight, _ ->
-                        if (right - left != oldRight - oldLeft) applyPosition()
-                    }
-                }
                 true
             } catch (_: Exception) {
                 false
@@ -315,35 +307,25 @@ class ClockOverlayService : Service() {
             val margin = dp(4)
             val panel = ClockBus.config.value.panel(index)
             val anchor = ClockBus.clockAnchor.value
-            // Gravedad START siempre y x explícita: así controlamos el borde exacto
-            // sin depender de que WindowManager re-ancle una ventana WRAP_CONTENT.
-            lp.gravity = Gravity.TOP or Gravity.START
             lp.y = (sa.top + dp(offY)).coerceAtLeast(0)
-            lp.x = when {
-                panel.alignToSystemClock && anchor != null ->
+            when {
+                panel.alignToSystemClock && anchor != null -> {
                     // Alineado al reloj del sistema: el texto empieza en el reloj
                     // (restando el padding lateral). offX es un ajuste fino.
-                    (anchor.left - dp(PAD_H) + dp(offX)).coerceAtLeast(0)
-                index == 0 ->
-                    (sa.left + margin + dp(offX)).coerceAtLeast(0)
+                    lp.gravity = Gravity.TOP or Gravity.START
+                    lp.x = (anchor.left - dp(PAD_H) + dp(offX)).coerceAtLeast(0)
+                }
+                index == 0 -> {
+                    lp.gravity = Gravity.TOP or Gravity.START
+                    lp.x = (sa.left + margin + dp(offX)).coerceAtLeast(0)
+                }
                 else -> {
-                    // Panel derecho: ancla el BORDE DERECHO. Usamos el ancho REAL ya
-                    // medido por el layout (container.width); si aún no hay layout, lo
-                    // medimos como respaldo. La reposición al cambiar el contenido
-                    // (p. ej. aparece/desaparece [AC]) la dispara el
-                    // OnLayoutChangeListener de attach, con el ancho ya asentado.
-                    val w = if (container.width > 0) {
-                        container.width
-                    } else {
-                        container.measure(
-                            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
-                            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
-                        )
-                        container.measuredWidth
-                    }
-                    val screenW = resources.displayMetrics.widthPixels
-                    val rightEdge = screenW - sa.right - margin + dp(offX)
-                    (rightEdge - w).coerceAtLeast(0)
+                    // Panel derecho: gravedad END; WindowManager fija el borde derecho
+                    // y lo re-ancla nativamente al cambiar el ancho del contenido
+                    // (p. ej. aparece/desaparece [AC]). lp.x = distancia desde la
+                    // derecha; +offX lo acerca al borde.
+                    lp.gravity = Gravity.TOP or Gravity.END
+                    lp.x = (sa.right + margin - dp(offX)).coerceAtLeast(0)
                 }
             }
             try {

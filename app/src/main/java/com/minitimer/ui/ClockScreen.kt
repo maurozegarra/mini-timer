@@ -18,6 +18,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -35,10 +37,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.InputChip
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -78,7 +86,7 @@ private const val MEMO_MAX = 40
  * (selector Panel 1 / Panel 2); cada uno con su on/off, contenido, apariencia y
  * posición. "Lo que ves aquí es lo que se pinta encima de otras apps."
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ClockScreen(vm: TimerViewModel) {
     val c = vm.config
@@ -369,21 +377,58 @@ fun ClockScreen(vm: TimerViewModel) {
 
         // Contenido.
         SettingsGroup(t.clockContent, accent) {
-            SwitchRow(t.clockTime, null, panel.showTime, accent) { upd(panel.copy(showTime = it)) }
-            GroupDivider()
-            SwitchRow(t.clockSecondsDesc, null, panel.showSeconds, accent) { upd(panel.copy(showSeconds = it)) }
-            GroupDivider()
-            SwitchRow(t.clockVolume, t.clockVolumeDesc, panel.showVolume, accent) { upd(panel.copy(showVolume = it)) }
-            GroupDivider()
-            SwitchRow(t.clockBattery, t.clockBatteryDesc, panel.showBattery, accent) { upd(panel.copy(showBattery = it)) }
-            GroupDivider()
-            SwitchRow(t.clockCharging, t.clockChargingDesc, panel.showCharging, accent) { upd(panel.copy(showCharging = it)) }
-            GroupDivider()
-            SwitchRow(t.clock24h, null, panel.use24h, accent) { upd(panel.copy(use24h = it)) }
-            GroupDivider()
-            SwitchRow(t.clockDate, null, panel.showDate, accent) { upd(panel.copy(showDate = it)) }
-            GroupDivider()
-            SwitchRow(t.clockMemo, null, panel.showMemo, accent) { upd(panel.copy(showMemo = it)) }
+            // Chips de los controles ACTIVOS (clic para quitar) + "+" para añadir
+            // los inactivos desde un menú. Solo se listan los activos: UI más limpia.
+            val items = listOf(
+                ContentToggle(t.clockTime, panel.showTime) { upd(panel.copy(showTime = it)) },
+                ContentToggle(t.clockSecondsDesc, panel.showSeconds) { upd(panel.copy(showSeconds = it)) },
+                ContentToggle(t.clock24h, panel.use24h) { upd(panel.copy(use24h = it)) },
+                ContentToggle(t.clockDate, panel.showDate) { upd(panel.copy(showDate = it)) },
+                ContentToggle(t.clockVolume, panel.showVolume) { upd(panel.copy(showVolume = it)) },
+                ContentToggle(t.clockBattery, panel.showBattery) { upd(panel.copy(showBattery = it)) },
+                ContentToggle(t.clockCharging, panel.showCharging) { upd(panel.copy(showCharging = it)) },
+                ContentToggle(t.clockMemo, panel.showMemo) { upd(panel.copy(showMemo = it)) },
+            )
+            val inactive = items.filter { !it.active }
+            var addMenu by remember { mutableStateOf(false) }
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                items.filter { it.active }.forEach { item ->
+                    InputChip(
+                        selected = true,
+                        onClick = { item.toggle(false) },
+                        label = { Text(item.label) },
+                        trailingIcon = {
+                            Icon(
+                                Icons.Filled.Close,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        },
+                    )
+                }
+                if (inactive.isNotEmpty()) {
+                    Box {
+                        OutlinedIconButton(onClick = { addMenu = true }) {
+                            Icon(Icons.Filled.Add, contentDescription = t.clockContent)
+                        }
+                        DropdownMenu(
+                            expanded = addMenu,
+                            onDismissRequest = { addMenu = false },
+                        ) {
+                            inactive.forEach { item ->
+                                DropdownMenuItem(
+                                    text = { Text(item.label) },
+                                    onClick = { item.toggle(true); addMenu = false },
+                                )
+                            }
+                        }
+                    }
+                }
+            }
             if (panel.showMemo) {
                 Spacer(Modifier.height(12.dp))
                 OutlinedTextField(
@@ -527,3 +572,10 @@ private fun isClockAlignAccessibilityEnabled(context: android.content.Context): 
         ComponentName.unflattenFromString(it) == expected
     }
 }
+
+/** Un control de "Contenido" del panel: etiqueta, si está activo y cómo alternarlo. */
+private data class ContentToggle(
+    val label: String,
+    val active: Boolean,
+    val toggle: (Boolean) -> Unit,
+)
