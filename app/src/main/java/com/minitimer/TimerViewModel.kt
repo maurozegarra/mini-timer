@@ -5,6 +5,7 @@ import android.content.Context
 import android.media.RingtoneManager
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
@@ -30,6 +31,9 @@ data class AlarmSound(val name: String, val uri: String)
 
 /** Límite (en dp) del ajuste fino del anillo en cada eje. */
 private const val RING_OFFSET_LIMIT = 100
+
+/** Límite (en dp) del ajuste fino de cada panel OSD del reloj en cada eje. */
+private const val OSD_OFFSET_LIMIT = 300
 
 /** Categorías (subpantallas) de Ajustes. Los encabezados General/Timer/Athlete
  *  agrupan estas categorías; la alarma vive dentro de cada pestaña. */
@@ -80,12 +84,17 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     var ringOffsetY by mutableStateOf(store.loadRingOffset().second)
         private set
 
+    // Offset fino (en dp) de cada panel OSD por (panel, orientación), ajustable
+    // con +/- en la pestaña Reloj. Clave: "<panel><p|l>". +X derecha, +Y abajo.
+    private val clockOffsets = mutableStateMapOf<String, Pair<Int, Int>>()
+
     private var nextId = 1L
     private var tickJob: Job? = null
     private var autoDismissJob: Job? = null
 
     init {
         TimerBus.accent.value = config.general.accent
+        loadClockOffsets()
         publishOverlayPrefs()
         ensureDefaultAlarmSound()
         // Reanudar el/los OSD del reloj al abrir la app (respeta el permiso).
@@ -115,6 +124,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         config = store.loadConfig()
         ringOffsetX = store.loadRingOffset().first
         ringOffsetY = store.loadRingOffset().second
+        loadClockOffsets()
         TimerBus.accent.value = config.general.accent
         publishOverlayPrefs()
         ClockOverlayService.sync(getApplication(), config.clock)
@@ -511,9 +521,35 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         ClockOverlayService.sync(getApplication(), config.clock)
     }
 
-    /** Restaura la posición inicial del panel [index] (debajo del reloj del sistema). */
-    fun resetClockPanelPos(index: Int) {
-        ClockBus.requestResetPos(index)
+    // ---------- Posición de los paneles OSD (offset por orientación) ----------
+    private fun offKey(panel: Int, portrait: Boolean) = "$panel${if (portrait) "p" else "l"}"
+
+    private fun loadClockOffsets() {
+        clockOffsets.clear()
+        for (p in 0..1) for (portrait in listOf(true, false)) {
+            clockOffsets[offKey(p, portrait)] = store.loadOsdOffset(p, portrait)
+        }
+    }
+
+    /** Offset (dp) actual del panel [panel] en la orientación [portrait]. */
+    fun clockOffset(panel: Int, portrait: Boolean): Pair<Int, Int> =
+        clockOffsets[offKey(panel, portrait)] ?: (0 to 0)
+
+    /** Ajuste fino (dp) del panel OSD: +X derecha, +Y abajo. */
+    fun nudgeClockPanel(panel: Int, portrait: Boolean, dx: Int, dy: Int) {
+        val (x, y) = clockOffset(panel, portrait)
+        val nx = (x + dx).coerceIn(-OSD_OFFSET_LIMIT, OSD_OFFSET_LIMIT)
+        val ny = (y + dy).coerceIn(-OSD_OFFSET_LIMIT, OSD_OFFSET_LIMIT)
+        clockOffsets[offKey(panel, portrait)] = nx to ny
+        store.saveOsdOffset(panel, portrait, nx, ny)
+        ClockBus.requestRelayout()
+    }
+
+    /** Restaura el panel a su posición por defecto (offset 0,0) en esa orientación. */
+    fun resetClockPanel(panel: Int, portrait: Boolean) {
+        clockOffsets[offKey(panel, portrait)] = 0 to 0
+        store.saveOsdOffset(panel, portrait, 0, 0)
+        ClockBus.requestRelayout()
     }
 
     // ---------- Alarma independiente por pestaña ----------

@@ -1,8 +1,5 @@
 package com.minitimer.notify
 
-import android.animation.Animator
-import android.animation.AnimatorListenerAdapter
-import android.animation.ValueAnimator
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -22,11 +19,9 @@ import android.os.Build
 import android.os.IBinder
 import android.provider.Settings
 import android.view.Gravity
-import android.view.MotionEvent
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowManager
-import android.view.animation.DecelerateInterpolator
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.res.ResourcesCompat
@@ -47,7 +42,6 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
@@ -55,8 +49,8 @@ import kotlin.math.roundToInt
  * INDEPENDIENTES) como franjas flotantes sobre otras apps mediante ventanas
  * [WindowManager] TYPE_APPLICATION_OVERLAY. Cada panel muestra hora (con
  * segundos en vivo), volumen multimedia [n] y batería [n%]; opcionalmente fecha
- * y memo. El contenido se refresca cada segundo. Cada franja es arrastrable y su
- * posición se guarda en [SettingsStore].
+ * y memo. El contenido se refresca cada segundo. La posición es fija (anclada
+ * bajo la barra de estado) y se ajusta con offsets por orientación desde Ajustes.
  */
 class ClockOverlayService : Service() {
 
@@ -115,11 +109,7 @@ class ClockOverlayService : Service() {
     private fun observe() {
         job = scope.launch {
             launch { ClockBus.config.collect { refresh() } }
-            launch {
-                ClockBus.resetPos.collect { req ->
-                    if (req != null) resetPanelPos(req.index)
-                }
-            }
+            launch { ClockBus.relayout.collect { relayoutAll() } }
             // Tick de 1s: hora con segundos, volumen y batería en vivo.
             launch {
                 while (true) {
@@ -130,26 +120,15 @@ class ClockOverlayService : Service() {
         }
     }
 
-    /** Reubica el panel [index] a su posición inicial (debajo del reloj del
-     *  sistema): a la izquierda si es Panel 1, a la derecha si es Panel 2. */
-    private fun resetPanelPos(index: Int) {
-        val pw = panels[index]
-        if (pw != null) {
-            pw.resetToDefault()
-        } else {
-            val (x, y) = defaultPos(index)
-            store.saveOsdPos(index, x, y)
-        }
+    /** Reposiciona todos los paneles visibles (tras cambiar offsets o rotar). */
+    private fun relayoutAll() {
+        for (i in 0..1) panels[i]?.applyPosition()
     }
 
-    /** Posición inicial sin vista: debajo de la barra. Panel 1 a la izquierda;
-     *  Panel 2 con x muy grande para que [clampToBounds] lo pegue a la derecha. */
-    private fun defaultPos(index: Int): Pair<Int, Int> {
-        val top = statusBarHeightFallback()
-        val margin = dp(4)
-        val x = if (index == 0) margin else 100_000
-        val y = top + margin
-        return x to y
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // Al rotar cambia la orientación (y sus offsets/anclajes): recolocar.
+        relayoutAll()
     }
 
     private fun canOverlay(): Boolean = Settings.canDrawOverlays(this)
@@ -243,14 +222,12 @@ class ClockOverlayService : Service() {
     private fun dateFmt(panel: OsdPanel): SimpleDateFormat = SimpleDateFormat("EEE d MMM", locale)
 
     // ---------------------------------------------------------------------
-    // Una ventana overlay por panel: franja arrastrable con hora + indicadores.
+    // Una ventana overlay por panel: franja fija con hora + indicadores.
     // ---------------------------------------------------------------------
     private inner class PanelWindow(private val index: Int) {
         private lateinit var container: LinearLayout
         private lateinit var mainView: TextView
         private lateinit var memoView: TextView
-        private var posSaved = false
-        private var placeTries = 0
         private val lp = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -278,128 +255,51 @@ class ClockOverlayService : Service() {
                 addView(mainView)
                 addView(memoView)
             }
-            lp.gravity = Gravity.TOP or Gravity.START
-            posSaved = store.hasOsdPos(index)
-            val (x, y) = store.loadOsdPos(index)
-            lp.x = x
-            lp.y = y
-            attachDrag()
+            lp.gravity = Gravity.TOP or if (index == 0) Gravity.START else Gravity.END
             applyStyle(panel)
             return try {
                 wm?.addView(container, lp)
-                // Los overlays reciben los insets reales de la barra de estado de
-                // forma ASÍNCRONA tras el layout. Reposicionamos cuando lleguen
-                // (evento), no solo con un post que puede correr demasiado pronto.
-                // Cubre la colocación inicial y el rescate de posiciones guardadas
-                // que hayan quedado dentro de la barra (p. ej. actualizar encima).
+                // Los overlays reciben los insets reales (barra de estado) de
+                // forma ASÍNCRONA tras el layout: reposicionamos cuando lleguen
+                // para anclar el panel bajo la barra (o donde el usuario lo haya
+                // ajustado con los controles +/-).
                 container.setOnApplyWindowInsetsListener { _, insets ->
-                    placeInitialOrClamp()
+                    applyPosition()
                     insets
                 }
                 container.requestApplyInsets()
-                container.post { placeInitialOrClamp() }
+                container.post { applyPosition() }
                 true
             } catch (_: Exception) {
                 false
             }
         }
 
-        private var snapAnim: ValueAnimator? = null
-
-        /** Anima el panel desde su posición actual hasta ([targetX], [targetY])
-         *  con desaceleración, como si el borde lo atrajera. Guarda al terminar. */
-        private fun animateSnap(targetX: Int, targetY: Int) {
-            snapAnim?.cancel()
-            val fromX = lp.x
-            val fromY = lp.y
-            if (fromX == targetX && fromY == targetY) {
-                store.saveOsdPos(index, targetX, targetY)
-                return
-            }
-            snapAnim = ValueAnimator.ofFloat(0f, 1f).apply {
-                duration = 260L
-                interpolator = DecelerateInterpolator(1.6f)
-                addUpdateListener { a ->
-                    val f = a.animatedValue as Float
-                    lp.x = (fromX + (targetX - fromX) * f).roundToInt()
-                    lp.y = (fromY + (targetY - fromY) * f).roundToInt()
-                    try {
-                        wm?.updateViewLayout(container, lp)
-                    } catch (_: Exception) {
-                    }
-                }
-                addListener(object : AnimatorListenerAdapter() {
-                    override fun onAnimationEnd(animation: Animator) {
-                        lp.x = targetX
-                        lp.y = targetY
-                        try {
-                            wm?.updateViewLayout(container, lp)
-                        } catch (_: Exception) {
-                        }
-                        store.saveOsdPos(index, targetX, targetY)
-                    }
-                })
-                start()
-            }
-        }
-
-        /** Anima el panel a su posición inicial: debajo de la barra de estado.
-         *  Panel 1 a la izquierda, Panel 2 a la derecha. Siempre va a la altura
-         *  por defecto (b[1]), sin depender de dónde esté el otro panel. */
-        fun resetToDefault() {
-            val b = dragBounds(container)
-            val targetX = if (index == 0) b[0] else b[2]
-            val targetY = b[1]
-            animateSnap(targetX, targetY)
-        }
-
         /**
-         * Si el panel nunca tuvo posición fijada por el usuario, lo coloca en su
-         * lugar por defecto (Panel 1 izquierda, Panel 2 derecha, misma horizontal
-         * alineada con el otro panel). Si ya tenía posición, solo lo rescata si
-         * quedó fuera de la zona segura, respetando la posición del usuario.
+         * Coloca el panel según su offset (dp) por orientación: anclado al borde
+         * lateral (izquierda Panel 1 / derecha Panel 2), bajo la barra de estado,
+         * más el ajuste fino del usuario. +X derecha, +Y abajo. Sin arrastre: la
+         * posición se fija con los controles +/- de Ajustes.
          */
-        private fun placeInitialOrClamp() {
-            // Colocación inicial: esperar a que los insets reales estén listos.
-            // Si no, se usaría el fallback (más chico) y el panel quedaría
-            // demasiado arriba, dentro de la barra de estado.
-            if (!posSaved && insetTop(container) <= 0 && placeTries < 12) {
-                placeTries++
-                container.postDelayed({ placeInitialOrClamp() }, 16L)
-                return
+        fun applyPosition() {
+            val portrait =
+                resources.configuration.orientation != Configuration.ORIENTATION_LANDSCAPE
+            val (offX, offY) = store.loadOsdOffset(index, portrait)
+            val sa = safeArea(container)
+            val margin = dp(4)
+            lp.y = (sa.top + dp(offY)).coerceAtLeast(0)
+            lp.x = if (index == 0) {
+                (sa.left + margin + dp(offX)).coerceAtLeast(0)
+            } else {
+                (sa.right + margin - dp(offX)).coerceAtLeast(0)
             }
-            val b = dragBounds(container)
-            if (!posSaved) {
-                val nx = if (index == 0) b[0] else b[2]
-                // Ambos paneles a la misma altura (b[1], borde inferior de la
-                // barra). Como se esperó a los insets reales, b[1] es idéntico
-                // para los dos -> quedan alineados sin depender del otro panel.
-                val ny = b[1]
-                lp.x = nx
-                lp.y = ny
-                try {
-                    wm?.updateViewLayout(container, lp)
-                } catch (_: Exception) {
-                }
-                store.saveOsdPos(index, nx, ny)
-                posSaved = true
-                return
-            }
-            val nx = lp.x.coerceIn(b[0], b[2])
-            val ny = lp.y.coerceIn(b[1], b[3])
-            if (nx != lp.x || ny != lp.y) {
-                lp.x = nx
-                lp.y = ny
-                try {
-                    wm?.updateViewLayout(container, lp)
-                } catch (_: Exception) {
-                }
-                store.saveOsdPos(index, lp.x, lp.y)
+            try {
+                wm?.updateViewLayout(container, lp)
+            } catch (_: Exception) {
             }
         }
 
         fun detach() {
-            snapAnim?.cancel()
             try {
                 wm?.removeView(container)
             } catch (_: Exception) {
@@ -437,93 +337,33 @@ class ClockOverlayService : Service() {
             if (showMemo) memoView.text = panel.memo
         }
 
-        private fun attachDrag() {
-            var downRawX = 0f
-            var downRawY = 0f
-            var startX = 0
-            var startY = 0
-            container.setOnTouchListener { _, e ->
-                when (e.action) {
-                    MotionEvent.ACTION_DOWN -> {
-                        snapAnim?.cancel()
-                        downRawX = e.rawX
-                        downRawY = e.rawY
-                        startX = lp.x
-                        startY = lp.y
-                        true
-                    }
-                    MotionEvent.ACTION_MOVE -> {
-                        // Limitar a la zona segura: nunca entra en la barra de
-                        // estado ni en la de navegación (evita quedar atrapado).
-                        val b = dragBounds(container)
-                        lp.x = (startX + (e.rawX - downRawX).toInt()).coerceIn(b[0], b[2])
-                        lp.y = (startY + (e.rawY - downRawY).toInt()).coerceIn(b[1], b[3])
-                        try {
-                            wm?.updateViewLayout(container, lp)
-                        } catch (_: Exception) {
-                        }
-                        true
-                    }
-                    MotionEvent.ACTION_UP -> {
-                        if (abs(e.rawX - downRawX) > 2 || abs(e.rawY - downRawY) > 2) {
-                            // Magnet: al soltar, el lado más cercano "atrae" el panel
-                            // con un movimiento suave (no un salto brusco).
-                            val b = dragBounds(container)
-                            val (sw, _) = screenBounds()
-                            val centerX = lp.x + container.width / 2
-                            val targetX = if (centerX < sw / 2) b[0] else b[2]
-                            val targetY = lp.y.coerceIn(b[1], b[3])
-                            animateSnap(targetX, targetY)
-                        }
-                        true
-                    }
-                    else -> false
-                }
-            }
-        }
     }
 
     private fun dp(value: Int): Int =
         (value * resources.displayMetrics.density).toInt()
-
-    /** Ancho/alto de la pantalla completa (incluye barras del sistema). */
-    private fun screenBounds(): Pair<Int, Int> {
-        val w = wm
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && w != null) {
-            val b = w.maximumWindowMetrics.bounds
-            b.width() to b.height()
-        } else {
-            val dm = resources.displayMetrics
-            dm.widthPixels to dm.heightPixels
-        }
-    }
 
     private fun statusBarHeightFallback(): Int {
         val id = resources.getIdentifier("status_bar_height", "dimen", "android")
         return if (id > 0) resources.getDimensionPixelSize(id) else dp(24)
     }
 
-    /**
-     * Zona segura para arrastrar un panel: [minX, minY, maxX, maxY]. Deja fuera la
-     * barra de estado (arriba) y la de navegación (abajo) para que el OSD no quede
-     * atrapado en el "shade" del sistema ni bajo los gestos de navegación.
-     */
-    private fun dragBounds(view: View): IntArray {
-        val (sw, sh) = screenBounds()
+    /** Área segura: alto de la barra de estado (arriba) e insets laterales,
+     *  considerando el cutout (cámara). Sirve para anclar cada panel. */
+    private data class SafeArea(val top: Int, val left: Int, val right: Int)
+
+    private fun safeArea(view: View): SafeArea {
         var top = 0
-        var bottom = 0
         var left = 0
         var right = 0
         var cutoutTop = 0
         view.rootWindowInsets?.let { ins ->
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 val s = ins.getInsets(WindowInsets.Type.systemBars())
-                top = s.top; bottom = s.bottom; left = s.left; right = s.right
+                top = s.top; left = s.left; right = s.right
             } else {
                 @Suppress("DEPRECATION")
                 run {
                     top = ins.systemWindowInsetTop
-                    bottom = ins.systemWindowInsetBottom
                     left = ins.systemWindowInsetLeft
                     right = ins.systemWindowInsetRight
                 }
@@ -532,35 +372,10 @@ class ClockOverlayService : Service() {
                 cutoutTop = ins.displayCutout?.safeInsetTop ?: 0
             }
         }
-        // El top debe cubrir la barra real: nunca menor que el recurso
-        // status_bar_height, y considerando el cutout (cámara) que en algunos
-        // equipos hace la barra más alta que ese recurso.
+        // El top nunca menor que status_bar_height ni que el cutout (cámara),
+        // que en algunos equipos hace la barra más alta que ese recurso.
         top = maxOf(top, cutoutTop, statusBarHeightFallback())
-        val margin = dp(4)
-        // Sin margen arriba: el panel puede subir hasta quedar pegado al borde
-        // inferior de la barra de estado (más arriba = lo taparía el sistema).
-        val topMargin = dp(0)
-        val vw = view.width
-        val vh = view.height
-        val minX = left + margin
-        val minY = top + topMargin
-        val maxX = (sw - right - vw - margin).coerceAtLeast(minX)
-        val maxY = (sh - bottom - vh - margin).coerceAtLeast(minY)
-        return intArrayOf(minX, minY, maxX, maxY)
-    }
-
-    /** Top real de la barra de estado según insets; 0 si aún no están listos. */
-    private fun insetTop(view: View): Int {
-        var top = 0
-        view.rootWindowInsets?.let { ins ->
-            top = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                ins.getInsets(WindowInsets.Type.systemBars()).top
-            } else {
-                @Suppress("DEPRECATION")
-                ins.systemWindowInsetTop
-            }
-        }
-        return top
+        return SafeArea(top, left, right)
     }
 
     private fun buildNotification(): Notification {

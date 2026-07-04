@@ -1,6 +1,7 @@
 package com.minitimer.ui
 
 import android.content.Intent
+import android.content.res.Configuration
 import android.media.AudioManager
 import android.net.Uri
 import android.os.BatteryManager
@@ -44,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -367,30 +369,67 @@ fun ClockScreen(vm: TimerViewModel) {
             }
         }
 
-        // Posición: restaurar a la posición inicial (debajo del reloj del sistema).
+        // Posición: offsets finos por orientación (sin arrastre). Cada orientación
+        // (vertical/horizontal) guarda su propio ajuste; +X derecha, +Y abajo.
         SettingsGroup(t.clockPosition, accent) {
+            val portrait = LocalConfiguration.current.orientation !=
+                Configuration.ORIENTATION_LANDSCAPE
+            val (offX, offY) = vm.clockOffset(panelIndex, portrait)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        t.clockResetPos,
-                        color = AppTheme.colors.textPrimary,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(t.clockResetPosDesc, color = AppTheme.colors.textDim, fontSize = 13.sp)
+                Text(
+                    t.clockPosOrientation,
+                    color = AppTheme.colors.textPrimary,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    if (portrait) t.clockPosPortrait else t.clockPosLandscape,
+                    color = accent,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(t.clockPosHint, color = AppTheme.colors.textDim, fontSize = 13.sp)
+            Spacer(Modifier.height(12.dp))
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("X", color = AppTheme.colors.textPrimary, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                AppStepButton("−", accent, enabled = panel.enabled) {
+                    vm.nudgeClockPanel(panelIndex, portrait, -1, 0)
                 }
-                Spacer(Modifier.width(12.dp))
+                Box(Modifier.width(64.dp), contentAlignment = Alignment.Center) {
+                    Text("$offX", color = AppTheme.colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                }
+                AppStepButton("+", accent, enabled = panel.enabled) {
+                    vm.nudgeClockPanel(panelIndex, portrait, 1, 0)
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("Y", color = AppTheme.colors.textPrimary, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                AppStepButton("−", accent, enabled = panel.enabled) {
+                    vm.nudgeClockPanel(panelIndex, portrait, 0, -1)
+                }
+                Box(Modifier.width(64.dp), contentAlignment = Alignment.Center) {
+                    Text("$offY", color = AppTheme.colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                }
+                AppStepButton("+", accent, enabled = panel.enabled) {
+                    vm.nudgeClockPanel(panelIndex, portrait, 0, 1)
+                }
+            }
+            if (panel.enabled && (offX != 0 || offY != 0)) {
+                Spacer(Modifier.height(12.dp))
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
-                        .background(if (panel.enabled) accent else AppTheme.colors.track)
-                        .clickable(enabled = panel.enabled) { vm.resetClockPanelPos(panelIndex) }
+                        .background(accent)
+                        .clickable { vm.resetClockPanel(panelIndex, portrait) }
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                 ) {
                     Text(
-                        t.reset,
-                        color = if (panel.enabled) AppTheme.colors.onAccent else AppTheme.colors.textDim,
+                        t.clockResetPos,
+                        color = AppTheme.colors.onAccent,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
                     )

@@ -12,16 +12,14 @@ object ClockBus {
     val config = MutableStateFlow(ClockConfig())
 
     /**
-     * Petición de restaurar la posición inicial de un panel (índice + nonce para
-     * que emisiones consecutivas del mismo panel también se reciban). El
-     * [com.minitimer.notify.ClockOverlayService] la observa y reubica el panel
-     * debajo del reloj del sistema.
+     * Señal para recolocar los paneles OSD (tras ajustar sus offsets o al
+     * restaurar). Guarda un nonce para que emisiones consecutivas también se
+     * reciban. El [com.minitimer.notify.ClockOverlayService] la observa y
+     * reposiciona todos los paneles visibles.
      */
-    data class ResetPosReq(val index: Int, val nonce: Long)
+    val relayout = MutableStateFlow(0L)
 
-    val resetPos = MutableStateFlow<ResetPosReq?>(null)
-
-    fun requestResetPos(index: Int) {
-        resetPos.value = ResetPosReq(index, System.nanoTime())
+    fun requestRelayout() {
+        relayout.value = System.nanoTime()
     }
 }

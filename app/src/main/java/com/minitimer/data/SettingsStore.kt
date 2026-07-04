@@ -350,39 +350,34 @@ class SettingsStore(context: Context) {
     fun loadSelectedTab(): Int = prefs.getInt(KEY_SELECTED_TAB, 0)
 
     /**
-     * Posición (x,y en px) de cada panel OSD del reloj. Se guarda fuera de
-     * [AppConfig] (como el offset del anillo) para que el arrastre desde el
-     * servicio no sea sobrescrito por la copia en memoria de la config.
+     * Offset fino (en dp) de cada panel OSD respecto a su anclaje (borde lateral,
+     * bajo la barra de estado), por panel y orientación. +X derecha, +Y abajo. Se
+     * guarda fuera de [AppConfig] (como el offset del anillo) para que el ajuste
+     * desde el servicio no sea sobrescrito por la copia en memoria de la config.
      */
-    fun saveOsdPos(panel: Int, x: Int, y: Int) {
+    fun saveOsdOffset(panel: Int, portrait: Boolean, x: Int, y: Int) {
+        val o = if (portrait) "p" else "l"
         prefs.edit()
-            .putInt("$KEY_OSD_POS_X$panel", x)
-            .putInt("$KEY_OSD_POS_Y$panel", y)
+            .putInt("$KEY_OSD_OFF_X$panel$o", x)
+            .putInt("$KEY_OSD_OFF_Y$panel$o", y)
             .apply()
     }
 
-    fun loadOsdPos(panel: Int): Pair<Int, Int> {
-        val defX = if (panel == 0) OSD_POS_X0_DEFAULT else OSD_POS_X1_DEFAULT
-        return prefs.getInt("$KEY_OSD_POS_X$panel", defX) to
-            prefs.getInt("$KEY_OSD_POS_Y$panel", OSD_POS_Y_DEFAULT)
+    fun loadOsdOffset(panel: Int, portrait: Boolean): Pair<Int, Int> {
+        val o = if (portrait) "p" else "l"
+        return prefs.getInt("$KEY_OSD_OFF_X$panel$o", 0) to
+            prefs.getInt("$KEY_OSD_OFF_Y$panel$o", 0)
     }
-
-    /** ¿El usuario ya fijó (arrastró/restauró) la posición de este panel? */
-    fun hasOsdPos(panel: Int): Boolean = prefs.contains("$KEY_OSD_POS_X$panel")
 
     private companion object {
         // Desplazamiento vertical (dp) por defecto para centrar el anillo sobre
         // la cámara con las dimensiones actuales del anillo (38x32dp).
         const val RING_OFFSET_Y_DEFAULT = 3
 
-        // Posición por defecto (px) de los paneles OSD: en la misma horizontal,
-        // Panel 1 a la izquierda y Panel 2 a la derecha (x grande -> el servicio
-        // lo ajusta al borde derecho al pintarlo).
-        const val OSD_POS_X0_DEFAULT = 24
-        const val OSD_POS_X1_DEFAULT = 100_000
-        const val OSD_POS_Y_DEFAULT = 90
-        const val KEY_OSD_POS_X = "osd_pos_x_"
-        const val KEY_OSD_POS_Y = "osd_pos_y_"
+        // Offset (dp) de cada panel OSD respecto a su anclaje, por panel y
+        // orientación ("p"/"l"). Clave: osd_off_[x|y]_<panel><p|l>.
+        const val KEY_OSD_OFF_X = "osd_off_x_"
+        const val KEY_OSD_OFF_Y = "osd_off_y_"
 
         // Esquema nuevo: un JSON por sección.
         const val KEY_CFG_GENERAL = "cfg_general"
