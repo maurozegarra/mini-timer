@@ -110,6 +110,7 @@ class ClockOverlayService : Service() {
         job = scope.launch {
             launch { ClockBus.config.collect { refresh() } }
             launch { ClockBus.relayout.collect { relayoutAll() } }
+            launch { ClockBus.clockAnchor.collect { relayoutAll() } }
             // Tick de 1s: hora con segundos, volumen y batería en vivo.
             launch {
                 while (true) {
@@ -287,11 +288,23 @@ class ClockOverlayService : Service() {
             val (offX, offY) = store.loadOsdOffset(index, portrait)
             val sa = safeArea(container)
             val margin = dp(4)
-            lp.y = (sa.top + dp(offY)).coerceAtLeast(0)
-            lp.x = if (index == 0) {
-                (sa.left + margin + dp(offX)).coerceAtLeast(0)
+            val panel = ClockBus.config.value.panel(index)
+            val anchor = ClockBus.clockAnchor.value
+            if (panel.alignToSystemClock && anchor != null) {
+                // Alineado al reloj del sistema: el borde del texto sigue al reloj
+                // (restando el padding lateral del contenedor). El offset X pasa a
+                // ser un ajuste fino sobre esa posición; la Y conserva su anclaje.
+                lp.gravity = Gravity.TOP or Gravity.START
+                lp.x = (anchor.left - dp(PAD_H) + dp(offX)).coerceAtLeast(0)
+                lp.y = (sa.top + dp(offY)).coerceAtLeast(0)
             } else {
-                (sa.right + margin - dp(offX)).coerceAtLeast(0)
+                lp.gravity = Gravity.TOP or if (index == 0) Gravity.START else Gravity.END
+                lp.y = (sa.top + dp(offY)).coerceAtLeast(0)
+                lp.x = if (index == 0) {
+                    (sa.left + margin + dp(offX)).coerceAtLeast(0)
+                } else {
+                    (sa.right + margin - dp(offX)).coerceAtLeast(0)
+                }
             }
             try {
                 wm?.updateViewLayout(container, lp)
@@ -312,7 +325,7 @@ class ClockOverlayService : Service() {
             val sizeSp = panel.textSizeSp.toFloat()
             mainView.textSize = sizeSp
             memoView.textSize = (sizeSp - 3f).coerceAtLeast(10f)
-            val padH = dp(10)
+            val padH = dp(PAD_H)
             val padV = dp(4)
             container.setPadding(padH, padV, padH, padV)
             val bgAlpha = (panel.bgAlpha.coerceIn(0f, 1f) * 255).roundToInt()
@@ -438,6 +451,10 @@ class ClockOverlayService : Service() {
     companion object {
         private const val CHANNEL_ID = "mini_timer_clock_osd"
         private const val NOTIF_ID = 43
+
+        /** Padding horizontal (dp) del contenedor del panel; el texto empieza a
+         *  esta distancia del borde. Se usa al alinear con el reloj del sistema. */
+        private const val PAD_H = 10
 
         /** Arranca o refresca el servicio si algún panel está activo; si no, lo detiene. */
         fun sync(context: Context, config: ClockConfig) {

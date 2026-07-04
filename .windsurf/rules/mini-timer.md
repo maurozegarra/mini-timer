@@ -7,7 +7,10 @@ description: Convenciones de comportamiento para el proyecto mini-timer
 - Responder siempre en español.
 
 # Código
-- No agregar ni eliminar comentarios o documentación, salvo que el usuario lo pida explícitamente.
+- No modificar ni eliminar comentarios/documentación existentes, salvo que el usuario lo pida explícitamente.
+- En código NUEVO (clases, funciones, bloques que se crean en la sesión) SÍ se permite agregar comentarios/KDoc que expliquen el PORQUÉ (intención, decisiones, sutilezas), no el "qué" obvio.
+  - Preferir KDoc en clases/funciones públicas y comentarios cortos en lógica no evidente.
+  - Evitar comentarios redundantes que solo repiten lo que el código ya dice.
 
 # UI / Diseño
 - Usar Material Design 3 (Material You) en toda la interfaz: componentes, tipografía, formas, elevación y paleta de color.

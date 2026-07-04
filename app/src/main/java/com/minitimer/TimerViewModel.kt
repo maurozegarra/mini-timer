@@ -534,6 +534,8 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     fun setClockPanel(index: Int, panel: OsdPanel) {
         update(config.copy(clock = config.clock.withPanel(index, panel)))
         ClockOverlayService.sync(getApplication(), config.clock)
+        // Reposiciona por si cambió la alineación (align on/off cambia el anclaje).
+        ClockBus.requestRelayout()
     }
 
     // ---------- Posición de los paneles OSD (offset por orientación) ----------

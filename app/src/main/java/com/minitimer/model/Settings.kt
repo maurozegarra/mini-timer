@@ -109,6 +109,12 @@ data class OsdPanel(
     val autoDarkColor: Boolean = false,
     /** Opacidad del fondo 0f..1f (0 = fondo transparente, sin caja). */
     val bgAlpha: Float = 0f,
+    /**
+     * Alinea horizontalmente este panel con el reloj de la barra de estado del
+     * sistema (requiere el servicio de accesibilidad). El offset X manual pasa a
+     * ser un ajuste fino sobre esa posición.
+     */
+    val alignToSystemClock: Boolean = false,
     // Nota: la posición (x,y) del overlay se guarda aparte en SettingsStore
     // (como el offset del anillo) para que el arrastre desde el servicio no
     // choque con la copia en memoria de la config del ViewModel.
@@ -139,6 +145,11 @@ data class ClockConfig(
 
     /** ¿Algún panel activo? Determina si el servicio de overlay debe correr. */
     val anyEnabled: Boolean get() = panel1.enabled || panel2.enabled
+
+    /** ¿Algún panel activo pide alinearse con el reloj del sistema? */
+    val anyAlignToClock: Boolean
+        get() = (panel1.enabled && panel1.alignToSystemClock) ||
+            (panel2.enabled && panel2.alignToSystemClock)
 }
 
 /** Paleta de color de texto para el OSD del reloj. */

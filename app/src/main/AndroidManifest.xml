@@ -59,6 +59,19 @@
                 android:value="Always-visible clock OSD overlay panels" />
         </service>
 
+        <service
+            android:name=".notify.ClockAlignAccessibilityService"
+            android:exported="true"
+            android:label="@string/clock_align_acc_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/clock_align_accessibility" />
+        </service>
+
         <receiver
             android:name=".notify.ClockBootReceiver"
             android:enabled="true"

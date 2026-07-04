@@ -1,5 +1,6 @@
 package com.minitimer.ui
 
+import android.content.ComponentName
 import android.content.Intent
 import android.content.res.Configuration
 import android.media.AudioManager
@@ -56,6 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.minitimer.TimerViewModel
+import com.minitimer.notify.ClockAlignAccessibilityService
 import com.minitimer.i18n.I18n
 import com.minitimer.model.OSD_TEXT_COLORS
 import com.minitimer.model.OSD_TEXT_SIZE_MAX
@@ -133,6 +135,16 @@ fun ClockScreen(vm: TimerViewModel) {
                 ),
             )
         }
+    }
+
+    // Accesibilidad: necesaria para alinear el panel con el reloj del sistema.
+    var accTick by remember { mutableIntStateOf(0) }
+    val accLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { accTick++ }
+    val accessibilityOn = accTick.let { isClockAlignAccessibilityEnabled(context) }
+    fun openAccessibilitySettings() {
+        runCatching { accLauncher.launch(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
     }
 
     Column(
@@ -216,6 +228,54 @@ fun ClockScreen(vm: TimerViewModel) {
         // Posición: offsets finos por orientación (sin arrastre). Cada orientación
         // (vertical/horizontal) guarda su propio ajuste; +X derecha, +Y abajo.
         SettingsGroup(t.clockPosition, accent) {
+            // Alinear con el reloj del sistema (solo para paneles con hora).
+            if (panel.showTime) {
+                SwitchRow(
+                    label = t.clockAlign,
+                    desc = t.clockAlignDesc,
+                    checked = panel.alignToSystemClock,
+                    accent = accent,
+                    onCheckedChange = { on ->
+                        if (on && !accessibilityOn) openAccessibilitySettings()
+                        upd(panel.copy(alignToSystemClock = on))
+                    },
+                )
+                if (panel.alignToSystemClock && !accessibilityOn) {
+                    Spacer(Modifier.height(10.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            t.clockAlignAccNeeded,
+                            color = AppTheme.colors.textDim,
+                            fontSize = 13.sp,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(accent)
+                                .clickable { openAccessibilitySettings() }
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                        ) {
+                            Text(
+                                t.clockAlignEnable,
+                                color = AppTheme.colors.onAccent,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                            )
+                        }
+                    }
+                } else if (panel.alignToSystemClock) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        t.clockAlignActive,
+                        color = accent,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                GroupDivider()
+            }
             val portrait = LocalConfiguration.current.orientation !=
                 Configuration.ORIENTATION_LANDSCAPE
             val (offX, offY) = vm.clockOffset(panelIndex, portrait)
@@ -531,4 +591,16 @@ private fun osdMainText(panel: OsdPanel, nowMs: Long, vol: Int, batt: Int, charg
     if (panel.showVolume) parts += "[$vol]"
     if (panel.showBattery) parts += "[$batt%]"
     return parts.joinToString("  ").ifBlank { " " }
+}
+
+/** ¿Está activo el servicio de accesibilidad de alineación de Mini Timer? */
+private fun isClockAlignAccessibilityEnabled(context: android.content.Context): Boolean {
+    val expected = ComponentName(context, ClockAlignAccessibilityService::class.java)
+    val enabled = Settings.Secure.getString(
+        context.contentResolver,
+        Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
+    ) ?: return false
+    return enabled.split(':').any {
+        ComponentName.unflattenFromString(it) == expected
+    }
 }
