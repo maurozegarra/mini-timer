@@ -325,7 +325,11 @@ class ClockOverlayService : Service() {
                         val newX = (rightTargetPx - w).coerceAtLeast(0)
                         if (lp.x != newX) {
                             lp.x = newX
-                            runCatching { wm?.updateViewLayout(container, lp) }
+                            // updateViewLayout DENTRO del pase de layout lo ignora el
+                            // WindowManager (la ventana no se reubica). Posponerlo al
+                            // siguiente frame para que la reubicación SÍ se aplique y el
+                            // borde derecho quede fijo al aparecer/desaparecer [AC].
+                            container.post { runCatching { wm?.updateViewLayout(container, lp) } }
                         }
                     }
                     if (DIAG) {
