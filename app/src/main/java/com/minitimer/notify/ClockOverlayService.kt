@@ -269,6 +269,12 @@ class ClockOverlayService : Service() {
         private lateinit var container: LinearLayout
         private lateinit var mainView: TextView
         private lateinit var memoView: TextView
+
+        // P2 (derecho): posición X objetivo del BORDE DERECHO en px de pantalla.
+        // En este equipo el Gravity.END del overlay no se respeta (queda anclado por
+        // la izquierda), así que anclamos START y recalculamos lp.x = target - ancho
+        // real en cada cambio de ancho para mantener el borde derecho fijo.
+        private var rightTargetPx = 0
         private val lp = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -310,21 +316,23 @@ class ClockOverlayService : Service() {
                     applyPosition()
                     insets
                 }
-                // DIAG E1/E2: cada vez que el sistema re-mide/coloca el panel (p. ej.
-                // al ensancharse por [AC]), registra la geometría REAL en pantalla.
-                // Es la fuente de verdad: si rightEdge cambia entre estados, el
-                // anclaje derecho no está sujetando.
-                if (DIAG) {
-                    container.addOnLayoutChangeListener { v, l, _, r, _, _, _, _, _ ->
-                        val loc = IntArray(2)
-                        v.getLocationOnScreen(loc)
-                        val screenW = resources.displayMetrics.widthPixels
+                // Al cambiar el ancho real (p. ej. aparece/desaparece [AC]) recolocamos
+                // P2 para mantener el borde derecho fijo: lp.x = objetivo - anchoReal.
+                // Usamos el ancho ya medido por el layout, no un measure() manual.
+                container.addOnLayoutChangeListener { _, l, _, r, _, _, _, _, _ ->
+                    val w = r - l
+                    if (index == 1 && rightTargetPx > 0) {
+                        val newX = (rightTargetPx - w).coerceAtLeast(0)
+                        if (lp.x != newX) {
+                            lp.x = newX
+                            runCatching { wm?.updateViewLayout(container, lp) }
+                        }
+                    }
+                    if (DIAG) {
                         diag(
                             "layout idx=$index text='${mainView.text}' " +
-                                "winW=${r - l} onScreenX=${loc[0]} " +
-                                "leftEdge=${loc[0]} rightEdge=${loc[0] + (r - l)} " +
-                                "lpGravity=${lp.gravity} lpX=${lp.x} lpY=${lp.y} " +
-                                "screenW=$screenW",
+                                "winW=$w lpX=${lp.x} rightTarget=$rightTargetPx " +
+                                "computedRight=${lp.x + w}",
                         )
                     }
                 }
@@ -367,12 +375,13 @@ class ClockOverlayService : Service() {
                     lp.x = (sa.left + margin + dp(offX)).coerceAtLeast(0)
                 }
                 else -> {
-                    // Panel 2 (derecho): anclaje END. Al establecer Gravity.END, el
-                    // WindowManager ancla el lado derecho de la ventana. lp.x se usa
-                    // ahora como distancia desde el borde derecho real de la pantalla.
-                    // NO recalcular el ancho, la ventana crece hacia la izquierda.
-                    lp.gravity = Gravity.TOP or Gravity.END
-                    lp.x = (sa.right + margin - dp(offX)).coerceAtLeast(0)
+                    // Panel 2 (derecho): anclaje START (el END del overlay no se respeta
+                    // en este equipo). Fijamos el borde derecho calculando lp.x según el
+                    // ancho real; el recálculo fino ocurre en el OnLayoutChangeListener.
+                    lp.gravity = Gravity.TOP or Gravity.START
+                    val screenW = resources.displayMetrics.widthPixels
+                    rightTargetPx = (screenW - sa.right - margin + dp(offX))
+                    lp.x = (rightTargetPx - container.width).coerceAtLeast(0)
                 }
             }
             try {

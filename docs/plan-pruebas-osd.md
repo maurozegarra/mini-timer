@@ -50,6 +50,24 @@ Convenciones:
 | 1.0.187 | 2026-07-04 | E1/E2 = **FALLA** | Intento con FrameLayout de ancho explícito |
 | 1.0.188 | 2026-07-04 | E1/E2 = **FALLA** | Anclaje nativo vía `Gravity.END` (WRAP_CONTENT) |
 | 1.0.189 | 2026-07-04 | E1/E2 = pendiente (build de DIAGNÓSTICO) | Instrumentación de logging, ver sección abajo |
+| 1.0.190 | 2026-07-04 | E1/E2 = **FALLA** (confirmado con medición de pixeles) | Log a archivo + botón compartir |
+| 1.0.191 | 2026-07-04 | E1/E2 = pendiente de verificar | Corrección: anclaje START + lp.x = target − anchoReal |
+
+### DATO DEFINITIVO (medición de pixeles sobre capturas reales, no `getLocationOnScreen`)
+Midiendo los bordes del texto de P2 en las capturas (equipo MIUI, pantalla 1080, captura escalada a 738 px):
+
+| Estado | left | right | width |
+|--------|------|-------|-------|
+| con `[AC]` (`[AC]·[3]·[76%]`) | **524** | 706 | 182 |
+| sin `[AC]` (`[3]·[76%]`) | **524** | 638 | 114 |
+
+El borde IZQUIERDO está fijo (524) y el DERECHO salta 68 px → el panel está **anclado por la izquierda**. `Gravity.END` NO se respeta en overlays de este equipo con `FLAG_LAYOUT_NO_LIMITS`, y `getLocationOnScreen` mentía (reportaba `rightEdge` fijo, lo contrario de la realidad). Por eso el log de v1.0.189/190 llevó a una conclusión errónea. **Lección: verificar SIEMPRE con pixeles reales, no con la posición "pedida" a la API.**
+
+### Corrección aplicada (v1.0.191)
+Anclar P2 con `Gravity.START` (sí se respeta) y fijar el borde derecho calculando
+`lp.x = rightTargetPx − anchoReal`, recalculado en el `OnLayoutChangeListener` con el
+ancho YA medido por el layout (no `measure()` manual como el intento 1). `rightTargetPx =
+screenW − saRight − margin + offX`. Pendiente de verificar con nueva captura + medición.
 
 ## Bug abierto: E1/E2 — borde derecho de P2 no queda fijo
 
