@@ -89,6 +89,11 @@ Segunda pestaña de la app: editor y reproductor de rutinas de entrenamiento con
    ./gradlew installDebug
    ```
 
+### Probar sin USB (emulador / ADB inalámbrico)
+
+Comandos verificados para crear un emulador desde CLI e instalar en el teléfono por Wi-Fi (sin cable
+ni permisos de administrador): [`docs/emulador-y-adb-inalambrico.md`](docs/emulador-y-adb-inalambrico.md).
+
 ## Estructura
 
 ```
