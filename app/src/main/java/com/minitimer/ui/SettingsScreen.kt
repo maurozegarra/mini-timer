@@ -69,9 +69,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.material.icons.filled.FitnessCenter
 import com.minitimer.AlarmScope
-import com.minitimer.AthleteViewModel
 import com.minitimer.SettingsRoot
 import com.minitimer.SettingsSection
 import com.minitimer.TimerViewModel
@@ -104,7 +102,7 @@ import kotlin.math.roundToInt
     ExperimentalMaterial3Api::class,
 )
 @Composable
-fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
+fun SettingsScreen(vm: TimerViewModel) {
     val c = vm.config
     val t = I18n.get(c.general.language)
     val accent = AppTheme.colors.accent
@@ -334,19 +332,6 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
             }
         }
 
-        SettingsSection.ATHLETE -> {
-            SettingsGroup(t.tabAthlete, accent) {
-                SwitchRow(
-                    label = t.padPlayerClock,
-                    desc = t.padPlayerClockDesc,
-                    checked = c.athlete.padPlayerClock,
-                    accent = accent,
-                    onCheckedChange = { vm.setPadPlayerClock(it) },
-                )
-            }
-            AlarmSection(vm, AlarmScope.ATHLETE, t, accent) { soundDialogScope = AlarmScope.ATHLETE }
-        }
-
         SettingsSection.BACKUP -> SettingsGroup(t.groupBackup, accent) {
             Row(
                 modifier = Modifier
@@ -448,7 +433,6 @@ fun SettingsScreen(vm: TimerViewModel, athleteVm: AthleteViewModel) {
                     val json = BackupManager.readBackup(context)
                     if (json != null && BackupManager.restoreFromJson(context, json)) {
                         vm.reload()
-                        athleteVm.reload()
                     }
                     lastBackupAt = BackupManager.backupExportedAt(context)
                     showRestoreDialog = false
@@ -802,18 +786,6 @@ private fun SettingsCategoryList(
             }
         }
 
-        SettingsRoot.ATHLETE -> {
-            CategoryHeader(t.tabAthlete, accent)
-            CategoryCard {
-                SettingsCategoryRow(
-                    icon = Icons.Filled.FitnessCenter,
-                    title = t.tabAthlete,
-                    subtitle = c.athlete.alarm.soundName ?: t.defaultSound,
-                    accent = accent,
-                    first = true,
-                ) { vm.settingsSection = SettingsSection.ATHLETE }
-            }
-        }
     }
 }
 

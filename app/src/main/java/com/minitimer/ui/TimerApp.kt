@@ -2,7 +2,6 @@ package com.minitimer.ui
 
 import android.view.HapticFeedbackConstants
 import androidx.activity.compose.BackHandler
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -53,9 +52,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -81,17 +77,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.graphics.Paint
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.input.pointer.pointerInput
@@ -99,30 +89,22 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.minitimer.AthleteViewModel
 import com.minitimer.Phase
 import com.minitimer.R
 import com.minitimer.SettingsRoot
 import com.minitimer.SettingsSection
 import com.minitimer.TimerViewModel
-import com.minitimer.data.ExerciseCatalog
-import com.minitimer.ui.athlete.AthleteScreen
 import com.minitimer.i18n.I18n
 import com.minitimer.model.TimerItem
 import com.minitimer.ui.theme.AppTheme
 import com.minitimer.ui.theme.Dims
 import com.minitimer.ui.theme.DONE_RED
 import com.minitimer.ui.theme.JetBrainsMono
-import com.minitimer.ui.theme.Neuropol
-import com.minitimer.ui.theme.Wallpoet
 import com.minitimer.util.formatClock
 import com.minitimer.util.formatLastFinished
 import com.minitimer.util.formatRemaining
@@ -135,7 +117,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
+fun TimerApp(vm: TimerViewModel) {
     val t = I18n.get(vm.config.general.language)
     val accent = Color(vm.config.general.accent)
 
@@ -149,57 +131,26 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var showSheet by remember { mutableStateOf(false) }
-    val selectedTab = vm.selectedTab
     val onBlocked = { scope.launch { snackbar.showSnackbar(t.blockedActive) }; Unit }
 
     // El timer cuyo detalle está abierto (si existe en la lista).
     val detail: TimerItem? = vm.detailId?.let { vm.item(it) }
 
-    // Editor / selector / player abiertos (sección Athlete).
-    val athleteTraining = selectedTab == 1 && athleteVm.draft != null
-    val athleteChoosing = selectedTab == 1 && athleteVm.choosingExercise
-    val athleteExercise = selectedTab == 1 && athleteVm.editingExerciseId != null
-    val athleteVariant = selectedTab == 1 && athleteVm.editingVariantId != null
-    val athleteWorkout = selectedTab == 1 && athleteVm.editingWorkoutId != null
-    val athletePlaying = selectedTab == 1 && athleteVm.playerTrainingId != null
-    val athleteFull = athleteTraining || athletePlaying
-
-    // Corrida activa del player (no preview ni finished): pinta todo con el color
-    // de la fase y oculta la barra superior cuando el OSD está oculto.
-    val athleteRunning = athletePlaying && athleteVm.playerStarted && !athleteVm.playerFinished
-    val runningColor = athleteVm.playerStep?.let { lerp(Color(it.colorArgb), Color.Black, 0.12f) }
-    val hideChrome = athleteRunning && !athleteVm.playerControlsVisible
-
     val screenNo = when {
         vm.showSettings -> 4
         detail != null -> 2
-        athletePlaying -> 11
-        athleteChoosing -> 10
-        athleteExercise -> 9
-        athleteVariant -> 8
-        athleteWorkout -> 7
-        athleteTraining -> 6
-        selectedTab == 1 -> 5
-        selectedTab == 0 -> 1
-        else -> 12
+        else -> 1
     }
 
-    BackHandler(enabled = vm.showSettings || vm.detailId != null || athleteFull) {
+    BackHandler(enabled = vm.showSettings || vm.detailId != null) {
         when {
             vm.showSettings -> if (vm.settingsSection != null) vm.settingsSection = null else vm.showSettings = false
             vm.detailId != null -> vm.detailId = null
-            athletePlaying -> athleteVm.closePlayer()
-            athleteChoosing -> athleteVm.closeExercisePicker()
-            athleteExercise -> athleteVm.closeExerciseEditor()
-            athleteVariant -> athleteVm.closeVariantEditor()
-            athleteWorkout -> athleteVm.closeWorkoutEditor()
-            athleteTraining -> athleteVm.closeTrainingEditor()
         }
     }
 
     Scaffold(
         containerColor = when {
-            athleteRunning && runningColor != null -> runningColor
             vm.showSettings -> AppTheme.colors.bg
             else -> AppTheme.colors.bg
         },
@@ -213,13 +164,11 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                                 SettingsSection.APPEARANCE -> t.groupAppearance
                                 SettingsSection.TIMER -> t.groupTimer
                                 SettingsSection.OVERLAY -> t.groupOverlay
-                                SettingsSection.ATHLETE -> t.tabAthlete
                                 SettingsSection.BACKUP -> t.groupBackup
                                 SettingsSection.DEVELOPER -> t.groupDeveloper
                                 null -> when (vm.settingsRoot) {
                                     SettingsRoot.GENERAL -> t.groupGeneral
                                     SettingsRoot.TIMER -> t.groupTimer
-                                    SettingsRoot.ATHLETE -> t.tabAthlete
                                 }
                             }
                             Text(settingsTitle, color = AppTheme.colors.textPrimary, fontWeight = FontWeight.SemiBold)
@@ -230,50 +179,25 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                             placeholder = t.noName,
                             onCommit = { vm.renameTimer(detail.id, it) },
                         )
-                        athletePlaying -> if (!hideChrome) {
-                            Text(athleteVm.playerName, color = if (athleteRunning) Color.White else AppTheme.colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
-                        }
-                        athleteChoosing -> Text(t.chooseExercise, color = AppTheme.colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
-                        athleteExercise -> {
-                            val exEdit = athleteVm.editingExercise()
-                            val exTitle = exEdit?.let { ExerciseCatalog.display(it.exerciseId, it.name, t.locale.language) }
-                                ?.ifBlank { t.exercise } ?: t.exercise
-                            Text(exTitle, color = AppTheme.colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
-                        }
-                        athleteVariant -> Text(athleteVm.editingVariant()?.name?.ifBlank { t.variant } ?: t.variant, color = AppTheme.colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
-                        athleteWorkout -> Text(athleteVm.editingWorkout()?.name?.ifBlank { t.workout } ?: t.workout, color = AppTheme.colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
-                        athleteTraining -> Text(t.createTraining, color = AppTheme.colors.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
-                        selectedTab == 1 -> Text(
-                            t.tabAthlete.uppercase(),
-                            color = AppTheme.colors.textPrimary,
-                            fontFamily = Neuropol,
-                            fontSize = 32.sp,
-                        )
                         else -> TimesWordmark(accent = accent, height = 22.dp)
                     }
                 },
                 navigationIcon = {
-                    if ((vm.showSettings || vm.detailId != null || athleteFull) && !hideChrome) {
+                    if ((vm.showSettings || vm.detailId != null)) {
                         IconButton(onClick = {
                             when {
                                 vm.showSettings -> if (vm.settingsSection != null) vm.settingsSection = null else vm.showSettings = false
                                 vm.detailId != null -> vm.detailId = null
-                                athletePlaying -> athleteVm.closePlayer()
-                                athleteChoosing -> athleteVm.closeExercisePicker()
-                                athleteExercise -> athleteVm.closeExerciseEditor()
-                                athleteVariant -> athleteVm.closeVariantEditor()
-                                athleteWorkout -> athleteVm.closeWorkoutEditor()
-                                athleteTraining -> athleteVm.closeTrainingEditor()
                             }
                         }) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Back",
-                                tint = if (athleteRunning) Color.White else AppTheme.colors.textPrimary,
+                                tint = AppTheme.colors.textPrimary,
                             )
                         }
-                    } else if (selectedTab == 0) {
-                        // Solo en Timer: engranaje (outline) que abre la config General (global).
+                    } else {
+                        // Engrane (outline) que abre la config General (global).
                         IconButton(onClick = { vm.openSettings(SettingsRoot.GENERAL) }) {
                             Icon(Icons.Outlined.Settings, contentDescription = "General", tint = AppTheme.colors.textDim)
                         }
@@ -282,7 +206,6 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                 actions = {
                     when {
                         vm.showSettings -> {}
-                        athleteFull -> {}
                         detail != null -> {
                             var menu by remember { mutableStateOf(false) }
                             Box {
@@ -297,13 +220,9 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                                 }
                             }
                         }
-                        selectedTab == 0 -> IconButton(onClick = { vm.openSettings(SettingsRoot.TIMER) }) {
+                        else -> IconButton(onClick = { vm.openSettings(SettingsRoot.TIMER) }) {
                             Icon(Icons.Filled.Tune, contentDescription = "Timer settings", tint = AppTheme.colors.textDim)
                         }
-                        selectedTab == 1 -> IconButton(onClick = { vm.openSettings(SettingsRoot.ATHLETE) }) {
-                            Icon(Icons.Filled.Tune, contentDescription = "Athlete settings", tint = AppTheme.colors.textDim)
-                        }
-                        else -> {}
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -312,7 +231,7 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
             )
         },
         floatingActionButton = {
-            if (!vm.showSettings && vm.detailId == null && selectedTab == 0) {
+            if (!vm.showSettings && detail == null) {
                 FloatingActionButton(
                     onClick = { vm.prepareNewTimer(); showSheet = true },
                     containerColor = accent,
@@ -323,29 +242,18 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                 }
             }
         },
-        bottomBar = {
-            if (!vm.showSettings && vm.detailId == null && !athleteFull) {
-                BottomNavBar(
-                    selected = selectedTab,
-                    accent = accent,
-                    t = t,
-                    onSelect = { vm.selectTab(it) },
-                )
-            }
-        },
     ) { inner ->
         Box(modifier = Modifier.fillMaxSize().padding(inner)) {
             when {
-                vm.showSettings -> Box(Modifier.padding(horizontal = 24.dp)) { SettingsScreen(vm, athleteVm) }
+                vm.showSettings -> Box(Modifier.padding(horizontal = 24.dp)) { SettingsScreen(vm) }
                 detail != null -> TimerDetailBody(vm, detail, accent, t, onBlocked)
-                selectedTab == 0 -> TimerListScreen(
+                else -> TimerListScreen(
                     vm = vm,
                     accent = accent,
                     t = t,
                     onOpen = { vm.detailId = it },
                     onBlocked = onBlocked,
                 )
-                selectedTab == 1 -> AthleteScreen(athleteVm, accent, t)
             }
             if (vm.config.general.developerMode) {
                 Text(
@@ -369,88 +277,6 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
             onDismiss = { showSheet = false },
             onBlocked = onBlocked,
         )
-    }
-}
-
-// ---------- Barra de navegación inferior (Material 3) ----------
-@Composable
-private fun BottomNavBar(
-    selected: Int,
-    accent: Color,
-    t: com.minitimer.i18n.Strings,
-    onSelect: (Int) -> Unit,
-) {
-    val items = listOf(
-        Triple(R.drawable.ic_tab_timer, t.title, 0),
-        Triple(R.drawable.ic_tab_athlete, t.tabAthlete, 1),
-    )
-    NavigationBar(containerColor = AppTheme.colors.surface, tonalElevation = 0.dp) {
-        items.forEach { (iconRes, label, index) ->
-            NavigationBarItem(
-                selected = selected == index,
-                onClick = { onSelect(index) },
-                icon = {
-                    if (index == 1) {
-                        AthleteTabIcon(modifier = Modifier.size(24.dp))
-                    } else {
-                        Icon(
-                            painter = painterResource(iconRes),
-                            contentDescription = label,
-                            modifier = Modifier.size(24.dp),
-                        )
-                    }
-                },
-                label = { Text(label, fontSize = 12.sp) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = AppTheme.colors.onAccent,
-                    selectedTextColor = accent,
-                    indicatorColor = accent,
-                    unselectedIconColor = AppTheme.colors.textDim,
-                    unselectedTextColor = AppTheme.colors.textDim,
-                ),
-            )
-        }
-    }
-}
-
-@Composable
-private fun AthleteTabIcon(modifier: Modifier = Modifier) {
-    val color = LocalContentColor.current
-    val measurer = rememberTextMeasurer()
-    Canvas(modifier = modifier) {
-        val sx = size.width / 24f
-        val sy = size.height / 24f
-        val pts = listOf(
-            12f to 2.5f, 20.23f to 7.25f, 20.23f to 16.75f,
-            12f to 21.5f, 3.77f to 16.75f, 3.77f to 7.25f,
-        )
-        val hex = Path().apply {
-            moveTo(pts[0].first * sx, pts[0].second * sy)
-            for (i in 1 until pts.size) lineTo(pts[i].first * sx, pts[i].second * sy)
-            close()
-        }
-        val canvas = drawContext.canvas
-        canvas.saveLayer(Rect(Offset.Zero, size), Paint())
-        rotate(-12f, pivot = Offset(size.width / 2f, size.height / 2f)) {
-            drawPath(hex, color)
-        }
-        val layout = measurer.measure(
-            text = "M",
-            style = TextStyle(
-                fontFamily = Wallpoet,
-                fontSize = (size.height * 0.5f).toSp(),
-            ),
-        )
-        drawText(
-            textLayoutResult = layout,
-            color = Color.Black,
-            topLeft = Offset(
-                (size.width - layout.size.width) / 2f,
-                (size.height - layout.size.height) / 2f,
-            ),
-            blendMode = BlendMode.DstOut,
-        )
-        canvas.restore()
     }
 }
 
@@ -700,10 +526,6 @@ private fun TimerCard(
                         .background(accent),
                 )
             }
-        }
-
-        if (running) {
-            AnimatedGlowBorder(cornerRadius = 24.dp, colors = glowColors(accent))
         }
     }
 }

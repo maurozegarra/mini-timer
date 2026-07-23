@@ -22,25 +22,6 @@ fun formatRemaining(ms: Long): String {
 }
 
 /**
- * Reloj del player. Por defecto ([padded] = false) omite el "0:" delante cuando
- * falta menos de un minuto (30 s -> "30", 5 s -> "5"). Con [padded] = true usa
- * el formato completo con ceros a la izquierda (30 s -> "00:30"). 1:30 y 1:05:00
- * se mantienen en ambos casos.
- */
-fun formatPlayerClock(ms: Long, padded: Boolean = false): String {
-    val total = ceil(ms.coerceAtLeast(0) / 1000.0).toLong()
-    val h = (total / 3600).toInt()
-    val m = ((total % 3600) / 60).toInt()
-    val s = (total % 60).toInt()
-    return when {
-        h > 0 -> "$h:${pad2(m)}:${pad2(s)}"
-        padded -> "${pad2(m)}:${pad2(s)}"
-        m > 0 -> "$m:${pad2(s)}"
-        else -> "$s"
-    }
-}
-
-/**
  * Duración compacta para el Now Bar: "10 m", "1 h 30 m", "1 m 30 s", "45 s".
  * Solo incluye las unidades distintas de cero.
  */

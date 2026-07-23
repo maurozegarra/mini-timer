@@ -11,7 +11,3 @@ val JetBrainsMono = FontFamily(
     Font(R.font.jetbrains_mono_regular, FontWeight.Normal),
     Font(R.font.jetbrains_mono_semibold, FontWeight.SemiBold),
 )
-
-// Solo branding de Athlete: Neuropol para el título "ATHLETE" y Wallpoet para la "M" del ícono.
-val Neuropol = FontFamily(Font(R.font.neuropol_nova_regular))
-val Wallpoet = FontFamily(Font(R.font.wallpoet_regular))

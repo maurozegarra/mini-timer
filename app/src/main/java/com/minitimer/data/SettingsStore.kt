@@ -4,7 +4,6 @@ import android.content.Context
 import com.minitimer.Phase
 import com.minitimer.model.AlarmConfig
 import com.minitimer.model.AppConfig
-import com.minitimer.model.AthleteConfig
 import com.minitimer.model.GeneralConfig
 import com.minitimer.model.TimerConfig
 import com.minitimer.model.TimerItem
@@ -28,7 +27,6 @@ class SettingsStore(context: Context) {
             return AppConfig(
                 general = generalFromJson(generalJson),
                 timer = timerFromJson(prefs.getString(KEY_CFG_TIMER, null)),
-                athlete = athleteFromJson(prefs.getString(KEY_CFG_ATHLETE, null)),
             )
         }
         if (prefs.contains(KEY_ACCENT) || prefs.contains(KEY_LANGUAGE)) {
@@ -43,7 +41,6 @@ class SettingsStore(context: Context) {
         prefs.edit()
             .putString(KEY_CFG_GENERAL, generalToJson(c.general).toString())
             .putString(KEY_CFG_TIMER, timerToJson(c.timer).toString())
-            .putString(KEY_CFG_ATHLETE, athleteToJson(c.athlete).toString())
             .also { clearLegacyKeys(it) }
             .apply()
     }
@@ -82,11 +79,6 @@ class SettingsStore(context: Context) {
                 showRing = prefs.getBoolean(KEY_SHOW_RING, tg.showRing),
                 showOverlay = prefs.getBoolean(KEY_SHOW_OVERLAY, tg.showOverlay),
                 showNowBar = prefs.getBoolean(KEY_SHOW_NOW_BAR, tg.showNowBar),
-                alarm = legacyAlarm,
-            ),
-            // Athlete compartía la misma alarma antes: se copia para conservarla.
-            athlete = AthleteConfig(
-                padPlayerClock = prefs.getBoolean(KEY_PAD_CLOCK, AthleteConfig().padPlayerClock),
                 alarm = legacyAlarm,
             ),
         )
@@ -160,26 +152,13 @@ class SettingsStore(context: Context) {
         )
     }
 
-    private fun athleteToJson(ac: AthleteConfig) = JSONObject()
-        .put("padPlayerClock", ac.padPlayerClock)
-        .put("alarm", alarmToJson(ac.alarm))
-
-    private fun athleteFromJson(json: String?): AthleteConfig {
-        val d = AthleteConfig()
-        val o = json?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return d
-        return AthleteConfig(
-            padPlayerClock = o.optBoolean("padPlayerClock", d.padPlayerClock),
-            alarm = alarmFromJson(o.optJSONObject("alarm")),
-        )
-    }
-
     private fun clearLegacyKeys(e: android.content.SharedPreferences.Editor) {
         e.remove(KEY_ACCENT).remove(KEY_LANGUAGE).remove(KEY_PRESETS)
             .remove(KEY_AUTO_DISMISS).remove(KEY_IGNORE_SILENT).remove(KEY_ALARM_URI)
             .remove(KEY_ALARM_NAME).remove(KEY_HEADSET_MODE).remove(KEY_VIBRATION_ENABLED)
             .remove(KEY_VIBRATION_PATTERN).remove(KEY_ALARM_VOLUME).remove(KEY_SHOW_RING)
             .remove(KEY_SHOW_OVERLAY).remove(KEY_SHOW_NOW_BAR).remove(KEY_ADD_INC)
-            .remove(KEY_DEV_MODE).remove(KEY_PAD_CLOCK).remove(KEY_THEME_MODE)
+            .remove(KEY_DEV_MODE).remove(KEY_THEME_MODE)
     }
 
     // ---------- Lista de timers (sobrevive a la muerte del proceso) ----------
@@ -275,13 +254,6 @@ class SettingsStore(context: Context) {
     fun loadRingOffset(): Pair<Int, Int> =
         prefs.getInt(KEY_RING_OFF_X, 0) to prefs.getInt(KEY_RING_OFF_Y, RING_OFFSET_Y_DEFAULT)
 
-    /** Pestaña inferior seleccionada (0=Timer, 1=Athlete); persistida. */
-    fun saveSelectedTab(index: Int) {
-        prefs.edit().putInt(KEY_SELECTED_TAB, index).apply()
-    }
-
-    fun loadSelectedTab(): Int = prefs.getInt(KEY_SELECTED_TAB, 0)
-
     private companion object {
         // Desplazamiento vertical (dp) por defecto para centrar el anillo sobre
         // la cámara con las dimensiones actuales del anillo (38x32dp).
@@ -290,7 +262,6 @@ class SettingsStore(context: Context) {
         // Esquema nuevo: un JSON por sección.
         const val KEY_CFG_GENERAL = "cfg_general"
         const val KEY_CFG_TIMER = "cfg_timer"
-        const val KEY_CFG_ATHLETE = "cfg_athlete"
 
         // Claves planas antiguas (solo se leen en la migración one-time).
         const val KEY_ACCENT = "accent"
@@ -309,7 +280,6 @@ class SettingsStore(context: Context) {
         const val KEY_SHOW_NOW_BAR = "showNowBar"
         const val KEY_ADD_INC = "addIncrement"
         const val KEY_DEV_MODE = "developerMode"
-        const val KEY_PAD_CLOCK = "padPlayerClock"
         const val KEY_THEME_MODE = "themeMode"
         const val KEY_TIMERS = "timers_json"
         const val KEY_ACTIVE_ID = "active_id"
@@ -318,6 +288,5 @@ class SettingsStore(context: Context) {
         const val KEY_OVERLAY_ASKED = "overlay_asked"
         const val KEY_RING_OFF_X = "ring_off_x"
         const val KEY_RING_OFF_Y = "ring_off_y"
-        const val KEY_SELECTED_TAB = "selected_tab"
     }
 }

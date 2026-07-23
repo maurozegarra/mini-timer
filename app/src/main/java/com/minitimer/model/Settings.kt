@@ -57,14 +57,6 @@ data class TimerConfig(
     val alarm: AlarmConfig = AlarmConfig(),
 )
 
-/** Ajustes específicos de la pestaña Athlete. */
-data class AthleteConfig(
-    /** Reloj del player con ceros a la izquierda: "00:30" en vez de "30". */
-    val padPlayerClock: Boolean = false,
-    /** Alarma propia de la pestaña Athlete. */
-    val alarm: AlarmConfig = AlarmConfig(),
-)
-
 /**
  * Configuración completa de la app: un bloque general + uno por cada mini-app
  * (pestaña). Añadir una pestaña nueva = añadir su data class aquí.
@@ -72,7 +64,6 @@ data class AthleteConfig(
 data class AppConfig(
     val general: GeneralConfig = GeneralConfig(),
     val timer: TimerConfig = TimerConfig(),
-    val athlete: AthleteConfig = AthleteConfig(),
 )
 
 /** Opciones (en segundos) para el incremento del botón "+tiempo". */

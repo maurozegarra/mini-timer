@@ -14,8 +14,7 @@ import java.util.concurrent.TimeUnit
  * Respaldo y restauración de TODOS los datos persistentes de la app a una
  * carpeta elegida por el usuario (Storage Access Framework, sin dependencias
  * externas). El respaldo es un único JSON versionado ([SCHEMA_VERSION]) con un
- * volcado genérico de las SharedPreferences persistentes; el estado transitorio
- * del player ("athlete_player") se excluye a propósito.
+ * volcado genérico de las SharedPreferences persistentes.
  *
  * Flujo "auto-backup a carpeta":
  * - El usuario elige una carpeta una vez ([setFolder]); se persiste su tree Uri.
@@ -29,8 +28,8 @@ object BackupManager {
     const val SCHEMA_VERSION = 1
     const val FILE_NAME = "mini-timer-backup.json"
 
-    /** Prefs persistentes a respaldar. NO incluir el transitorio "athlete_player". */
-    private val PREF_FILES = listOf("mini_timer", "athlete")
+    /** Prefs persistentes a respaldar. */
+    private val PREF_FILES = listOf("mini_timer")
 
     private const val BACKUP_PREFS = "mini_timer"
     private const val KEY_FOLDER_URI = "backup_folder_uri"

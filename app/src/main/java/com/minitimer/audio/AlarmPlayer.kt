@@ -18,11 +18,10 @@ import com.minitimer.model.VIBRATION_PATTERNS
 import kotlin.math.pow
 
 /**
- * Reproductor ÚNICO de alarma/sonido, compartido por todas las mini-apps
- * (Timer, Athlete, futuras). Cada llamada recibe el [AlarmConfig] propio
- * de la pestaña, de modo que "lo que pruebas es lo que suena": mismo stream,
+ * Reproductor ÚNICO de alarma/sonido. Cada llamada recibe el [AlarmConfig]
+ * propio, de modo que "lo que pruebas es lo que suena": mismo stream,
  * USAGE_ALARM, escalado perceptual en dB, ducking de la música y enrutamiento a
- * audífonos. Antes esta lógica estaba duplicada en TimerViewModel y WorkoutAlarm.
+ * audífonos.
  */
 class AlarmPlayer(private val context: Context) {
 

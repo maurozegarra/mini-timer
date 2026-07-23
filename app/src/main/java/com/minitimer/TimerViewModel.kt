@@ -29,17 +29,17 @@ data class AlarmSound(val name: String, val uri: String)
 /** Límite (en dp) del ajuste fino del anillo en cada eje. */
 private const val RING_OFFSET_LIMIT = 100
 
-/** Categorías (subpantallas) de Ajustes. Los encabezados General/Timer/Athlete
+/** Categorías (subpantallas) de Ajustes. Los encabezados General/Timer
  *  agrupan estas categorías; la alarma vive dentro de cada pestaña. */
-enum class SettingsSection { APPEARANCE, TIMER, OVERLAY, ATHLETE, BACKUP, DEVELOPER }
+enum class SettingsSection { APPEARANCE, TIMER, OVERLAY, BACKUP, DEVELOPER }
 
 /** Raíz de Ajustes: General (global, transversal a la app) o la config propia
  *  de una pestaña. Cada pestaña es una app independiente; General solo se abre
  *  desde Timer. */
-enum class SettingsRoot { GENERAL, TIMER, ATHLETE }
+enum class SettingsRoot { GENERAL, TIMER }
 
 /** Mini-app (pestaña) dueña de un bloque de alarma independiente. */
-enum class AlarmScope { TIMER, ATHLETE }
+enum class AlarmScope { TIMER }
 
 class TimerViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -77,15 +77,6 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     /** Id del timer que ocupa el slot activo (RUNNING/PAUSED/DONE); null si ninguno. */
     var activeId by mutableStateOf<Long?>(null)
         private set
-
-    /** Pestaña inferior seleccionada (0=Timer, 1=Athlete, 2=Reloj); persistida. */
-    var selectedTab by mutableStateOf(store.loadSelectedTab())
-        private set
-
-    fun selectTab(index: Int) {
-        selectedTab = index
-        store.saveSelectedTab(index)
-    }
 
     // Offset fino (en dp) del anillo sobre la cámara, ajustable con +/- en ajustes.
     var ringOffsetX by mutableStateOf(store.loadRingOffset().first)
@@ -138,8 +129,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
      * cada pestaña cuya alarma aún no tenga sonido elegido.
      */
     private fun ensureDefaultAlarmSound() {
-        val needs = config.timer.alarm.soundUri == null ||
-            config.athlete.alarm.soundUri == null
+        val needs = config.timer.alarm.soundUri == null
         if (!needs) return
         val beep = findBeepSound() ?: return
         fun fill(a: AlarmConfig) =
@@ -147,7 +137,6 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         update(
             config.copy(
                 timer = config.timer.copy(alarm = fill(config.timer.alarm)),
-                athlete = config.athlete.copy(alarm = fill(config.athlete.alarm)),
             ),
         )
     }
@@ -508,22 +497,16 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     fun removePreset(sec: Int) =
         update(config.copy(timer = config.timer.copy(presets = config.timer.presets.filter { it != sec })))
 
-    // Athlete
-    fun setPadPlayerClock(value: Boolean) =
-        update(config.copy(athlete = config.athlete.copy(padPlayerClock = value)))
-
     // ---------- Alarma independiente por pestaña ----------
     /** Devuelve el bloque de alarma de la mini-app [scope]. */
     fun alarmFor(scope: AlarmScope): AlarmConfig = when (scope) {
         AlarmScope.TIMER -> config.timer.alarm
-        AlarmScope.ATHLETE -> config.athlete.alarm
     }
 
     /** Reemplaza el bloque de alarma de la mini-app [scope]. */
     fun setAlarm(scope: AlarmScope, alarm: AlarmConfig) = update(
         when (scope) {
             AlarmScope.TIMER -> config.copy(timer = config.timer.copy(alarm = alarm))
-            AlarmScope.ATHLETE -> config.copy(athlete = config.athlete.copy(alarm = alarm))
         },
     )
 
