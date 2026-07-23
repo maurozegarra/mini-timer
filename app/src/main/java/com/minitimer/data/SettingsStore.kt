@@ -10,7 +10,6 @@ import com.minitimer.model.GeneralConfig
 import com.minitimer.model.OsdPanel
 import com.minitimer.model.TimerConfig
 import com.minitimer.model.TimerItem
-import com.minitimer.model.WaterConfig
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -33,7 +32,6 @@ class SettingsStore(context: Context) {
                 timer = timerFromJson(prefs.getString(KEY_CFG_TIMER, null)),
                 athlete = athleteFromJson(prefs.getString(KEY_CFG_ATHLETE, null)),
                 clock = clockFromJson(prefs.getString(KEY_CFG_CLOCK, null)),
-                water = waterFromJson(prefs.getString(KEY_CFG_WATER, null)),
             )
         }
         if (prefs.contains(KEY_ACCENT) || prefs.contains(KEY_LANGUAGE)) {
@@ -50,7 +48,6 @@ class SettingsStore(context: Context) {
             .putString(KEY_CFG_TIMER, timerToJson(c.timer).toString())
             .putString(KEY_CFG_ATHLETE, athleteToJson(c.athlete).toString())
             .putString(KEY_CFG_CLOCK, clockToJson(c.clock).toString())
-            .putString(KEY_CFG_WATER, waterToJson(c.water).toString())
             .also { clearLegacyKeys(it) }
             .apply()
     }
@@ -96,7 +93,6 @@ class SettingsStore(context: Context) {
                 padPlayerClock = prefs.getBoolean(KEY_PAD_CLOCK, AthleteConfig().padPlayerClock),
                 alarm = legacyAlarm,
             ),
-            water = WaterConfig(),
         )
     }
 
@@ -179,15 +175,6 @@ class SettingsStore(context: Context) {
             padPlayerClock = o.optBoolean("padPlayerClock", d.padPlayerClock),
             alarm = alarmFromJson(o.optJSONObject("alarm")),
         )
-    }
-
-    private fun waterToJson(wc: WaterConfig) = JSONObject()
-        .put("alarm", alarmToJson(wc.alarm))
-
-    private fun waterFromJson(json: String?): WaterConfig {
-        val d = WaterConfig()
-        val o = json?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return d
-        return WaterConfig(alarm = alarmFromJson(o.optJSONObject("alarm")))
     }
 
     private fun panelToJson(p: OsdPanel) = JSONObject()
@@ -342,7 +329,7 @@ class SettingsStore(context: Context) {
     fun loadRingOffset(): Pair<Int, Int> =
         prefs.getInt(KEY_RING_OFF_X, 0) to prefs.getInt(KEY_RING_OFF_Y, RING_OFFSET_Y_DEFAULT)
 
-    /** Pestaña inferior seleccionada (0=Timer, 1=Athlete, 2=Reloj, 3=Water). */
+    /** Pestaña inferior seleccionada (0=Timer, 1=Athlete, 2=Reloj). */
     fun saveSelectedTab(index: Int) {
         prefs.edit().putInt(KEY_SELECTED_TAB, index).apply()
     }
@@ -384,7 +371,6 @@ class SettingsStore(context: Context) {
         const val KEY_CFG_TIMER = "cfg_timer"
         const val KEY_CFG_ATHLETE = "cfg_athlete"
         const val KEY_CFG_CLOCK = "cfg_clock"
-        const val KEY_CFG_WATER = "cfg_water"
 
         // Claves planas antiguas (solo se leen en la migración one-time).
         const val KEY_ACCENT = "accent"

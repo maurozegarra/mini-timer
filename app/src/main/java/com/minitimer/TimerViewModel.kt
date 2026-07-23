@@ -45,7 +45,7 @@ enum class SettingsSection { APPEARANCE, TIMER, OVERLAY, ATHLETE, BACKUP, DEVELO
 enum class SettingsRoot { GENERAL, TIMER, ATHLETE }
 
 /** Mini-app (pestaña) dueña de un bloque de alarma independiente. */
-enum class AlarmScope { TIMER, ATHLETE, WATER }
+enum class AlarmScope { TIMER, ATHLETE }
 
 class TimerViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -84,7 +84,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     var activeId by mutableStateOf<Long?>(null)
         private set
 
-    /** Pestaña inferior seleccionada (0=Timer, 1=Athlete, 2=Water); persistida. */
+    /** Pestaña inferior seleccionada (0=Timer, 1=Athlete, 2=Reloj); persistida. */
     var selectedTab by mutableStateOf(store.loadSelectedTab())
         private set
 
@@ -154,8 +154,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
      */
     private fun ensureDefaultAlarmSound() {
         val needs = config.timer.alarm.soundUri == null ||
-            config.athlete.alarm.soundUri == null ||
-            config.water.alarm.soundUri == null
+            config.athlete.alarm.soundUri == null
         if (!needs) return
         val beep = findBeepSound() ?: return
         fun fill(a: AlarmConfig) =
@@ -164,7 +163,6 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
             config.copy(
                 timer = config.timer.copy(alarm = fill(config.timer.alarm)),
                 athlete = config.athlete.copy(alarm = fill(config.athlete.alarm)),
-                water = config.water.copy(alarm = fill(config.water.alarm)),
             ),
         )
     }
@@ -574,7 +572,6 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     fun alarmFor(scope: AlarmScope): AlarmConfig = when (scope) {
         AlarmScope.TIMER -> config.timer.alarm
         AlarmScope.ATHLETE -> config.athlete.alarm
-        AlarmScope.WATER -> config.water.alarm
     }
 
     /** Reemplaza el bloque de alarma de la mini-app [scope]. */
@@ -582,7 +579,6 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         when (scope) {
             AlarmScope.TIMER -> config.copy(timer = config.timer.copy(alarm = alarm))
             AlarmScope.ATHLETE -> config.copy(athlete = config.athlete.copy(alarm = alarm))
-            AlarmScope.WATER -> config.copy(water = config.water.copy(alarm = alarm))
         },
     )
 

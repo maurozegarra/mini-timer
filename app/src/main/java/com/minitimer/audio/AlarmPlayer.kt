@@ -19,7 +19,7 @@ import kotlin.math.pow
 
 /**
  * Reproductor ÚNICO de alarma/sonido, compartido por todas las mini-apps
- * (Timer, Athlete, Water, futuras). Cada llamada recibe el [AlarmConfig] propio
+ * (Timer, Athlete, futuras). Cada llamada recibe el [AlarmConfig] propio
  * de la pestaña, de modo que "lo que pruebas es lo que suena": mismo stream,
  * USAGE_ALARM, escalado perceptual en dB, ducking de la música y enrutamiento a
  * audífonos. Antes esta lógica estaba duplicada en TimerViewModel y WorkoutAlarm.

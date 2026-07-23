@@ -65,12 +65,6 @@ data class AthleteConfig(
     val alarm: AlarmConfig = AlarmConfig(),
 )
 
-/** Ajustes específicos de la pestaña Water (placeholder; se ampliará). */
-data class WaterConfig(
-    /** Alarma propia de la pestaña Water. */
-    val alarm: AlarmConfig = AlarmConfig(),
-)
-
 /** Rango del tamaño de texto del OSD del reloj, en pt. */
 const val OSD_TEXT_SIZE_MIN = 10
 const val OSD_TEXT_SIZE_MAX = 40
@@ -171,7 +165,6 @@ data class AppConfig(
     val timer: TimerConfig = TimerConfig(),
     val athlete: AthleteConfig = AthleteConfig(),
     val clock: ClockConfig = ClockConfig(),
-    val water: WaterConfig = WaterConfig(),
 )
 
 /** Opciones (en segundos) para el incremento del botón "+tiempo". */

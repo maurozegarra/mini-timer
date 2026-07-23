@@ -255,11 +255,6 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                             fontFamily = Neuropol,
                             fontSize = 32.sp,
                         )
-                        selectedTab == 3 -> Text(
-                            t.tabWater,
-                            color = AppTheme.colors.textPrimary,
-                            fontWeight = FontWeight.SemiBold,
-                        )
                         else -> TimesWordmark(accent = accent, height = 22.dp)
                     }
                 },
@@ -358,11 +353,6 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                 )
                 selectedTab == 1 -> AthleteScreen(athleteVm, accent, t)
                 selectedTab == 2 -> ClockScreen(vm)
-                else -> ComingSoonScreen(
-                    icon = R.drawable.ic_tab_water,
-                    title = t.tabWater,
-                    subtitle = t.comingSoon,
-                )
             }
             if (vm.config.general.developerMode) {
                 Text(
@@ -401,7 +391,6 @@ private fun BottomNavBar(
         Triple(R.drawable.ic_tab_timer, t.title, 0),
         Triple(R.drawable.ic_tab_athlete, t.tabAthlete, 1),
         Triple(R.drawable.ic_tab_clock, t.tabClock, 2),
-        Triple(R.drawable.ic_tab_water, t.tabWater, 3),
     )
     NavigationBar(containerColor = AppTheme.colors.surface, tonalElevation = 0.dp) {
         items.forEach { (iconRes, label, index) ->
@@ -470,26 +459,6 @@ private fun AthleteTabIcon(modifier: Modifier = Modifier) {
             blendMode = BlendMode.DstOut,
         )
         canvas.restore()
-    }
-}
-
-@Composable
-private fun ComingSoonScreen(icon: Int, title: String, subtitle: String) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Icon(
-            painter = painterResource(icon),
-            contentDescription = title,
-            tint = AppTheme.colors.textFaded,
-            modifier = Modifier.size(72.dp),
-        )
-        Spacer(Modifier.height(16.dp))
-        Text(title, color = AppTheme.colors.textDim, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-        Spacer(Modifier.height(6.dp))
-        Text(subtitle, color = AppTheme.colors.textFaded, fontSize = 14.sp)
     }
 }
 

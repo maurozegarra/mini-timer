@@ -72,7 +72,6 @@ data class Strings(
     val minutes: String,
     val seconds: String,
     val tabAthlete: String,
-    val tabWater: String,
     val tabClock: String,
     val comingSoon: String,
     // --- Reloj (OSD overlay) ---
@@ -280,7 +279,6 @@ object I18n {
         minutes = "Minutos",
         seconds = "Segundos",
         tabAthlete = "Atleta",
-        tabWater = "Agua",
         tabClock = "Reloj",
         comingSoon = "Próximamente",
         clockShow = "Mostrar OSD flotante",
@@ -483,7 +481,6 @@ object I18n {
         minutes = "Minutes",
         seconds = "Seconds",
         tabAthlete = "Athlete",
-        tabWater = "Water",
         tabClock = "Clock",
         comingSoon = "Coming soon",
         clockShow = "Show floating OSD",
