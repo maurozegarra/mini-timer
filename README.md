@@ -33,34 +33,15 @@ Temporizador 100% nativo para Android con **Live Update** (notificación promovi
   (`keepScreenOn`); además, mientras el timer corre en background, un *screen wake lock* en el
   servicio intenta mantenerla encendida (deprecado, puede estar limitado en algunos OEM).
 - **Múltiples temporizadores**: lista de timers nombrados, cada uno con su estado; en instalación limpia se siembran dos por defecto (**rest** 1:00 y **potty** 5:00).
-- **Tipografía**: dígitos en **JetBrains Mono** (incluida en `res/font`), con `0` ranurado. El branding de **Athlete** usa dos fuentes (solo ahí): **Neuropol Nova** para el título `ATHLETE` y **Wallpoet** para la `M` del ícono del tab.
+- **Tipografía**: dígitos en **JetBrains Mono** (incluida en `res/font`), con `0` ranurado.
 - **Persistencia**: `SharedPreferences` (ajustes, lista de timers, estado del timer activo y última duración).
-
-## Atleta (Athlete)
-
-Segunda pestaña de la app: editor y reproductor de rutinas de entrenamiento con jerarquía de **3 niveles**.
-
-- **Jerarquía**: `Training` > `Workout` > `Exercise`.
-  - **Training**: lo que se ejecuta de corrido en el player (p. ej. *Master*).
-  - **Workout**: agrupador de ejercicios (p. ej. Warmup, Cardio, Lower/Upper).
-  - **Exercise**: unidad mínima, con etapas configurables.
-- **Etapas por ejercicio** (`prepare`, `work`, `rest`, `cooldown`), cada una con `StageConfig`: color (ARGB), `display` (COUNTDOWN/STATIC/COUNTUP), alarma, conteo final y `confirm` (AUTO/MANUAL).
-  - `work` admite modo **TIME** (duración) o **REPS** (repeticiones).
-  - Colores por etapa: PREPARE naranja, WORK rojo, REST azul, COOLDOWN plomo.
-- **Peso por serie** (cuando `work` es REPS): `weightType = NONE | TOTAL | BARBELL | DUMBBELL` (+ `barWeight`), con `WorkSet{reps, weight}` por set. BARBELL = barra + discos; DUMBBELL = 2× peso por mano; TOTAL = directo.
-- **Formato rep-by-rep**: ejercicios por reps con un set por repetición (`sets = nº reps`, `workValue = 1`, confirm manual) y descanso entre reps; el player muestra *Rep n/N*.
-- **Rotación** (workouts rotativos): un workout puede tener **variantes** (`WorkoutVariant`) que rotan **al completar** (p. ej. Cardio entre 4 variantes; Fuerza alternando Lower/Upper). Editor de variantes incluido.
-- **Seed *Master***: en instalación limpia se siembra un Training completo (Warmup, Base, Cardio rotativo, Fuerza Lower/Upper rotativo), localizado ES/EN.
-- **Player en segundo plano**: corre con `WorkoutPlayerService` (foreground) reutilizando el motor de alarma; encadena prepare → sets×(work, rest) → cooldown por cada ejercicio del training.
-- **Catálogo de ejercicios** con íconos (emoji por id) y posibilidad de crear ejercicios propios persistidos.
-- **Entrada de duración** rápida en `mm:ss` (diálogo) además de steppers +/-.
 
 ## Respaldo automático
 
 - **Estrategia**: auto-backup a una carpeta elegida por el usuario vía **SAF** (`DocumentsContract`, sin dependencias nuevas).
-- **Formato**: JSON versionado (`schemaVersion`) con volcado tipado de las `SharedPreferences` persistentes (`mini_timer` y `athlete`); se excluye el estado transitorio del player.
+- **Formato**: JSON versionado (`schemaVersion`) con volcado tipado de las `SharedPreferences` persistentes (`mini_timer`).
 - **Disparo**: en cada cambio de datos (listener con *debounce* 2.5s) y al pasar la app a segundo plano. Archivo `mini-timer-backup.json` (rolling) en la carpeta elegida (`tree Uri` con permiso persistible).
-- **Restaurar**: relee el JSON, reescribe prefs y recarga en caliente (`TimerViewModel.reload()` / `AthleteViewModel.reload()`). UI en Ajustes → grupo **Respaldo**.
+- **Restaurar**: relee el JSON, reescribe prefs y recarga en caliente (`TimerViewModel.reload()`). UI en Ajustes → grupo **Respaldo**.
 - **Tras reinstalar** se pierde el permiso de la carpeta y hay que re-elegirla; si tiene respaldo, ofrece restaurar.
 
 ## Requisitos
@@ -103,28 +84,17 @@ app/src/main/
     MainActivity.kt              # Activity, permiso de notificaciones, init de BackupManager
     TimerViewModel.kt            # Lógica: countdown, alarma, auto-dismiss, ajustes, persistencia/restauración
     TimerBus.kt                  # Estado global compartido con el Live Update
-    AthleteViewModel.kt          # CRUD Training/Workout/Exercise, variantes/rotación, buildSteps del player
-    PlayerBus.kt                 # PlayerSnapshot (estado del player de Athlete)
     model/Settings.kt           # Modelo de ajustes + paletas + patrones de vibración
     model/TimerItem.kt          # Modelo de un temporizador individual
-    model/Workout.kt            # Training/Workout/Exercise/StageConfig/WorkSet/WeightType/WorkoutVariant/SessionLog
-    model/PlayerStep.kt         # Paso del player (StepKind PREP/WORK/REST/COOLDOWN + owner/peso/note)
     data/SettingsStore.kt       # Persistencia de ajustes y timers (SharedPreferences)
-    data/WorkoutStore.kt        # Persistencia de trainings, ejercicios propios y sesiones (JSON)
-    data/AthleteDefaults.kt     # Seed del Training "Master" (instalación limpia)
-    data/ExerciseCatalog.kt     # Catálogo base de ejercicios (ES/EN)
-    data/ExerciseIcons.kt       # Mapa de emoji por ejercicio (fallback por palabra clave)
     data/BackupManager.kt       # Auto-backup/restore a carpeta vía SAF
     i18n/Strings.kt             # Traducciones es/en
     util/Format.kt              # Formato de tiempo/hora y parseo de presets
-    ui/TimerApp.kt              # Setup, Countdown, anillo, tab bar, ícono hexagonal de Athlete
+    ui/TimerApp.kt              # Setup, Countdown, anillo, lista de timers
     ui/SettingsScreen.kt        # Pantalla de configuración (incluye grupo Respaldo)
-    ui/athlete/                 # Pantallas de Athlete (lista, editores, selector, player, variantes)
-    ui/theme/Theme.kt, Type.kt  # Tema oscuro y fuentes (JetBrains Mono, Neuropol, Wallpoet)
+    ui/theme/Theme.kt, Type.kt  # Tema oscuro y fuente (JetBrains Mono)
     notify/LiveTimerService.kt  # Foreground service del Live Update del timer
-    notify/WorkoutPlayerService.kt # Foreground service del player de Athlete
-    notify/WorkoutAlarm.kt      # Alarma del player de Athlete
-  res/font/                     # JetBrains Mono, Neuropol Nova, Wallpoet
+  res/font/                     # JetBrains Mono
   res/values/themes.xml         # Tema de la Activity
 ```
 
@@ -164,7 +134,7 @@ Instalado en `%LOCALAPPDATA%\Android\Sdk` (cmdline-tools + `platform-tools`, `pl
 - El proyecto **no incluye `gradle-wrapper.jar`** (binario). Android Studio lo genera al abrir; o usa
   `gradle wrapper --gradle-version 9.4.1` si tienes Gradle instalado.
 - Permisos usados: `POST_NOTIFICATIONS`, `POST_PROMOTED_NOTIFICATIONS`, `FOREGROUND_SERVICE`,
-  `FOREGROUND_SERVICE_SPECIAL_USE`, `VIBRATE`, `WAKE_LOCK`.
+  `FOREGROUND_SERVICE_SPECIAL_USE`, `VIBRATE`, `SYSTEM_ALERT_WINDOW`.
 - No se incluye icono de launcher personalizado (usa el del sistema); puedes añadir uno en `res/mipmap`.
 - La etiqueta visible del launcher es **`!Timer`** (en `MainActivity`), elegida para que la app quede primera en la lista; el nombre de la aplicación sigue siendo **Mini Timer**.
 - **No versionar `tools/`**: los scripts y previews del wordmark (`tools/`) son **solo locales** (están en `.gitignore`). Sirven para regenerar el wordmark `TIMES` (parser TrueType con stdlib + generador de paths) pero **no se incluyen en commits**. El resultado ya vive en el código: `ui/TimesWordmark.kt`.
@@ -199,7 +169,7 @@ herramientas viven en `tools/` (**solo local**, en `.gitignore`); el resultado s
 - Barra inclinada `\` como I: parámetros *lean* (desplazamiento horizontal top→bottom) y grosor = ancho
   del stem de la I. Rellenado con `fillType` **NonZero**.
 
-> Datos **Wallpoet** (`app/src/main/res/font/wallpoet_regular.ttf`): unitsPerEm **1000**, cap height **575**,
+> Datos **Wallpoet** (fuente original, ya no incluida en el APK): unitsPerEm **1000**, cap height **575**,
 > grosor de trazo **126**. Wordmark **TIMES** actual: lean 180, tracking 0; **E** = M rotada 90° ccw;
 > **S** con el corte vertical puenteado; **I** = `\`; **T** y **M** sin cambios; **M** en color de acento.
 
