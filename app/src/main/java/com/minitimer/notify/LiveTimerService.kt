@@ -128,9 +128,24 @@ class LiveTimerService : Service() {
             !TimerBus.paused.value &&
             !isLocked()
 
-    /** Re-publica la notificación y muestra/oculta cada overlay según el estado. */
+    /**
+     * Sincroniza la notificación del FGS con el estado de foreground/background:
+     * - App visible: REMOVE (elimina la notificación por completo, sin hueco).
+     *   El servicio sigue corriendo; la app muestra el countdown.
+     * - App en background: (re)attach con startForeground para el Now Bar / chip.
+     * Luego evalúa overlays y keep-awake como antes.
+     */
     private fun refresh() {
-        repost()
+        if (TimerBus.appForeground.value) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            } else {
+                @Suppress("DEPRECATION")
+                stopForeground(true)
+            }
+        } else {
+            startForegroundCompat(buildNotification())
+        }
         if (shouldShowOverlay()) overlay?.showCapsule() else overlay?.hideCapsule()
         if (shouldShowRing()) overlay?.showRing() else overlay?.hideRing()
         if (shouldKeepScreenOn()) overlay?.showKeepAwake() else overlay?.hideKeepAwake()
