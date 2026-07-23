@@ -1,7 +1,7 @@
-# Emulador y ADB inalámbrico — guía verificada (Windows, entorno corporativo)
+# Emulador y ADB inalámbrico — guía verificada (Windows)
 
 Notas reproducibles para **probar/instalar la app sin USB** en este equipo (emulador + teléfono
-físico por Wi-Fi). Complementa la sección *"Entorno corporativo (Netskope + JFrog)"* del `README.md`.
+físico por Wi-Fi). Complementa la sección *"Construir"* del `README.md`.
 
 > PowerShell, desde la raíz del repo. No usar `cd` dentro de los comandos si se ejecutan por
 > herramienta.
@@ -43,7 +43,7 @@ Solo verificar compilación: usar `:app:compileReleaseKotlin`.
 `minSdk = 26`, así que cualquier imagen `android-26+` sirve. Aquí `android-35`.
 
 ```powershell
-# 2.1 Imagen de sistema (sdkmanager debe usar el JBR: su cacerts confía en Netskope)
+# 2.1 Imagen de sistema
 $env:JAVA_HOME = 'C:\Users\mzegarra_ide\Downloads\android-studio\jbr'
 "y`n"*20 | & "$sdk\cmdline-tools\latest\bin\sdkmanager.bat" --sdk_root="$sdk" "system-images;android-35;google_apis;x86_64"
 
@@ -108,7 +108,7 @@ python -m http.server 8000 --bind 0.0.0.0 --directory ".\releases"
 
 - **`am start-foreground-service` desde adb** falla si el service es `exported="false"`
   (*"Requires permission not exported from uid"*). Lanzar la Activity en su lugar.
-- **`sdkmanager`/`avdmanager` con el JBR** (`JAVA_HOME`) para el TLS del proxy corporativo.
+- **`sdkmanager`/`avdmanager`** requieren `JAVA_HOME` apuntando al JBR de Android Studio.
 - **Puerto de vinculación ≠ puerto de conexión**; el de vinculación cambia en cada emparejamiento.
 - **mDNS** (`adb mdns services`) descubre el puerto de conexión tras el `pair`.
 - **HTTP local sin admin = no**: el firewall bloquea el acceso del teléfono; usa ADB inalámbrico.

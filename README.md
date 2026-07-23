@@ -128,46 +128,13 @@ app/src/main/
   res/values/themes.xml         # Tema de la Activity
 ```
 
-## Entorno corporativo (Netskope + JFrog) — descargar dependencias
+## Construir
 
-**Java pasa por Netskope normalmente** (no está exento del steering), así que solo hay que hacer que la
-JVM confíe en el CA que inyecta Netskope (equivalente a `NODE_EXTRA_CA_CERTS`, pero en el
-truststore). El `cacerts` del JBR de Android Studio es el que usan tanto el IDE como Gradle.
-
-### 1. Importar la cadena corporativa al cacerts del JBR (una sola vez)
-```powershell
-$pem = Get-Content 'C:\workspaces\devin-cli-env\jfrog-combined.pem' -Raw
-$certs = [regex]::Matches($pem, '(?s)-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----')
-$keytool = 'C:\Users\mzegarra_ide\Downloads\android-studio\jbr\bin\keytool.exe'
-$store = 'C:\Users\mzegarra_ide\Downloads\android-studio\jbr\lib\security\cacerts'
-$i = 0
-foreach ($m in $certs) {
-  $i++
-  $tmp = Join-Path $env:TEMP "corp_cert_$i.pem"
-  Set-Content -Path $tmp -Value $m.Value -Encoding ascii
-  & $keytool -importcert -noprompt -trustcacerts -alias "corp-netskope-$i" -file $tmp -keystore $store -storepass changeit
-  Remove-Item $tmp -Force
-}
-```
-Para revertir: `keytool -delete -alias corp-netskope-1 -keystore <store> -storepass changeit` (y -2, -3).
-
-### 2. Mirror de JFrog para Maven/Gradle
-`plugins.gradle.org` y `repo1.maven.org` devuelven **403** (bloqueados por política), así que
-`settings.gradle.kts` apunta los repos al virtual corporativo **`scp-gradle-public`** (agrega
-Maven Central + Google Maven + Gradle Plugin Portal). El token se reutiliza desde `~/.npmrc`
-(clave `_authToken`) y se envía como `Authorization: Bearer ...` (no se commitea).
-
-> Si el virtual cambia de nombre, lista los repos con
-> `https://gluonlatam.jfrog.io/artifactory/api/repositories?type=virtual`.
-
-### 3. Gradle usa ese JBR
-`gradle.properties` incluye `org.gradle.java.home=C:/Users/mzegarra_ide/Downloads/android-studio/jbr`.
-
-### 4. Android SDK
+### Android SDK
 Instalado en `%LOCALAPPDATA%\Android\Sdk` (cmdline-tools + `platform-tools`, `platforms;android-36`,
 `build-tools`, licencias aceptadas). La ruta queda en `local.properties` (`sdk.dir`).
 
-### 5. Construir (verificado ✅)
+### Construir (verificado ✅)
 - **Recomendado**: abre el proyecto en Android Studio y sincroniza.
 - **CLI** (con el Gradle 9.4.1 ya cacheado y `JAVA_HOME` = JBR) — se publica el build **release** (R8 + shrinkResources):
   ```powershell
@@ -187,7 +154,6 @@ Instalado en `%LOCALAPPDATA%\Android\Sdk` (cmdline-tools + `platform-tools`, `pl
 - **Flujo**: compilar → copiar el APK a `releases/` → commit → push (el push se confirma con el usuario).
 
 > Stack verificado: **AGP 9.2.1**, **Gradle 9.4.1**, **Kotlin 2.2.10**, `compileSdk 36.1`.
-> Build exitoso end-to-end resolviendo todo desde JFrog.
 >
 > **Memoria (importante):** AGP 9 con G1 reserva mucho espacio virtual y en este equipo daba
 > *"el archivo de paginación es demasiado pequeño"* (Windows). Por eso `gradle.properties` usa
