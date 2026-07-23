@@ -249,12 +249,6 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                             fontFamily = Neuropol,
                             fontSize = 32.sp,
                         )
-                        selectedTab == 2 -> Text(
-                            t.tabClock.uppercase(),
-                            color = AppTheme.colors.textPrimary,
-                            fontFamily = Neuropol,
-                            fontSize = 32.sp,
-                        )
                         else -> TimesWordmark(accent = accent, height = 22.dp)
                     }
                 },
@@ -352,7 +346,6 @@ fun TimerApp(vm: TimerViewModel, athleteVm: AthleteViewModel = viewModel()) {
                     onBlocked = onBlocked,
                 )
                 selectedTab == 1 -> AthleteScreen(athleteVm, accent, t)
-                selectedTab == 2 -> ClockScreen(vm)
             }
             if (vm.config.general.developerMode) {
                 Text(
@@ -390,7 +383,6 @@ private fun BottomNavBar(
     val items = listOf(
         Triple(R.drawable.ic_tab_timer, t.title, 0),
         Triple(R.drawable.ic_tab_athlete, t.tabAthlete, 1),
-        Triple(R.drawable.ic_tab_clock, t.tabClock, 2),
     )
     NavigationBar(containerColor = AppTheme.colors.surface, tonalElevation = 0.dp) {
         items.forEach { (iconRes, label, index) ->

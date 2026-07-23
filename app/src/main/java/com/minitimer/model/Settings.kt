@@ -65,97 +65,6 @@ data class AthleteConfig(
     val alarm: AlarmConfig = AlarmConfig(),
 )
 
-/** Rango del tamaño de texto del OSD del reloj, en pt. */
-const val OSD_TEXT_SIZE_MIN = 10
-const val OSD_TEXT_SIZE_MAX = 40
-const val OSD_TEXT_SIZE_DEFAULT = 14
-const val OSD_TEXT_SIZE_STEP = 2
-
-/**
- * Un panel del OSD (reloj flotante): franja fina e INDEPENDIENTE que se pinta
- * sobre otras apps. Contenido a la izquierda (hora), indicadores a la derecha
- * (volumen [n], batería [n%]). Cada panel tiene su propio contenido, apariencia
- * y posición.
- */
-data class OsdPanel(
-    /** Panel activo (se pinta el overlay). */
-    val enabled: Boolean = false,
-    // --- Contenido ---
-    val showTime: Boolean = true,
-    /** Segundos en vivo en la hora ("3:14:05"). */
-    val showSeconds: Boolean = true,
-    /** Nivel de volumen multimedia, ej. "[5]". */
-    val showVolume: Boolean = true,
-    /** Porcentaje de batería, ej. "[62%]". */
-    val showBattery: Boolean = true,
-    /** Mostrar estado de carga cuando está enchufado, ej. "[AC]"/"[USB]". */
-    val showCharging: Boolean = false,
-    /** Formato 24 horas (si no, 12h). */
-    val use24h: Boolean = false,
-    val showDate: Boolean = false,
-    val showMemo: Boolean = false,
-    val memo: String = "",
-    // --- Apariencia ---
-    /** Tamaño del texto en pt (ver [OSD_TEXT_SIZE_MIN]/[OSD_TEXT_SIZE_MAX]). */
-    val textSizeSp: Int = OSD_TEXT_SIZE_DEFAULT,
-    val textColor: Long = 0xFFFFFFFF,
-    /** Cambia el color del texto automáticamente según el modo oscuro/claro. */
-    val autoDarkColor: Boolean = false,
-    /** Opacidad del fondo 0f..1f (0 = fondo transparente, sin caja). */
-    val bgAlpha: Float = 0f,
-    /**
-     * Alinea horizontalmente este panel con el reloj de la barra de estado del
-     * sistema (requiere el servicio de accesibilidad). El offset X manual pasa a
-     * ser un ajuste fino sobre esa posición.
-     */
-    val alignToSystemClock: Boolean = false,
-    // Nota: la posición (x,y) del overlay se guarda aparte en SettingsStore
-    // (como el offset del anillo) para que el arrastre desde el servicio no
-    // choque con la copia en memoria de la config del ViewModel.
-)
-
-/** Ajustes de la mini-app Reloj: OSD flotante con 2 paneles independientes. */
-data class ClockConfig(
-    /** Panel 1 (izquierda): hora + segundos. */
-    val panel1: OsdPanel = OsdPanel(
-        showTime = true,
-        showSeconds = true,
-        showVolume = false,
-        showBattery = false,
-        showCharging = false,
-    ),
-    /** Panel 2 (derecha): carga + volumen + batería. */
-    val panel2: OsdPanel = OsdPanel(
-        showTime = false,
-        showSeconds = false,
-        showVolume = true,
-        showBattery = true,
-        showCharging = true,
-    ),
-) {
-    fun panel(index: Int): OsdPanel = if (index == 0) panel1 else panel2
-    fun withPanel(index: Int, p: OsdPanel): ClockConfig =
-        if (index == 0) copy(panel1 = p) else copy(panel2 = p)
-
-    /** ¿Algún panel activo? Determina si el servicio de overlay debe correr. */
-    val anyEnabled: Boolean get() = panel1.enabled || panel2.enabled
-
-    /** ¿Algún panel activo pide alinearse con el reloj del sistema? */
-    val anyAlignToClock: Boolean
-        get() = (panel1.enabled && panel1.alignToSystemClock) ||
-            (panel2.enabled && panel2.alignToSystemClock)
-}
-
-/** Paleta de color de texto para el OSD del reloj. */
-val OSD_TEXT_COLORS: List<Long> = listOf(
-    0xFFFFFFFF,
-    0xFF4AC0D6,
-    0xFF3DDC84,
-    0xFFA06CFF,
-    0xFFFF5252,
-    0xFFFFD54A,
-)
-
 /**
  * Configuración completa de la app: un bloque general + uno por cada mini-app
  * (pestaña). Añadir una pestaña nueva = añadir su data class aquí.
@@ -164,7 +73,6 @@ data class AppConfig(
     val general: GeneralConfig = GeneralConfig(),
     val timer: TimerConfig = TimerConfig(),
     val athlete: AthleteConfig = AthleteConfig(),
-    val clock: ClockConfig = ClockConfig(),
 )
 
 /** Opciones (en segundos) para el incremento del botón "+tiempo". */
