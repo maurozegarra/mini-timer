@@ -92,12 +92,12 @@ fun formatClock(epochMillis: Long, locale: Locale): String {
     )
 }
 
-/** Hora sin segundos en formato 24h compacto (ej: 14:05). */
+/** Hora sin segundos en formato 12h compacto, sin AM/PM (ej: 4:16). */
 fun formatClockShort(epochMillis: Long, locale: Locale): String {
     val time = Instant.ofEpochMilli(epochMillis)
         .atZone(ZoneId.systemDefault())
         .toLocalTime()
-    return time.format(DateTimeFormatter.ofPattern("H:mm"))
+    return time.format(DateTimeFormatter.ofPattern("h:mm"))
 }
 
 fun dedupeSorted(list: List<Int>): List<Int> = list.toSortedSet().toList()

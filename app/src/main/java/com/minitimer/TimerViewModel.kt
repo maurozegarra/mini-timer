@@ -48,6 +48,11 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var draftName by mutableStateOf("")
         private set
+
+    /** Epoch (ms) del target seleccionado con chips "Termina a las"; 0 si ninguno. */
+    var targetEpochMs by mutableStateOf(0L)
+        private set
+
     var showSettings by mutableStateOf(false)
 
     /** Sección de Ajustes abierta (null = lista de categorías). */
@@ -243,6 +248,14 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     fun setDraftTime(h: Int, m: Int, s: Int) {
         val sec = h * 3600 + m * 60 + s
         digits = if (sec > 0) secondsToDigits(sec) else ""
+        targetEpochMs = 0L
+        android.util.Log.i("TargetDebug", "setDraftTime h=$h m=$m s=$s sec=$sec digits=$digits targetEpochMs=0")
+    }
+
+    /** Fija la duración del borrador desde un epoch objetivo (chip "Termina a las"). */
+    fun setTargetTime(epochMs: Long, h: Int, m: Int, s: Int) {
+        targetEpochMs = epochMs
+        android.util.Log.i("TargetDebug", "setTargetTime epochMs=$epochMs h=$h m=$m s=$s now=${System.currentTimeMillis()}")
     }
 
     /** Reajusta el total de un timer DETENIDO (IDLE) desde el detalle. */
@@ -264,6 +277,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         val last = store.loadLastDuration()
         digits = if (last > 0) secondsToDigits(last) else ""
         draftName = store.loadLastLabel()
+        targetEpochMs = 0L
     }
 
     /**
@@ -271,12 +285,20 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
      * si se inició; false si quedó creado pero bloqueado por otro timer activo.
      */
     fun confirmNewTimer(): Boolean {
-        val sec = totalSeconds
+        // Si hay un target epoch, recalcular la duración real al momento de iniciar
+        // para que el timer termine exactamente a la hora objetivo.
+        val sec = if (targetEpochMs > 0) {
+            ((targetEpochMs - System.currentTimeMillis()) / 1000).toInt().coerceAtLeast(1)
+        } else {
+            totalSeconds
+        }
+        android.util.Log.i("TargetDebug", "confirmNewTimer targetEpochMs=$targetEpochMs sec=$sec totalSeconds=$totalSeconds now=${System.currentTimeMillis()}")
         if (sec <= 0) return true
         val id = addTimer(sec, draftName)
         val started = startTimer(id)
         digits = ""
         draftName = ""
+        targetEpochMs = 0L
         return started
     }
 

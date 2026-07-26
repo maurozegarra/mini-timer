@@ -71,6 +71,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -584,6 +585,7 @@ private fun NewTimerSheet(
                 )
             }
             Spacer(Modifier.height(12.dp))
+            val wheelAlpha = if (vm.targetEpochMs > 0) 0.4f else 1f
             WheelTimePicker(
                 h = vm.setH,
                 m = vm.setM,
@@ -591,11 +593,13 @@ private fun NewTimerSheet(
                 accent = accent,
                 t = t,
                 onChange = { h, m, s -> vm.setDraftTime(h, m, s) },
+                modifier = Modifier.graphicsLayer { alpha = wheelAlpha },
             )
             val presetSecs = vm.config.timer.presets
             if (presetSecs.isNotEmpty()) {
                 Spacer(Modifier.height(16.dp))
                 val currentSec = vm.setH * 3600 + vm.setM * 60 + vm.setS
+                val hasTarget = vm.targetEpochMs > 0
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -605,7 +609,7 @@ private fun NewTimerSheet(
                     presetSecs.forEach { sec ->
                         PresetChip(
                             label = formatRemaining(sec * 1000L),
-                            selected = sec == currentSec,
+                            selected = !hasTarget && sec == currentSec,
                             accent = accent,
                         ) {
                             vm.setDraftTime(sec / 3600, (sec % 3600) / 60, sec % 60)
@@ -620,7 +624,7 @@ private fun NewTimerSheet(
                 t = t,
             )
             Spacer(Modifier.height(16.dp))
-            val canStart = vm.setH * 3600 + vm.setM * 60 + vm.setS > 0
+            val canStart = vm.targetEpochMs > 0 || (vm.setH * 3600 + vm.setM * 60 + vm.setS) > 0
             Button(
                 onClick = {
                     val started = vm.confirmNewTimer()
@@ -731,8 +735,6 @@ private fun TargetTimeChips(
 
     if (targets.isEmpty()) return
 
-    val currentSec = vm.setH * 3600 + vm.setM * 60 + vm.setS
-
     // Header
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -760,7 +762,7 @@ private fun TargetTimeChips(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         targets.forEach { (targetMs, diffSec) ->
-            val isSelected = diffSec.toInt() == currentSec
+            val isSelected = targetMs == vm.targetEpochMs
             TargetChip(
                 label = formatClockShort(targetMs, locale),
                 duration = formatDurationLabel(diffSec),
@@ -771,22 +773,18 @@ private fun TargetTimeChips(
                 val h = (diffSec / 3600).toInt()
                 val m = ((diffSec % 3600) / 60).toInt()
                 val s = (diffSec % 60).toInt()
-                vm.setDraftTime(h, m, s)
+                vm.setTargetTime(targetMs, h, m, s)
             }
         }
     }
 }
 
-/** Duración compacta para chips de target: "4 min", "1 h 30 min", "90 s". */
+/** Duración en formato mm:ss o h:mm:ss para chips de target. */
 private fun formatDurationLabel(sec: Long): String {
     val h = (sec / 3600).toInt()
     val m = ((sec % 3600) / 60).toInt()
     val s = (sec % 60).toInt()
-    return when {
-        h > 0 -> if (m > 0) "$h h $m min" else "$h h"
-        m > 0 -> "$m min"
-        else -> "$s s"
-    }
+    return if (h > 0) "${h}:${pad2(m)}:${pad2(s)}" else "${m}:${pad2(s)}"
 }
 
 @Composable
@@ -1123,6 +1121,8 @@ private fun WheelColumn(range: Int, value: Int, onValue: (Int) -> Unit) {
     val start = range * (blocks / 2) + value
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = start - 1)
     val fling = rememberSnapFlingBehavior(lazyListState = listState)
+    val currentOnValue by rememberUpdatedState(onValue)
+    val currentValue by rememberUpdatedState(value)
     val center by remember {
         derivedStateOf {
             val li = listState.layoutInfo
@@ -1139,13 +1139,18 @@ private fun WheelColumn(range: Int, value: Int, onValue: (Int) -> Unit) {
             .drop(1)
             .distinctUntilChanged()
             .collect { idx ->
-                view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                onValue(idx % range)
+                val v = idx % range
+                // Suprimir callback si el valor coincide con el objetivo actual:
+                // significa que el scroll fue programático (chip/preset), no del usuario.
+                if (v != currentValue) {
+                    view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                    currentOnValue(v)
+                }
             }
     }
     LaunchedEffect(value) {
-        if (!listState.isScrollInProgress && center % range != value) {
-            val target = center - (center % range) + value
+        if (!listState.isScrollInProgress) {
+            val target = range * (blocks / 2) + value
             listState.scrollToItem((target - 1).coerceAtLeast(0))
         }
     }
