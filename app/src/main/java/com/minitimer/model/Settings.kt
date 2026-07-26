@@ -21,6 +21,8 @@ data class AlarmConfig(
     val soundName: String? = null,
     /** Volumen de la alarma, 0f..1f (curva perceptual en dB al reproducir). */
     val volume: Float = 0.25f,
+    /** Número de veces que se repite el sonido al terminar el timer. */
+    val count: Int = 1,
     /** Vibrar al sonar. */
     val vibrationEnabled: Boolean = false,
     /** Índice del patrón de vibración en [VIBRATION_PATTERNS]. */

@@ -444,7 +444,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     private fun finishTimer(id: Long) {
         setItem(id) { it.copy(phase = Phase.DONE, remainingMs = 0, lastFinished = System.currentTimeMillis()) }
         publishActive()
-        alarmPlayer.start(config.timer.alarm, loop = true)
+        alarmPlayer.start(config.timer.alarm, count = config.timer.alarm.count.coerceAtLeast(1))
         val secs = config.timer.autoDismiss
         if (secs > 0) {
             autoDismissJob?.cancel()
@@ -559,21 +559,28 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---------- Selector de sonido / previsualización ----------
 
-    /** Lista de tonos de alarma disponibles en el dispositivo. */
+    /** Lista de tonos de alarma y notificación disponibles en el dispositivo. */
     fun loadAlarmSounds(): List<AlarmSound> {
         val ctx = getApplication<Application>()
         val result = mutableListOf<AlarmSound>()
-        try {
-            val rm = RingtoneManager(ctx).apply { setType(RingtoneManager.TYPE_ALARM) }
-            val cursor = rm.cursor
-            while (cursor.moveToNext()) {
-                val title = cursor.getString(RingtoneManager.TITLE_COLUMN_INDEX)
-                val uri = rm.getRingtoneUri(cursor.position)
-                if (title != null && uri != null) {
-                    result.add(AlarmSound(title, uri.toString()))
+        val seen = mutableSetOf<String>()
+        // Listar ambos tipos: alarmas (penetrantes) y notificaciones (cortas).
+        for (type in intArrayOf(RingtoneManager.TYPE_ALARM, RingtoneManager.TYPE_NOTIFICATION)) {
+            try {
+                val rm = RingtoneManager(ctx).apply { setType(type) }
+                val cursor = rm.cursor
+                while (cursor.moveToNext()) {
+                    val title = cursor.getString(RingtoneManager.TITLE_COLUMN_INDEX)
+                    val uri = rm.getRingtoneUri(cursor.position)
+                    if (title != null && uri != null) {
+                        val uriStr = uri.toString()
+                        if (seen.add(uriStr)) {
+                            result.add(AlarmSound(title, uriStr))
+                        }
+                    }
                 }
+            } catch (_: Exception) {
             }
-        } catch (_: Exception) {
         }
         return result
     }

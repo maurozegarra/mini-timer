@@ -36,12 +36,13 @@ class AlarmPlayer(private val context: Context) {
     // ---------- Alarma ----------
 
     /**
-     * Suena la alarma con [config]. [loop] = true para el temporizador (bucle
-     * hasta detenerlo); false para un "cue" breve (transiciones del player).
+     * Suena la alarma con [config]. [count] = número de veces que se repite
+     * el sonido (1 = suena una vez). La vibración se repite en bucle mientras
+     * el sonido esté activo.
      */
-    fun start(config: AlarmConfig, loop: Boolean) {
+    fun start(config: AlarmConfig, count: Int) {
         stop()
-        if (config.vibrationEnabled) vibrate(config.vibrationPattern, repeat = loop)
+        if (config.vibrationEnabled) vibrate(config.vibrationPattern, repeat = count > 1)
         // Si "Ignorar modo silencio" está desactivado, respetar el modo del equipo.
         val audio = audioManager
         val shouldPlaySound =
@@ -60,29 +61,43 @@ class AlarmPlayer(private val context: Context) {
         val headset = findMediaHeadset(outputs)
         val speaker = outputs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
         if (headset != null) {
-            play(uri, vol, loop, headset)
+            play(uri, vol, count, headset)
             if (config.headsetMode == SPEAKER_AND_HEADSET && speaker != null) {
-                play(uri, vol, loop, speaker)
+                play(uri, vol, count, speaker)
             }
         } else {
-            play(uri, vol, loop, null)
+            play(uri, vol, count, null)
         }
     }
 
-    private fun play(uri: Uri, vol: Float, loop: Boolean, device: AudioDeviceInfo?) {
+    private fun play(uri: Uri, vol: Float, count: Int, device: AudioDeviceInfo?) {
         try {
             val mp = MediaPlayer()
             mp.setAudioAttributes(alarmAttrs())
             mp.setDataSource(context, uri)
-            mp.isLooping = loop
+            mp.isLooping = false
             mp.setVolume(vol, vol)
             if (device != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 mp.setPreferredDevice(device)
             }
-            if (!loop) {
-                // Cue breve: liberar al terminar y soltar foco/stream cuando ya no
-                // quede ningún reproductor activo.
-                mp.setOnCompletionListener { done ->
+            var remaining = count
+            mp.setOnCompletionListener { done ->
+                remaining--
+                if (remaining > 0) {
+                    // Repetir: resetear y volver a iniciar
+                    try {
+                        done.seekTo(0)
+                        done.start()
+                    } catch (_: Exception) {
+                        done.release()
+                        players.remove(done)
+                        if (players.isEmpty()) {
+                            abandonFocus()
+                            restoreStream()
+                            cancelVibration()
+                        }
+                    }
+                } else {
                     done.release()
                     players.remove(done)
                     if (players.isEmpty()) {

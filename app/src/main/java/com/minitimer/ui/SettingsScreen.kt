@@ -601,6 +601,28 @@ private fun AlarmSection(
             }
         }
         GroupDivider()
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                t.alarmCount,
+                color = AppTheme.colors.textPrimary,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f),
+            )
+            AppStepButton("−", accent, enabled = alarm.count > 1) {
+                vm.setAlarm(scope, alarm.copy(count = (alarm.count - 1).coerceAtLeast(1)))
+            }
+            Box(Modifier.width(64.dp), contentAlignment = Alignment.Center) {
+                Text("${alarm.count}", color = AppTheme.colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            }
+            AppStepButton("+", accent, enabled = alarm.count < 20) {
+                vm.setAlarm(scope, alarm.copy(count = (alarm.count + 1).coerceAtMost(20)))
+            }
+        }
+        GroupDivider()
         ItemLabel(t.headsetTitle)
         RadioRow(
             label = t.headsetBoth,
