@@ -249,13 +249,11 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         val sec = h * 3600 + m * 60 + s
         digits = if (sec > 0) secondsToDigits(sec) else ""
         targetEpochMs = 0L
-        android.util.Log.i("TargetDebug", "setDraftTime h=$h m=$m s=$s sec=$sec digits=$digits targetEpochMs=0")
     }
 
     /** Fija la duración del borrador desde un epoch objetivo (chip "Termina a las"). */
     fun setTargetTime(epochMs: Long, h: Int, m: Int, s: Int) {
         targetEpochMs = epochMs
-        android.util.Log.i("TargetDebug", "setTargetTime epochMs=$epochMs h=$h m=$m s=$s now=${System.currentTimeMillis()}")
     }
 
     /** Reajusta el total de un timer DETENIDO (IDLE) desde el detalle. */
@@ -285,20 +283,21 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
      * si se inició; false si quedó creado pero bloqueado por otro timer activo.
      */
     fun confirmNewTimer(): Boolean {
-        // Si hay un target epoch, recalcular la duración real al momento de iniciar
-        // para que el timer termine exactamente a la hora objetivo.
-        val sec = if (targetEpochMs > 0) {
-            ((targetEpochMs - System.currentTimeMillis()) / 1000).toInt().coerceAtLeast(1)
-        } else {
-            totalSeconds
+        if (targetEpochMs > 0) {
+            val remMs = (targetEpochMs - System.currentTimeMillis()).coerceAtLeast(1000L)
+            val id = addTimerMs(remMs, draftName)
+            val started = startTimer(id, targetEpochMs)
+            digits = ""
+            draftName = ""
+            targetEpochMs = 0L
+            return started
         }
-        android.util.Log.i("TargetDebug", "confirmNewTimer targetEpochMs=$targetEpochMs sec=$sec totalSeconds=$totalSeconds now=${System.currentTimeMillis()}")
+        val sec = totalSeconds
         if (sec <= 0) return true
         val id = addTimer(sec, draftName)
         val started = startTimer(id)
         digits = ""
         draftName = ""
-        targetEpochMs = 0L
         return started
     }
 
@@ -314,14 +313,26 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         return id
     }
 
+    /** Crea un timer con duración exacta en ms (para targets "Termina a las"). */
+    private fun addTimerMs(ms: Long, name: String): Long {
+        val id = nextId++
+        timers.add(
+            TimerItem(id = id, name = name.take(40), totalMs = ms, remainingMs = ms, phase = Phase.IDLE),
+        )
+        store.saveLastDuration((ms / 1000).toInt())
+        if (name.isNotBlank()) store.saveLastLabel(name)
+        persist()
+        return id
+    }
+
     // ---------- Acciones por timer ----------
     /** Inicia/reanuda un timer. Devuelve false si otro timer ocupa el slot. */
-    fun startTimer(id: Long): Boolean {
+    fun startTimer(id: Long, targetEndAt: Long = 0L): Boolean {
         if (activeId != null && activeId != id) return false
         val it = item(id) ?: return false
         val rem = it.remainingMs.coerceAtLeast(0)
         if (rem <= 0) return false
-        val end = System.currentTimeMillis() + rem
+        val end = if (targetEndAt > 0) targetEndAt else System.currentTimeMillis() + rem
         setItem(id) { c -> c.copy(phase = Phase.RUNNING, remainingMs = rem, endAt = end) }
         activeId = id
         syncService()
