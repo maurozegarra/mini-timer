@@ -33,11 +33,6 @@ private const val RING_OFFSET_LIMIT = 100
  *  agrupan estas categorías; la alarma vive dentro de cada pestaña. */
 enum class SettingsSection { APPEARANCE, TIMER, OVERLAY, BACKUP, DEVELOPER }
 
-/** Raíz de Ajustes: General (global, transversal a la app) o la config propia
- *  de una pestaña. Cada pestaña es una app independiente; General solo se abre
- *  desde Timer. */
-enum class SettingsRoot { GENERAL, TIMER }
-
 /** Mini-app (pestaña) dueña de un bloque de alarma independiente. */
 enum class AlarmScope { TIMER }
 
@@ -58,12 +53,8 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     /** Sección de Ajustes abierta (null = lista de categorías). */
     var settingsSection by mutableStateOf<SettingsSection?>(null)
 
-    /** Raíz de Ajustes abierta: General (global) o la config propia de una pestaña. */
-    var settingsRoot by mutableStateOf(SettingsRoot.GENERAL)
-
-    /** Abre Ajustes en la raíz [root], mostrando su lista de categorías. */
-    fun openSettings(root: SettingsRoot) {
-        settingsRoot = root
+    /** Abre Ajustes mostrando la lista de categorías. */
+    fun openSettings() {
         settingsSection = null
         showSettings = true
     }

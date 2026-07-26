@@ -70,7 +70,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 import com.minitimer.AlarmScope
-import com.minitimer.SettingsRoot
 import com.minitimer.SettingsSection
 import com.minitimer.TimerViewModel
 import com.minitimer.data.BackupManager
@@ -148,7 +147,7 @@ fun SettingsScreen(vm: TimerViewModel) {
             .padding(top = 8.dp, bottom = 48.dp),
     ) {
         when (vm.settingsSection) {
-        null -> SettingsCategoryList(vm = vm, c = c, t = t, accent = accent, root = vm.settingsRoot, folderName = folderName)
+        null -> SettingsCategoryList(vm = vm, c = c, t = t, accent = accent, folderName = folderName)
 
         SettingsSection.APPEARANCE -> SettingsGroup(t.groupAppearance, accent) {
             ItemLabel(t.language)
@@ -713,79 +712,67 @@ private fun SettingsCategoryList(
     c: AppConfig,
     t: Strings,
     accent: Color,
-    root: SettingsRoot,
     folderName: String?,
 ) {
-    when (root) {
-        SettingsRoot.GENERAL -> {
-            val langName = if (c.general.language == "es") "Español" else "English"
-            val themeName = when (c.general.themeMode) {
-                THEME_LIGHT -> t.themeLight
-                THEME_DARK -> t.themeDark
-                else -> t.themeAuto
-            }
-            CategoryHeader(t.groupGeneral, accent)
-            CategoryCard {
-                SettingsCategoryRow(
-                    icon = Icons.Filled.Palette,
-                    title = t.groupAppearance,
-                    subtitle = "$langName · $themeName",
-                    accent = accent,
-                    first = true,
-                ) { vm.settingsSection = SettingsSection.APPEARANCE }
-                SettingsCategoryRow(
-                    icon = Icons.Filled.Backup,
-                    title = t.groupBackup,
-                    subtitle = folderName ?: t.backupNotSet,
-                    accent = accent,
-                ) { vm.settingsSection = SettingsSection.BACKUP }
-                SettingsCategoryRow(
-                    icon = Icons.Filled.Code,
-                    title = t.groupDeveloper,
-                    subtitle = if (c.general.developerMode) t.on else t.off,
-                    accent = accent,
-                ) { vm.settingsSection = SettingsSection.DEVELOPER }
-            }
+    val langName = if (c.general.language == "es") "Español" else "English"
+    val themeName = when (c.general.themeMode) {
+        THEME_LIGHT -> t.themeLight
+        THEME_DARK -> t.themeDark
+        else -> t.themeAuto
+    }
+    val autoDismissLabel = if (c.timer.autoDismiss == 0) t.off else "${c.timer.autoDismiss}s"
+    val overlaySummary = listOfNotNull(
+        if (c.timer.showNowBar) t.showNowBar else null,
+        if (c.timer.showOverlay) t.showOverlay else null,
+        if (c.timer.showRing) t.showRing else null,
+    ).joinToString(" · ").ifBlank { t.off }
 
-            Spacer(Modifier.height(28.dp))
-            TextButton(
-                onClick = { vm.resetSettings() },
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.textButtonColors(contentColor = DONE_RED),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .wrapContentWidth(Alignment.CenterHorizontally),
-            ) {
-                Text(t.reset, fontWeight = FontWeight.SemiBold)
-            }
-        }
+    CategoryHeader(t.groupGeneral, accent)
+    CategoryCard {
+        SettingsCategoryRow(
+            icon = Icons.Filled.Palette,
+            title = t.groupAppearance,
+            subtitle = "$langName · $themeName",
+            accent = accent,
+            first = true,
+        ) { vm.settingsSection = SettingsSection.APPEARANCE }
+        SettingsCategoryRow(
+            icon = Icons.Filled.Timer,
+            title = t.groupTimer,
+            subtitle = "${t.autoDismiss}: $autoDismissLabel · ${incLabel(c.timer.addIncrementSec)}",
+            accent = accent,
+        ) { vm.settingsSection = SettingsSection.TIMER }
+        SettingsCategoryRow(
+            icon = Icons.Filled.Layers,
+            title = t.groupOverlay,
+            subtitle = overlaySummary,
+            accent = accent,
+        ) { vm.settingsSection = SettingsSection.OVERLAY }
+        SettingsCategoryRow(
+            icon = Icons.Filled.Backup,
+            title = t.groupBackup,
+            subtitle = folderName ?: t.backupNotSet,
+            accent = accent,
+        ) { vm.settingsSection = SettingsSection.BACKUP }
+        SettingsCategoryRow(
+            icon = Icons.Filled.Code,
+            title = t.groupDeveloper,
+            subtitle = if (c.general.developerMode) t.on else t.off,
+            accent = accent,
+        ) { vm.settingsSection = SettingsSection.DEVELOPER }
+    }
 
-        SettingsRoot.TIMER -> {
-            val autoDismissLabel = if (c.timer.autoDismiss == 0) t.off else "${c.timer.autoDismiss}s"
-            val overlaySummary = listOfNotNull(
-                if (c.timer.showNowBar) t.showNowBar else null,
-                if (c.timer.showOverlay) t.showOverlay else null,
-                if (c.timer.showRing) t.showRing else null,
-            ).joinToString(" · ").ifBlank { t.off }
-            CategoryHeader(t.groupTimer, accent)
-            CategoryCard {
-                SettingsCategoryRow(
-                    icon = Icons.Filled.Timer,
-                    title = t.groupTimer,
-                    subtitle = "${t.autoDismiss}: $autoDismissLabel · ${incLabel(c.timer.addIncrementSec)}",
-                    accent = accent,
-                    first = true,
-                ) { vm.settingsSection = SettingsSection.TIMER }
-                SettingsCategoryRow(
-                    icon = Icons.Filled.Layers,
-                    title = t.groupOverlay,
-                    subtitle = overlaySummary,
-                    accent = accent,
-                ) { vm.settingsSection = SettingsSection.OVERLAY }
-            }
-        }
-
+    Spacer(Modifier.height(28.dp))
+    TextButton(
+        onClick = { vm.resetSettings() },
+        shape = RoundedCornerShape(12.dp),
+        colors = ButtonDefaults.textButtonColors(contentColor = DONE_RED),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .wrapContentWidth(Alignment.CenterHorizontally),
+    ) {
+        Text(t.reset, fontWeight = FontWeight.SemiBold)
     }
 }
 
