@@ -583,26 +583,7 @@ private fun NewTimerSheet(
                     modifier = Modifier.align(Alignment.Start),
                 )
             }
-            Text(t.newTimer, color = AppTheme.colors.textPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(12.dp))
-            OutlinedTextField(
-                value = vm.draftName,
-                onValueChange = { vm.updateDraftName(it) },
-                placeholder = { Text(t.timerName, color = AppTheme.colors.textFaded) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = AppTheme.colors.track,
-                    unfocusedContainerColor = AppTheme.colors.track,
-                    focusedTextColor = AppTheme.colors.textPrimary,
-                    unfocusedTextColor = AppTheme.colors.textPrimary,
-                    cursorColor = accent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                ),
-                shape = RoundedCornerShape(12.dp),
-            )
-            Spacer(Modifier.height(16.dp))
             WheelTimePicker(
                 h = vm.setH,
                 m = vm.setM,
@@ -613,7 +594,7 @@ private fun NewTimerSheet(
             )
             val presetSecs = vm.config.timer.presets
             if (presetSecs.isNotEmpty()) {
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(16.dp))
                 val currentSec = vm.setH * 3600 + vm.setM * 60 + vm.setS
                 Row(
                     modifier = Modifier
@@ -632,13 +613,13 @@ private fun NewTimerSheet(
                     }
                 }
             }
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(16.dp))
             TargetTimeChips(
                 vm = vm,
                 accent = accent,
                 t = t,
             )
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(16.dp))
             val canStart = vm.setH * 3600 + vm.setM * 60 + vm.setS > 0
             Button(
                 onClick = {
@@ -827,7 +808,7 @@ private fun TargetChip(
                 else Modifier.background(AppTheme.colors.track)
             )
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(horizontal = 14.dp, vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
@@ -835,12 +816,12 @@ private fun TargetChip(
             color = if (selected) accent else AppTheme.colors.textPrimary,
             fontFamily = JetBrainsMono,
             fontWeight = FontWeight.SemiBold,
-            fontSize = 15.sp,
+            fontSize = 14.sp,
         )
         Text(
             duration,
             color = AppTheme.colors.textDim,
-            fontSize = 11.sp,
+            fontSize = 10.sp,
         )
     }
 }
@@ -1078,7 +1059,7 @@ private fun EditableTitle(
 
 // ---------- Selector tipo rueda (Hours/Minutes/Seconds) ----------
 private val WHEEL_COL_W = 72.dp
-private val WHEEL_ITEM_H = 56.dp
+private val WHEEL_ITEM_H = 48.dp
 
 @Composable
 internal fun WheelTimePicker(
