@@ -38,8 +38,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -71,6 +70,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -88,13 +88,14 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.minitimer.Phase
-import com.minitimer.SettingsRoot
+import com.minitimer.R
 import com.minitimer.SettingsSection
 import com.minitimer.TimerViewModel
 import com.minitimer.i18n.I18n
@@ -104,11 +105,14 @@ import com.minitimer.ui.theme.Dims
 import com.minitimer.ui.theme.DONE_RED
 import com.minitimer.ui.theme.JetBrainsMono
 import com.minitimer.util.formatClock
+import com.minitimer.util.formatClockShort
 import com.minitimer.util.formatLastFinished
 import com.minitimer.util.formatRemaining
 import com.minitimer.util.incLabel
 import com.minitimer.util.pad2
+import java.util.Locale
 import kotlin.math.abs
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
@@ -164,10 +168,7 @@ fun TimerApp(vm: TimerViewModel) {
                                 SettingsSection.OVERLAY -> t.groupOverlay
                                 SettingsSection.BACKUP -> t.groupBackup
                                 SettingsSection.DEVELOPER -> t.groupDeveloper
-                                null -> when (vm.settingsRoot) {
-                                    SettingsRoot.GENERAL -> t.groupGeneral
-                                    SettingsRoot.TIMER -> t.groupTimer
-                                }
+                                null -> t.settings
                             }
                             Text(settingsTitle, color = AppTheme.colors.textPrimary, fontWeight = FontWeight.SemiBold)
                         }
@@ -195,9 +196,9 @@ fun TimerApp(vm: TimerViewModel) {
                             )
                         }
                     } else {
-                        // Engrane (outline) que abre la config General (global).
-                        IconButton(onClick = { vm.openSettings(SettingsRoot.GENERAL) }) {
-                            Icon(Icons.Outlined.Settings, contentDescription = "General", tint = AppTheme.colors.textDim)
+                        // Engrane (outline) que abre la configuración.
+                        IconButton(onClick = { vm.openSettings() }) {
+                            Icon(painterResource(R.drawable.ic_settings), contentDescription = "Settings", tint = AppTheme.colors.textDim)
                         }
                     }
                 },
@@ -218,9 +219,7 @@ fun TimerApp(vm: TimerViewModel) {
                                 }
                             }
                         }
-                        else -> IconButton(onClick = { vm.openSettings(SettingsRoot.TIMER) }) {
-                            Icon(Icons.Filled.Tune, contentDescription = "Timer settings", tint = AppTheme.colors.textDim)
-                        }
+                        else -> {}
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -634,6 +633,12 @@ private fun NewTimerSheet(
                 }
             }
             Spacer(Modifier.height(20.dp))
+            TargetTimeChips(
+                vm = vm,
+                accent = accent,
+                t = t,
+            )
+            Spacer(Modifier.height(20.dp))
             val canStart = vm.setH * 3600 + vm.setM * 60 + vm.setS > 0
             Button(
                 onClick = {
@@ -682,6 +687,160 @@ private fun PresetChip(
             fontFamily = JetBrainsMono,
             fontWeight = FontWeight.SemiBold,
             fontSize = 15.sp,
+        )
+    }
+}
+
+/**
+ * Chips de "Termina a las": muestra los próximos 6 múltiplos de 5 minutos
+ * como horas objetivo. Se actualiza en tiempo real cada segundo.
+ * Filtra targets a menos de 60s (se pasa al siguiente múltiplo).
+ */
+@Composable
+private fun TargetTimeChips(
+    vm: TimerViewModel,
+    accent: Color,
+    t: com.minitimer.i18n.Strings,
+) {
+    val locale = Locale.getDefault()
+
+    // Tick cada segundo para mantener los targets en tiempo real.
+    val now by produceState(initialValue = System.currentTimeMillis()) {
+        while (true) {
+            value = System.currentTimeMillis()
+            delay(1000L)
+        }
+    }
+
+    // Calcular los próximos 6 múltiplos de 5 min con >= 60s de duración.
+    val targets = remember(now) {
+        val cal = java.util.Calendar.getInstance().apply { timeInMillis = now }
+        val currentMinute = cal.get(java.util.Calendar.MINUTE)
+
+        // Redondear al siguiente múltiplo de 5.
+        var nextMinute = ((currentMinute / 5) + 1) * 5
+        var addHours = 0
+        if (nextMinute >= 60) {
+            nextMinute -= 60
+            addHours = 1
+        }
+
+        buildList {
+            for (i in 0 until 12) {
+                val targetCal = java.util.Calendar.getInstance().apply {
+                    timeInMillis = now
+                    add(java.util.Calendar.HOUR_OF_DAY, addHours)
+                    set(java.util.Calendar.MINUTE, nextMinute)
+                    set(java.util.Calendar.SECOND, 0)
+                    set(java.util.Calendar.MILLISECOND, 0)
+                }
+                val diffSec = (targetCal.timeInMillis - now) / 1000
+                if (diffSec >= 60) {
+                    add(targetCal.timeInMillis to diffSec)
+                    if (size >= 6) break
+                }
+                nextMinute += 5
+                if (nextMinute >= 60) {
+                    nextMinute -= 60
+                    addHours++
+                }
+            }
+        }
+    }
+
+    if (targets.isEmpty()) return
+
+    val currentSec = vm.setH * 3600 + vm.setM * 60 + vm.setS
+
+    // Header
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Icon(
+            Icons.Filled.Timer,
+            contentDescription = null,
+            tint = accent,
+            modifier = Modifier.size(16.dp),
+        )
+        Text(
+            t.endsAt,
+            color = accent,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+    Spacer(Modifier.height(10.dp))
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        targets.forEach { (targetMs, diffSec) ->
+            val isSelected = diffSec.toInt() == currentSec
+            TargetChip(
+                label = formatClockShort(targetMs, locale),
+                duration = formatDurationLabel(diffSec),
+                selected = isSelected,
+                accent = accent,
+                highlight = targets.first() == (targetMs to diffSec),
+            ) {
+                val h = (diffSec / 3600).toInt()
+                val m = ((diffSec % 3600) / 60).toInt()
+                val s = (diffSec % 60).toInt()
+                vm.setDraftTime(h, m, s)
+            }
+        }
+    }
+}
+
+/** Duración compacta para chips de target: "4 min", "1 h 30 min", "90 s". */
+private fun formatDurationLabel(sec: Long): String {
+    val h = (sec / 3600).toInt()
+    val m = ((sec % 3600) / 60).toInt()
+    val s = (sec % 60).toInt()
+    return when {
+        h > 0 -> if (m > 0) "$h h $m min" else "$h h"
+        m > 0 -> "$m min"
+        else -> "$s s"
+    }
+}
+
+@Composable
+private fun TargetChip(
+    label: String,
+    duration: String,
+    selected: Boolean,
+    accent: Color,
+    highlight: Boolean,
+    onClick: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .widthIn(min = 72.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .then(
+                if (selected) Modifier.border(1.dp, accent, RoundedCornerShape(16.dp))
+                else if (highlight) Modifier.background(accent.copy(alpha = 0.12f))
+                else Modifier.background(AppTheme.colors.track)
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            label,
+            color = if (selected) accent else AppTheme.colors.textPrimary,
+            fontFamily = JetBrainsMono,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 15.sp,
+        )
+        Text(
+            duration,
+            color = AppTheme.colors.textDim,
+            fontSize = 11.sp,
         )
     }
 }
