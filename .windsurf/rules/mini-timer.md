@@ -26,9 +26,10 @@ description: Convenciones de comportamiento para el proyecto mini-timer
   - Default del volumen: `Settings.alarmVolume` (actual 0.25 = 25%). Cambiar el default solo afecta instalaciones limpias.
 
 # Versionado
-- El versionado sube +1 por cada APK generado (no por commit).
+- El versionado sube +1 por cada compilación (debug o release, indistintamente).
 - `versionName` = "1.0.<n>" y `versionCode` = <n> en `app/build.gradle.kts`; la fuente de verdad es el `versionName` actual.
-- Solo los commits que generan un APK cambian la versión; commits de limpieza/refactor/docs no la tocan.
+- El número de versión es un control de iteraciones (mejoras, fixes, etc.); refleja cuántas veces se ha compilado la app.
+- Subir la versión ANTES de compilar, no después.
 
 # Releases
 - Dejar únicamente el último APK en `releases/`, con el nombre `mini-timer-1.0.<n>.apk`.

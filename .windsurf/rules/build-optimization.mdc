@@ -1,0 +1,20 @@
+---
+description: Build optimization settings for faster compilation
+---
+
+# Optimizaciones de compilación
+
+## Desarrollo / iteración (default)
+Mantener SIEMPRE estas optimizaciones para compilaciones rápidas durante el desarrollo:
+
+- `isMinifyEnabled = false` and `isShrinkResources = false` in the release build type
+- `lint { checkReleaseBuilds = false }` to skip lint during release builds
+- `org.gradle.daemon = true`, `org.gradle.parallel = true`, `org.gradle.caching = true`, `org.gradle.configuration-cache = true` in `gradle.properties`
+- JVM args with at least `-Xmx2048m` and `UseParallelGC`
+- Do not re-enable R8/minify or lint checks unless explicitly asked by the user
+
+## Release para compartir (APK final)
+Solo cuando el usuario pida generar un APK para compartir/distribuir:
+- Activar temporalmente `isMinifyEnabled = true` y `isShrinkResources = true`
+- Compilar, copiar el APK a `releases/`
+- Volver a desactivar R8/shrinkResources después de generar el APK

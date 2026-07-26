@@ -12,14 +12,14 @@ android {
         applicationId = "com.minitimer"
         minSdk = 26
         targetSdk = 36
-        versionCode = 193
-        versionName = "1.0.193"
+        versionCode = 195
+        versionName = "1.0.195"
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = true
-            isShrinkResources = true
+            isMinifyEnabled = false
+            isShrinkResources = false
             // Firmamos el release con la clave debug para conservar la misma firma
             // que los APK anteriores (permite actualizar encima sin desinstalar).
             signingConfig = signingConfigs.getByName("debug")
