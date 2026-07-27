@@ -34,6 +34,10 @@ data class AppColors(
     val accent: Color,
     val onAccent: Color,
     val isDark: Boolean,
+    /** Gradiente vertical de fondo (top, bottom); null = usar bg sólido. */
+    val bgGradient: Pair<Color, Color>? = null,
+    /** Gradiente del acento (start, end); null = usar accent sólido. */
+    val accentGradient: Pair<Color, Color>? = null,
 )
 
 /** ARGB del acento rosa que activa el tema especial "Barbie". */
@@ -77,6 +81,25 @@ private val BarbieColors = AppColors(
 )
 
 /**
+ * Tema especial "Púrpura": dark con tinte cálido, degradado de fondo sutil y
+ * acento en gradiente coral → salmón. Colores extraídos con precisión de imagen
+ * de referencia (apps fitness modernas con tema oscuro cálido).
+ */
+private val PurpleColors = AppColors(
+    bg = Color(0xFF050505),
+    surface = Color(0xFF281008),
+    track = Color(0xFF200808),
+    textPrimary = Color(0xFFFFFFFF),
+    textDim = Color(0xFF877E79),
+    textFaded = Color(0xFF605050),
+    accent = Color(0xFFF05040),
+    onAccent = Color.White,
+    isDark = true,
+    bgGradient = Color(0xFF100000) to Color(0xFF000000),
+    accentGradient = Color(0xFFF05040) to Color(0xFFF0A0A0),
+)
+
+/**
  * Tono del acento en modo CLARO: se oscurece para contrastar sobre superficies
  * claras (el mismo valor va con onAccent blanco).
  */
@@ -91,7 +114,8 @@ private fun accentForLight(argb: Long): Color = when (argb) {
 }
 
 /** Devuelve la paleta según el acento seleccionado y el modo claro/oscuro. */
-private fun appColorsFor(accentArgb: Long, dark: Boolean): AppColors = when {
+private fun appColorsFor(accentArgb: Long, dark: Boolean, purple: Boolean = false): AppColors = when {
+    purple -> PurpleColors
     accentArgb == PINK_ACCENT -> BarbieColors
     dark -> darkBase(Color(accentArgb), ON_ACCENT)
     else -> lightBase(accentForLight(accentArgb), Color.White)
@@ -112,9 +136,10 @@ object AppTheme {
 fun MiniTimerTheme(
     accent: Long = 0xFFFF5252,
     darkTheme: Boolean = isSystemInDarkTheme(),
+    purpleTheme: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    val appColors = appColorsFor(accent, darkTheme)
+    val appColors = appColorsFor(accent, darkTheme, purpleTheme)
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {

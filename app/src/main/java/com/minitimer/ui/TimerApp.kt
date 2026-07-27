@@ -5,6 +5,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -122,7 +123,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun TimerApp(vm: TimerViewModel) {
     val t = I18n.get(vm.config.general.language)
-    val accent = Color(vm.config.general.accent)
+    val accent = AppTheme.colors.accent
 
     // Mantener la pantalla encendida siempre que la app esté abierta (en primer plano).
     val view = LocalView.current
@@ -153,10 +154,7 @@ fun TimerApp(vm: TimerViewModel) {
     }
 
     Scaffold(
-        containerColor = when {
-            vm.showSettings -> AppTheme.colors.bg
-            else -> AppTheme.colors.bg
-        },
+        containerColor = Color.Transparent,
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             CenterAlignedTopAppBar(
@@ -241,7 +239,10 @@ fun TimerApp(vm: TimerViewModel) {
             }
         },
     ) { inner ->
-        Box(modifier = Modifier.fillMaxSize().padding(inner)) {
+        val bgMod = AppTheme.colors.bgGradient?.let { (top, bottom) ->
+            Modifier.background(Brush.verticalGradient(listOf(top, bottom)))
+        } ?: Modifier.background(AppTheme.colors.bg)
+        Box(modifier = Modifier.fillMaxSize().then(bgMod).padding(inner)) {
             when {
                 vm.showSettings -> Box(Modifier.padding(horizontal = 24.dp)) { SettingsScreen(vm) }
                 detail != null -> TimerDetailBody(vm, detail, accent, t, onBlocked)

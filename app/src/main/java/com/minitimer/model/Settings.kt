@@ -8,6 +8,7 @@ const val SPEAKER_AND_HEADSET = 1
 const val THEME_AUTO = 0
 const val THEME_LIGHT = 1
 const val THEME_DARK = 2
+const val THEME_PURPLE = 3
 
 /**
  * Configuración de alarma/sonido. Es un bloque reutilizable e INDEPENDIENTE por
