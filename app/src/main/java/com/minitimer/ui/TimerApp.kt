@@ -600,21 +600,23 @@ private fun TimerCard(
                     )
                 }
                 Spacer(Modifier.width(8.dp))
-                Text(
-                    item.name.ifBlank { t.noName },
-                    color = when {
-                        running -> accent
-                        item.name.isBlank() -> AppTheme.colors.textFaded
-                        else -> AppTheme.colors.textPrimary
-                    },
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { onNameEdit() },
-                )
+                Box(modifier = Modifier.weight(1f)) {
+                    Text(
+                        item.name.ifBlank { t.noName },
+                        color = when {
+                            running -> accent
+                            item.name.isBlank() -> AppTheme.colors.textFaded
+                            else -> AppTheme.colors.textPrimary
+                        },
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .clickable { onNameEdit() },
+                    )
+                }
                 if (captionText != null) {
                     Spacer(Modifier.width(8.dp))
                     Text(
