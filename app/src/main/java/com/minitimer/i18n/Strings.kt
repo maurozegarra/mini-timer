@@ -83,6 +83,8 @@ data class Strings(
     val restored: String,
     val backupSaved: String,
     val ok: String,
+    val undo: String,
+    val timerDeleted: String,
 )
 
 object I18n {
@@ -168,6 +170,8 @@ object I18n {
         restored = "Datos restaurados",
         backupSaved = "Respaldo guardado",
         ok = "Aceptar",
+        undo = "Deshacer",
+        timerDeleted = "Timer eliminado",
     )
 
     val EN = Strings(
@@ -250,5 +254,7 @@ object I18n {
         restored = "Data restored",
         backupSaved = "Backup saved",
         ok = "OK",
+        undo = "Undo",
+        timerDeleted = "Timer deleted",
     )
 }

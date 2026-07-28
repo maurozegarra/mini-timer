@@ -380,6 +380,10 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     /** Descarta un timer terminado (detiene alarma) y lo deja en IDLE. */
     fun dismissTimer(id: Long) = resetTimer(id)
 
+    // Timer eliminado recientemente, para permitir undo.
+    private var lastDeletedTimer: TimerItem? = null
+    private var lastDeletedIndex: Int = -1
+
     fun deleteTimer(id: Long) {
         val wasActive = activeId == id
         if (wasActive) {
@@ -387,6 +391,9 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
             autoDismissJob?.cancel()
             alarmPlayer.stop()
         }
+        val index = idx(id)
+        lastDeletedTimer = timers.firstOrNull { it.id == id }
+        lastDeletedIndex = index
         timers.removeAll { it.id == id }
         if (wasActive) {
             activeId = null
@@ -394,6 +401,17 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
             syncService()
         }
         persist()
+    }
+
+    /** Restaura el último timer eliminado. Retorna true si se restauró. */
+    fun undoDelete(): Boolean {
+        val deleted = lastDeletedTimer ?: return false
+        val insertAt = lastDeletedIndex.coerceIn(0, timers.size)
+        timers.add(insertAt, deleted)
+        lastDeletedTimer = null
+        lastDeletedIndex = -1
+        persist()
+        return true
     }
 
     fun addTime(id: Long) {
