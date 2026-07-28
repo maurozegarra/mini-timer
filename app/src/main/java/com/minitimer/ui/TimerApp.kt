@@ -1,5 +1,6 @@
 package com.minitimer.ui
 
+import android.os.SystemClock
 import android.view.HapticFeedbackConstants
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
@@ -7,8 +8,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -23,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -35,12 +37,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -58,6 +62,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -78,6 +83,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -86,7 +92,10 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
@@ -94,8 +103,10 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import com.minitimer.Phase
 import com.minitimer.R
 import com.minitimer.SettingsSection
@@ -114,10 +125,12 @@ import com.minitimer.util.incLabel
 import com.minitimer.util.pad2
 import java.util.Locale
 import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -279,6 +292,7 @@ fun TimerApp(vm: TimerViewModel) {
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun TimerListScreen(
     vm: TimerViewModel,
@@ -301,58 +315,214 @@ private fun TimerListScreen(
     }
     val active = vm.activeId
     val density = LocalDensity.current
+    val view = LocalView.current
     val spacingPx = with(density) { 14.dp.toPx() }
+    val swipeThreshold = with(density) { 160.dp.toPx() }
+    val touchSlop = with(density) { 8.dp.toPx() }
     var draggingId by remember { mutableStateOf<Long?>(null) }
     var dragOffset by remember { mutableStateOf(0f) }
     var rowHeightPx by remember { mutableStateOf(0f) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+    // Estado para el diálogo de renombrado inline.
+    var renamingId by remember { mutableStateOf<Long?>(null) }
+    var renameText by remember { mutableStateOf("") }
+
+    renamingId?.let { id ->
+        AlertDialog(
+            onDismissRequest = { renamingId = null },
+            title = { Text(t.rename) },
+            text = {
+                OutlinedTextField(
+                    value = renameText,
+                    onValueChange = { renameText = it.take(40) },
+                    singleLine = true,
+                    placeholder = { Text(t.noName, color = AppTheme.colors.textFaded) },
+                    colors = TextFieldDefaults.colors(
+                        cursorColor = accent,
+                        focusedIndicatorColor = accent,
+                        unfocusedIndicatorColor = AppTheme.colors.textFaded,
+                    ),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = {
+                        vm.renameTimer(id, renameText)
+                        renamingId = null
+                    }),
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { vm.renameTimer(id, renameText); renamingId = null }) {
+                    Text(t.ok)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { renamingId = null }) {
+                    Text(t.cancel)
+                }
+            },
+        )
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        vm.timers.forEach { item ->
+        items(vm.timers, key = { it.id }) { item ->
             val dragging = item.id == draggingId
-            TimerCard(
-                item = item,
-                accent = accent,
-                t = t,
-                blocked = active != null && active != item.id,
-                incSec = vm.config.timer.addIncrementSec,
-                dragging = dragging,
-                dragOffset = if (dragging) dragOffset else 0f,
-                onHeight = { h -> if (rowHeightPx == 0f) rowHeightPx = h.toFloat() },
-                onOpen = { onOpen(item.id) },
-                onToggle = { if (!vm.togglePlay(item.id)) onBlocked() },
-                onReset = { vm.resetTimer(item.id) },
-                onDismiss = { vm.dismissTimer(item.id) },
-                onAddTime = { vm.addTime(item.id) },
-                onStar = { vm.toggleStar(item.id) },
-                dragModifier = Modifier.pointerInput(item.id) {
-                    detectDragGesturesAfterLongPress(
-                        onDragStart = { draggingId = item.id; dragOffset = 0f },
-                        onDragEnd = { draggingId = null; dragOffset = 0f },
-                        onDragCancel = { draggingId = null; dragOffset = 0f },
-                        onDrag = { change, amount ->
-                            change.consume()
-                            dragOffset += amount.y
-                            val step = rowHeightPx + spacingPx
-                            if (step <= 0f) return@detectDragGesturesAfterLongPress
-                            val cur = vm.timers.indexOfFirst { it.id == draggingId }
-                            if (cur < 0) return@detectDragGesturesAfterLongPress
-                            if (dragOffset > step / 2 && cur < vm.timers.size - 1) {
-                                vm.moveTimer(cur, cur + 1)
-                                dragOffset -= step
-                            } else if (dragOffset < -step / 2 && cur > 0) {
-                                vm.moveTimer(cur, cur - 1)
-                                dragOffset += step
+            var swipeX by remember { mutableStateOf(0f) }
+            val swipeProgress = (abs(swipeX) / swipeThreshold).coerceIn(0f, 1f)
+
+            // Box exterior: zIndex + translationY para que el item completo
+            // se mueva y se dibuje por encima durante el drag vertical.
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .zIndex(if (dragging) 1f else 0f)
+                    .animateItemPlacement()
+                    .graphicsLayer {
+                        translationY = if (dragging) dragOffset else 0f
+                    }
+                    .clip(RoundedCornerShape(Dims.card)),
+            ) {
+                // Fondo rojo revelado al hacer swipe horizontal.
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .background(DONE_RED.copy(alpha = swipeProgress))
+                        .padding(horizontal = 20.dp),
+                    contentAlignment = Alignment.CenterEnd,
+                ) {
+                    Icon(
+                        Icons.Filled.Delete,
+                        contentDescription = t.delete,
+                        tint = Color.White.copy(alpha = swipeProgress),
+                    )
+                }
+                // Contenido con offset horizontal para el swipe.
+                // Un único pointerInput maneja tap, long-press drag y swipe horizontal.
+                Box(
+                    modifier = Modifier
+                        .offset { IntOffset(swipeX.roundToInt(), 0) }
+                        .pointerInput(item.id) {
+                            awaitEachGesture {
+                                val down = awaitFirstDown(requireUnconsumed = false)
+                                // Si un hijo (IconButton, nombre clickeable) ya consumió el down, salir.
+                                if (down.isConsumed) return@awaitEachGesture
+                                val downX = down.position.x
+                                val downY = down.position.y
+
+                                // Fase 1: Determinar tipo de gesto (tap, swipe, o long-press drag).
+                                // 0=pending, 1=swipe, 2=drag
+                                var gesture = 0
+                                var swipeAccum = 0f
+
+                                while (gesture == 0) {
+                                    // withTimeoutOrNull: si el dedo está quieto durante
+                                    // longPressTimeoutMillis sin eventos, se dispara el long-press.
+                                    val event = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                                        awaitPointerEvent()
+                                    }
+
+                                    if (event == null) {
+                                        // Timeout sin movimiento → long-press drag.
+                                        gesture = 2
+                                        draggingId = item.id
+                                        dragOffset = 0f
+                                        view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                                        break
+                                    }
+
+                                    val change = event.changes.firstOrNull() ?: break
+
+                                    if (change.changedToUp()) {
+                                        // El dedo se levantó sin moverse → tap (abrir detalle).
+                                        onOpen(item.id)
+                                        break
+                                    }
+
+                                    val dx = abs(change.position.x - downX)
+                                    val dy = abs(change.position.y - downY)
+
+                                    if (dx > touchSlop && dx > dy) {
+                                        // Movimiento horizontal → swipe para eliminar.
+                                        gesture = 1
+                                        change.consume()
+                                        swipeAccum = change.positionChange().x
+                                        swipeX = swipeAccum
+                                    } else if (dy > touchSlop && dy > dx) {
+                                        // Movimiento vertical → dejar que el scroll lo maneje.
+                                        break
+                                    }
+                                    // Si el movimiento está dentro del touchSlop, continuar esperando.
+                                }
+
+                                // Fase 2: Ejecutar el gesto determinado.
+                                when (gesture) {
+                                    1 -> {
+                                        // Swipe horizontal para eliminar.
+                                        while (true) {
+                                            val event = awaitPointerEvent()
+                                            val change = event.changes.firstOrNull() ?: break
+                                            if (change.changedToUp()) {
+                                                if (abs(swipeAccum) > swipeThreshold) {
+                                                    vm.deleteTimer(item.id)
+                                                }
+                                                swipeX = 0f
+                                                break
+                                            }
+                                            change.consume()
+                                            swipeAccum += change.positionChange().x
+                                            swipeX = swipeAccum
+                                        }
+                                    }
+                                    2 -> {
+                                        // Long-press drag para reordenar.
+                                        while (true) {
+                                            val event = awaitPointerEvent()
+                                            val change = event.changes.firstOrNull() ?: break
+                                            if (change.changedToUp()) {
+                                                draggingId = null
+                                                dragOffset = 0f
+                                                break
+                                            }
+                                            change.consume()
+                                            val deltaY = change.positionChange().y
+                                            dragOffset += deltaY
+                                            val step = rowHeightPx + spacingPx
+                                            if (step > 0f) {
+                                                val cur = vm.timers.indexOfFirst { it.id == draggingId }
+                                                if (cur >= 0) {
+                                                    if (dragOffset > step / 2 && cur < vm.timers.size - 1) {
+                                                        vm.moveTimer(cur, cur + 1)
+                                                        dragOffset -= step
+                                                    } else if (dragOffset < -step / 2 && cur > 0) {
+                                                        vm.moveTimer(cur, cur - 1)
+                                                        dragOffset += step
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         },
+                ) {
+                    TimerCard(
+                        item = item,
+                        accent = accent,
+                        t = t,
+                        blocked = active != null && active != item.id,
+                        incSec = vm.config.timer.addIncrementSec,
+                        dragging = dragging,
+                        onHeight = { h -> if (rowHeightPx == 0f) rowHeightPx = h.toFloat() },
+                        onToggle = { if (!vm.togglePlay(item.id)) onBlocked() },
+                        onReset = { vm.resetTimer(item.id) },
+                        onDismiss = { vm.dismissTimer(item.id) },
+                        onAddTime = { vm.addTime(item.id) },
+                        onStar = { vm.toggleStar(item.id) },
+                        onNameEdit = { renamingId = item.id; renameText = item.name },
                     )
-                },
-            )
+                }
+            }
         }
     }
 }
@@ -365,15 +535,13 @@ private fun TimerCard(
     blocked: Boolean,
     incSec: Int,
     dragging: Boolean,
-    dragOffset: Float,
     onHeight: (Int) -> Unit,
-    onOpen: () -> Unit,
     onToggle: () -> Unit,
     onReset: () -> Unit,
     onDismiss: () -> Unit,
     onAddTime: () -> Unit,
     onStar: () -> Unit,
-    dragModifier: Modifier,
+    onNameEdit: () -> Unit,
 ) {
     val done = item.phase == Phase.DONE
     val running = item.phase == Phase.RUNNING
@@ -408,8 +576,10 @@ private fun TimerCard(
             .fillMaxWidth()
             .onSizeChanged { onHeight(it.height) }
             .graphicsLayer {
-                translationY = dragOffset
-                if (dragging) { scaleX = 1.03f; scaleY = 1.03f }
+                if (dragging) {
+                    scaleX = 1.03f; scaleY = 1.03f
+                    shadowElevation = 8f
+                }
             }
             .clip(RoundedCornerShape(Dims.card))
             .background(if (dragging) AppTheme.colors.track else AppTheme.colors.surface)
@@ -417,9 +587,7 @@ private fun TimerCard(
                 if (borderColor != Color.Transparent)
                     Modifier.border(1.dp, borderColor, RoundedCornerShape(Dims.card))
                 else Modifier
-            )
-            .pointerInput(item.id) { detectTapGestures(onTap = { onOpen() }) }
-            .then(dragModifier),
+            ),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -443,7 +611,9 @@ private fun TimerCard(
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onNameEdit() },
                 )
                 if (captionText != null) {
                     Spacer(Modifier.width(8.dp))

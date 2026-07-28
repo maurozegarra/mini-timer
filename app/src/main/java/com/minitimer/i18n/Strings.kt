@@ -82,6 +82,7 @@ data class Strings(
     val restoreMessage: String,
     val restored: String,
     val backupSaved: String,
+    val ok: String,
 )
 
 object I18n {
@@ -166,6 +167,7 @@ object I18n {
         restoreMessage = "Se reemplazarán los datos actuales (timers e historial) por los del respaldo. ¿Continuar?",
         restored = "Datos restaurados",
         backupSaved = "Respaldo guardado",
+        ok = "Aceptar",
     )
 
     val EN = Strings(
@@ -247,5 +249,6 @@ object I18n {
         restoreMessage = "Your current data (timers and history) will be replaced with the backup. Continue?",
         restored = "Data restored",
         backupSaved = "Backup saved",
+        ok = "OK",
     )
 }
