@@ -1,6 +1,7 @@
 package com.minitimer.ui
 
 import android.os.SystemClock
+import android.util.Log
 import android.view.HapticFeedbackConstants
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
@@ -8,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
@@ -31,10 +33,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
@@ -92,6 +97,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
@@ -130,7 +136,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -149,6 +154,10 @@ fun TimerApp(vm: TimerViewModel) {
     val scope = rememberCoroutineScope()
     var showSheet by remember { mutableStateOf(false) }
     val onBlocked = { scope.launch { snackbar.showSnackbar(t.blockedActive) }; Unit }
+
+    // Estado del ephemeral undo: ícono flotante que aparece 5s al eliminar.
+    var showUndo by remember { mutableStateOf(false) }
+    val onDeleted = { showUndo = true }
 
     // El timer cuyo detalle está abierto (si existe en la lista).
     val detail: TimerItem? = vm.detailId?.let { vm.item(it) }
@@ -226,7 +235,12 @@ fun TimerApp(vm: TimerViewModel) {
                                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                                     DropdownMenuItem(
                                         text = { Text(t.delete) },
-                                        onClick = { menu = false; vm.deleteTimer(detail.id); vm.detailId = null },
+                                        onClick = {
+                                            menu = false
+                                            vm.deleteTimer(detail.id)
+                                            vm.detailId = null
+                                            onDeleted()
+                                        },
                                     )
                                 }
                             }
@@ -265,6 +279,7 @@ fun TimerApp(vm: TimerViewModel) {
                     t = t,
                     onOpen = { vm.detailId = it },
                     onBlocked = onBlocked,
+                    onDeleted = onDeleted,
                 )
             }
             if (vm.config.general.developerMode) {
@@ -277,6 +292,32 @@ fun TimerApp(vm: TimerViewModel) {
                         .align(Alignment.BottomStart)
                         .padding(start = 8.dp, bottom = 8.dp),
                 )
+            }
+            // Ephemeral undo: ícono flotante que aparece 5s al eliminar un timer.
+            if (showUndo) {
+                LaunchedEffect(showUndo) {
+                    delay(5000)
+                    showUndo = false
+                }
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(start = 16.dp, bottom = 16.dp)
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(accent)
+                        .clickable {
+                            showUndo = false
+                            vm.undoDelete()
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_undo),
+                        contentDescription = t.undo,
+                        tint = Color.White,
+                    )
+                }
             }
         }
     }
@@ -300,6 +341,7 @@ private fun TimerListScreen(
     t: com.minitimer.i18n.Strings,
     onOpen: (Long) -> Unit,
     onBlocked: () -> Unit,
+    onDeleted: () -> Unit,
 ) {
     if (vm.timers.isEmpty()) {
         Column(
@@ -314,14 +356,10 @@ private fun TimerListScreen(
         return
     }
     val active = vm.activeId
-    val density = LocalDensity.current
-    val view = LocalView.current
-    val spacingPx = with(density) { 14.dp.toPx() }
-    val swipeThreshold = with(density) { 160.dp.toPx() }
-    val touchSlop = with(density) { 8.dp.toPx() }
-    var draggingId by remember { mutableStateOf<Long?>(null) }
-    var dragOffset by remember { mutableStateOf(0f) }
-    var rowHeightPx by remember { mutableStateOf(0f) }
+    val listState = rememberLazyListState()
+    val dragDropState = rememberDragDropState(listState) { from, to ->
+        vm.moveTimer(from, to)
+    }
 
     // Estado para el diálogo de renombrado inline.
     var renamingId by remember { mutableStateOf<Long?>(null) }
@@ -363,164 +401,87 @@ private fun TimerListScreen(
     }
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp),
+        state = listState,
+        modifier = Modifier.fillMaxSize()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .dragContainer(dragDropState),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        items(vm.timers, key = { it.id }) { item ->
-            val dragging = item.id == draggingId
-            var swipeX by remember { mutableStateOf(0f) }
-            val swipeProgress = (abs(swipeX) / swipeThreshold).coerceIn(0f, 1f)
+        itemsIndexed(
+            vm.timers,
+            key = { _, it -> it.id },
+            contentType = { _, _ -> ReorderableContentType },
+        ) { index, item ->
+            DraggableItem(dragDropState, index) { dragging ->
+                var swipeOffset by remember { mutableStateOf(0f) }
+                val density = LocalDensity.current
+                val revealWidth = with(density) { 80.dp.toPx() }
 
-            // Box exterior: zIndex + translationY para que el item completo
-            // se mueva y se dibuje por encima durante el drag vertical.
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .zIndex(if (dragging) 1f else 0f)
-                    .animateItemPlacement()
-                    .graphicsLayer {
-                        translationY = if (dragging) dragOffset else 0f
-                    }
-                    .clip(RoundedCornerShape(Dims.card)),
-            ) {
-                // Fondo rojo revelado al hacer swipe horizontal.
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .background(DONE_RED.copy(alpha = swipeProgress))
-                        .padding(horizontal = 20.dp),
-                    contentAlignment = Alignment.CenterEnd,
-                ) {
-                    Icon(
-                        Icons.Filled.Delete,
-                        contentDescription = t.delete,
-                        tint = Color.White.copy(alpha = swipeProgress),
-                    )
+                // Al iniciar el drag vertical, cerrar el swipe si estaba abierto.
+                LaunchedEffect(dragging) {
+                    if (dragging) swipeOffset = 0f
                 }
-                // Contenido con offset horizontal para el swipe.
-                // Un único pointerInput maneja tap, long-press drag y swipe horizontal.
+
                 Box(
                     modifier = Modifier
-                        .offset { IntOffset(swipeX.roundToInt(), 0) }
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(Dims.card))
                         .pointerInput(item.id) {
-                            awaitEachGesture {
-                                val down = awaitFirstDown(requireUnconsumed = false)
-                                // Si un hijo (IconButton, nombre clickeable) ya consumió el down, salir.
-                                if (down.isConsumed) return@awaitEachGesture
-                                val downX = down.position.x
-                                val downY = down.position.y
-
-                                // Fase 1: Determinar tipo de gesto (tap, swipe, o long-press drag).
-                                // 0=pending, 1=swipe, 2=drag
-                                var gesture = 0
-                                var swipeAccum = 0f
-
-                                while (gesture == 0) {
-                                    // withTimeoutOrNull: si el dedo está quieto durante
-                                    // longPressTimeoutMillis sin eventos, se dispara el long-press.
-                                    val event = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
-                                        awaitPointerEvent()
-                                    }
-
-                                    if (event == null) {
-                                        // Timeout sin movimiento → long-press drag.
-                                        gesture = 2
-                                        draggingId = item.id
-                                        dragOffset = 0f
-                                        view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                                        break
-                                    }
-
-                                    val change = event.changes.firstOrNull() ?: break
-
-                                    if (change.changedToUp()) {
-                                        // El dedo se levantó sin moverse → tap (abrir detalle).
-                                        onOpen(item.id)
-                                        break
-                                    }
-
-                                    val dx = abs(change.position.x - downX)
-                                    val dy = abs(change.position.y - downY)
-
-                                    if (dx > touchSlop && dx > dy) {
-                                        // Movimiento horizontal → swipe para eliminar.
-                                        gesture = 1
-                                        change.consume()
-                                        swipeAccum = change.positionChange().x
-                                        swipeX = swipeAccum
-                                    } else if (dy > touchSlop && dy > dx) {
-                                        // Movimiento vertical → dejar que el scroll lo maneje.
-                                        break
-                                    }
-                                    // Si el movimiento está dentro del touchSlop, continuar esperando.
-                                }
-
-                                // Fase 2: Ejecutar el gesto determinado.
-                                when (gesture) {
-                                    1 -> {
-                                        // Swipe horizontal para eliminar.
-                                        while (true) {
-                                            val event = awaitPointerEvent()
-                                            val change = event.changes.firstOrNull() ?: break
-                                            if (change.changedToUp()) {
-                                                if (abs(swipeAccum) > swipeThreshold) {
-                                                    vm.deleteTimer(item.id)
-                                                }
-                                                swipeX = 0f
-                                                break
-                                            }
-                                            change.consume()
-                                            swipeAccum += change.positionChange().x
-                                            swipeX = swipeAccum
-                                        }
-                                    }
-                                    2 -> {
-                                        // Long-press drag para reordenar.
-                                        while (true) {
-                                            val event = awaitPointerEvent()
-                                            val change = event.changes.firstOrNull() ?: break
-                                            if (change.changedToUp()) {
-                                                draggingId = null
-                                                dragOffset = 0f
-                                                break
-                                            }
-                                            change.consume()
-                                            val deltaY = change.positionChange().y
-                                            dragOffset += deltaY
-                                            val step = rowHeightPx + spacingPx
-                                            if (step > 0f) {
-                                                val cur = vm.timers.indexOfFirst { it.id == draggingId }
-                                                if (cur >= 0) {
-                                                    if (dragOffset > step / 2 && cur < vm.timers.size - 1) {
-                                                        vm.moveTimer(cur, cur + 1)
-                                                        dragOffset -= step
-                                                    } else if (dragOffset < -step / 2 && cur > 0) {
-                                                        vm.moveTimer(cur, cur - 1)
-                                                        dragOffset += step
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                            detectHorizontalDragGestures(
+                                onHorizontalDrag = { change, dragAmount ->
+                                    change.consume()
+                                    swipeOffset = (swipeOffset + dragAmount)
+                                        .coerceIn(-revealWidth, 0f)
+                                },
+                                onDragEnd = {
+                                    swipeOffset = if (swipeOffset < -revealWidth / 2) -revealWidth else 0f
+                                },
+                                onDragCancel = {
+                                    swipeOffset = if (swipeOffset < -revealWidth / 2) -revealWidth else 0f
+                                },
+                            )
                         },
                 ) {
-                    TimerCard(
-                        item = item,
-                        accent = accent,
-                        t = t,
-                        blocked = active != null && active != item.id,
-                        incSec = vm.config.timer.addIncrementSec,
-                        dragging = dragging,
-                        onHeight = { h -> if (rowHeightPx == 0f) rowHeightPx = h.toFloat() },
-                        onToggle = { if (!vm.togglePlay(item.id)) onBlocked() },
-                        onReset = { vm.resetTimer(item.id) },
-                        onDismiss = { vm.dismissTimer(item.id) },
-                        onAddTime = { vm.addTime(item.id) },
-                        onStar = { vm.toggleStar(item.id) },
-                        onNameEdit = { renamingId = item.id; renameText = item.name },
-                    )
+                    // Fondo rojo con botón eliminar, revelado al swipar izquierda.
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .background(DONE_RED),
+                        contentAlignment = Alignment.CenterEnd,
+                    ) {
+                        IconButton(onClick = { vm.deleteTimer(item.id); swipeOffset = 0f; onDeleted() }) {
+                            Icon(
+                                Icons.Filled.Delete,
+                                contentDescription = t.delete,
+                                tint = Color.White,
+                            )
+                        }
+                    }
+                    // Contenido de la tarjeta con offset horizontal.
+                    Box(
+                        modifier = Modifier
+                            .offset { IntOffset(swipeOffset.roundToInt(), 0) }
+                            .clickable {
+                                if (swipeOffset != 0f) swipeOffset = 0f
+                                else onOpen(item.id)
+                            },
+                    ) {
+                        TimerCard(
+                            item = item,
+                            accent = accent,
+                            t = t,
+                            blocked = active != null && active != item.id,
+                            incSec = vm.config.timer.addIncrementSec,
+                            dragging = dragging,
+                            onHeight = { },
+                            onToggle = { if (!vm.togglePlay(item.id)) onBlocked() },
+                            onReset = { vm.resetTimer(item.id) },
+                            onDismiss = { vm.dismissTimer(item.id) },
+                            onAddTime = { vm.addTime(item.id) },
+                            onStar = { vm.toggleStar(item.id) },
+                            onNameEdit = { renamingId = item.id; renameText = item.name },
+                        )
+                    }
                 }
             }
         }
