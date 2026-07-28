@@ -87,7 +87,7 @@ import com.minitimer.model.SPEAKER_AND_HEADSET
 import com.minitimer.model.THEME_AUTO
 import com.minitimer.model.THEME_DARK
 import com.minitimer.model.THEME_LIGHT
-import com.minitimer.model.THEME_PURPLE
+import com.minitimer.model.THEME_WATCH
 import com.minitimer.model.VIBRATION_PATTERNS
 import com.minitimer.ui.theme.Dims
 import com.minitimer.ui.theme.AppTheme
@@ -184,7 +184,7 @@ fun SettingsScreen(vm: TimerViewModel) {
                 Chip(t.themeAuto, c.general.themeMode == THEME_AUTO, accent) { vm.setThemeMode(THEME_AUTO) }
                 Chip(t.themeLight, c.general.themeMode == THEME_LIGHT, accent) { vm.setThemeMode(THEME_LIGHT) }
                 Chip(t.themeDark, c.general.themeMode == THEME_DARK, accent) { vm.setThemeMode(THEME_DARK) }
-                Chip(t.themePurple, c.general.themeMode == THEME_PURPLE, accent) { vm.setThemeMode(THEME_PURPLE) }
+                Chip(t.themeWatch, c.general.themeMode == THEME_WATCH, accent) { vm.setThemeMode(THEME_WATCH) }
             }
         }
 

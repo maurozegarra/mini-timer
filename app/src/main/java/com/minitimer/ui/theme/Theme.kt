@@ -34,8 +34,8 @@ data class AppColors(
     val accent: Color,
     val onAccent: Color,
     val isDark: Boolean,
-    /** Gradiente vertical de fondo (top, bottom); null = usar bg sólido. */
-    val bgGradient: Pair<Color, Color>? = null,
+    /** Gradiente vertical de fondo (top, ..., bottom); null = usar bg sólido. */
+    val bgGradient: List<Color>? = null,
     /** Gradiente del acento (start, end); null = usar accent sólido. */
     val accentGradient: Pair<Color, Color>? = null,
 )
@@ -81,22 +81,26 @@ private val BarbieColors = AppColors(
 )
 
 /**
- * Tema especial "Púrpura": dark con tinte cálido, degradado de fondo sutil y
- * acento en gradiente coral → salmón. Colores extraídos con precisión de imagen
- * de referencia (apps fitness modernas con tema oscuro cálido).
+ * Tema "Watch": dark con tinte cálido, degradado de fondo de 3 tonos
+ * (negro cálido → marrón → negro profundo) y acento coral.
+ * Extraído del watch face Samsung (times_design_system.md).
  */
-private val PurpleColors = AppColors(
-    bg = Color(0xFF050505),
-    surface = Color(0xFF281008),
-    track = Color(0xFF200808),
-    textPrimary = Color(0xFFFFFFFF),
-    textDim = Color(0xFF877E79),
-    textFaded = Color(0xFF605050),
-    accent = Color(0xFFF05040),
-    onAccent = Color.White,
+private val WatchColors = AppColors(
+    bg = Color(0xFF0A0403),
+    surface = Color(0xFF2A1411),
+    track = Color(0xFF2E1A18),
+    textPrimary = Color(0xFFF2D0CD),
+    textDim = Color(0xFFC9A09C),
+    textFaded = Color(0xFF7A5A58),
+    accent = Color(0xFFEC524A),
+    onAccent = Color(0xFF0A0505),
     isDark = true,
-    bgGradient = Color(0xFF100000) to Color(0xFF000000),
-    accentGradient = Color(0xFFF05040) to Color(0xFFF0A0A0),
+    bgGradient = listOf(
+        Color(0xFF0F0807),  // top
+        Color(0xFF1C0E0C),  // mid
+        Color(0xFF0A0403),  // bottom
+    ),
+    accentGradient = null,
 )
 
 /**
@@ -114,8 +118,8 @@ private fun accentForLight(argb: Long): Color = when (argb) {
 }
 
 /** Devuelve la paleta según el acento seleccionado y el modo claro/oscuro. */
-private fun appColorsFor(accentArgb: Long, dark: Boolean, purple: Boolean = false): AppColors = when {
-    purple -> PurpleColors
+private fun appColorsFor(accentArgb: Long, dark: Boolean, watch: Boolean = false): AppColors = when {
+    watch -> WatchColors
     accentArgb == PINK_ACCENT -> BarbieColors
     dark -> darkBase(Color(accentArgb), ON_ACCENT)
     else -> lightBase(accentForLight(accentArgb), Color.White)
@@ -136,10 +140,10 @@ object AppTheme {
 fun MiniTimerTheme(
     accent: Long = 0xFFFF5252,
     darkTheme: Boolean = isSystemInDarkTheme(),
-    purpleTheme: Boolean = false,
+    watchTheme: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    val appColors = appColorsFor(accent, darkTheme, purpleTheme)
+    val appColors = appColorsFor(accent, darkTheme, watchTheme)
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {

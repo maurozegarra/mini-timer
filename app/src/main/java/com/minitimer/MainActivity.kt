@@ -17,7 +17,7 @@ import com.minitimer.data.BackupManager
 import com.minitimer.data.SettingsStore
 import com.minitimer.model.THEME_DARK
 import com.minitimer.model.THEME_LIGHT
-import com.minitimer.model.THEME_PURPLE
+import com.minitimer.model.THEME_WATCH
 import com.minitimer.ui.TimerApp
 import com.minitimer.ui.theme.MiniTimerTheme
 
@@ -40,13 +40,13 @@ class MainActivity : ComponentActivity() {
             val dark = when (vm.config.general.themeMode) {
                 THEME_LIGHT -> false
                 THEME_DARK -> true
-                THEME_PURPLE -> true
+                THEME_WATCH -> true
                 else -> isSystemInDarkTheme()
             }
             MiniTimerTheme(
                 accent = vm.config.general.accent,
                 darkTheme = dark,
-                purpleTheme = vm.config.general.themeMode == THEME_PURPLE,
+                watchTheme = vm.config.general.themeMode == THEME_WATCH,
             ) {
                 TimerApp(vm = vm)
             }

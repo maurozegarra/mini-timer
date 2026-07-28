@@ -266,8 +266,8 @@ fun TimerApp(vm: TimerViewModel) {
             }
         },
     ) { inner ->
-        val bgMod = AppTheme.colors.bgGradient?.let { (top, bottom) ->
-            Modifier.background(Brush.verticalGradient(listOf(top, bottom)))
+        val bgMod = AppTheme.colors.bgGradient?.let { colors ->
+            Modifier.background(Brush.verticalGradient(colors))
         } ?: Modifier.background(AppTheme.colors.bg)
         Box(modifier = Modifier.fillMaxSize().then(bgMod).padding(inner)) {
             when {
@@ -368,7 +368,8 @@ private fun TimerListScreen(
     renamingId?.let { id ->
         AlertDialog(
             onDismissRequest = { renamingId = null },
-            title = { Text(t.rename) },
+            containerColor = AppTheme.colors.surface,
+            title = { Text(t.rename, color = AppTheme.colors.textPrimary) },
             text = {
                 OutlinedTextField(
                     value = renameText,
@@ -389,12 +390,12 @@ private fun TimerListScreen(
             },
             confirmButton = {
                 TextButton(onClick = { vm.renameTimer(id, renameText); renamingId = null }) {
-                    Text(t.ok)
+                    Text(t.ok, color = accent)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { renamingId = null }) {
-                    Text(t.cancel)
+                    Text(t.cancel, color = AppTheme.colors.textDim)
                 }
             },
         )
