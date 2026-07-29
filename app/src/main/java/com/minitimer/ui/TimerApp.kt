@@ -511,12 +511,12 @@ private fun TimerCard(
     val timeColor = when {
         done -> DONE_RED
         running -> accent
-        else -> AppTheme.colors.textPrimary
+        else -> accent
     }
     val borderColor = when {
         running -> accent
         done -> DONE_RED
-        else -> Color.Transparent
+        else -> AppTheme.colors.cardBorder ?: Color.Transparent
     }
     val progress = if (item.totalMs > 0) {
         ((item.totalMs - item.remainingMs).toFloat() / item.totalMs).coerceIn(0f, 1f)
