@@ -257,9 +257,10 @@ fun TimerApp(vm: TimerViewModel) {
             if (!vm.showSettings && detail == null) {
                 FloatingActionButton(
                     onClick = { vm.prepareNewTimer(); showSheet = true },
-                    containerColor = accent,
-                    contentColor = AppTheme.colors.onAccent,
+                    containerColor = Color.Transparent,
+                    contentColor = AppTheme.colors.subtleTint ?: accent,
                     shape = RoundedCornerShape(20.dp),
+                    modifier = Modifier.border(1.dp, AppTheme.colors.subtleTint ?: accent, RoundedCornerShape(20.dp)),
                 ) {
                     Icon(Icons.Filled.Add, contentDescription = t.newTimer)
                 }
@@ -636,8 +637,8 @@ private fun TimerCard(
                             else Icon(Icons.Filled.PlayArrow, contentDescription = t.resume, tint = AppTheme.colors.onAccent)
                         }
                     }
-                    else -> RoundCtrl(bg = accent, dim = blocked, onClick = onToggle) {
-                        Icon(Icons.Filled.PlayArrow, contentDescription = t.start, tint = AppTheme.colors.onAccent)
+                    else -> RoundCtrl(bg = AppTheme.colors.surface, dim = blocked, border = AppTheme.colors.subtleTint, onClick = onToggle) {
+                        Icon(Icons.Filled.PlayArrow, contentDescription = t.start, tint = AppTheme.colors.subtleTint ?: accent, modifier = Modifier.size(28.dp))
                     }
                 }
             }
@@ -667,6 +668,7 @@ private fun TimerCard(
 private fun RoundCtrl(
     bg: Color,
     dim: Boolean = false,
+    border: Color? = null,
     onClick: () -> Unit,
     content: @Composable () -> Unit,
 ) {
@@ -675,6 +677,10 @@ private fun RoundCtrl(
             .size(50.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(bg.copy(alpha = if (dim) 0.4f else 1f))
+            .then(
+                if (border != null) Modifier.border(1.dp, border, RoundedCornerShape(16.dp))
+                else Modifier
+            )
             .clickable { onClick() },
         contentAlignment = Alignment.Center,
     ) { content() }
