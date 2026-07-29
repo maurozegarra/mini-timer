@@ -47,7 +47,7 @@ fun TimesWordmark(
     accent: Color,
     modifier: Modifier = Modifier,
     height: Dp = 20.dp,
-    restColor: Color = AppTheme.colors.textPrimary,
+    restColor: Color = Color.White,
 ) {
     val rest = remember { PathParser().parsePathString(REST_D).toPath() }
     val m = remember { PathParser().parsePathString(M_D).toPath() }

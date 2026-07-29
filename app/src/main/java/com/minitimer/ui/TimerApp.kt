@@ -219,7 +219,7 @@ fun TimerApp(vm: TimerViewModel) {
                     } else {
                         // Engrane (outline) que abre la configuración.
                         IconButton(onClick = { vm.openSettings() }) {
-                            Icon(painterResource(R.drawable.ic_settings), contentDescription = "Settings", tint = AppTheme.colors.textDim)
+                            Icon(painterResource(R.drawable.ic_settings), contentDescription = "Settings", tint = AppTheme.colors.subtleTint ?: AppTheme.colors.textDim)
                         }
                     }
                 },
