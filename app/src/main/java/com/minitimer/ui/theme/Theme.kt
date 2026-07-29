@@ -38,6 +38,10 @@ data class AppColors(
     val bgGradient: List<Color>? = null,
     /** Gradiente del acento (start, end); null = usar accent sólido. */
     val accentGradient: Pair<Color, Color>? = null,
+    /** Tinte sutil para iconos secundarios y wordmark; null = usar textDim/textPrimary. */
+    val subtleTint: Color? = null,
+    /** Color de borde fino para cards idle; null = sin borde. */
+    val cardBorder: Color? = null,
 )
 
 /** ARGB del acento rosa que activa el tema especial "Barbie". */
@@ -101,6 +105,8 @@ private val WatchColors = AppColors(
         Color(0xFF0A0403),  // bottom
     ),
     accentGradient = null,
+    subtleTint = Color(0xFFC18784),
+    cardBorder = Color(0xFFC18784),
 )
 
 /**
